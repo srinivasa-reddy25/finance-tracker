@@ -18,8 +18,6 @@ import error_handler from './middlewares/error-handler.ts'
 import { request_id_handler } from './middlewares/request-id.ts'
 import { success_handler } from './middlewares/success-handler.ts'
 import { auth_router } from './routes/auth.ts'
-import { note_router } from './routes/note.ts'
-import { slug_router } from './routes/slug.ts'
 import CustomError from './utils/CustomError.ts'
 
 const app = express()
@@ -47,7 +45,7 @@ app.use(success_handler)
 app.get('/api/v1', (_req: Request, res: Response) => {
   const mem = process.memoryUsage()
   res.json({
-    message: 'tejadev api is running',
+    message: 'finance-tracker api is running',
     data: {
       status: 'ok',
       environment: env.node_env,
@@ -63,8 +61,6 @@ app.get('/api/v1', (_req: Request, res: Response) => {
 })
 
 app.use('/api/v1/auth', auth_router)
-app.use('/api/v1/note', note_router)
-app.use('/api/v1/slug', slug_router)
 
 app.all('*', (req: Request, _res: Response, next: NextFunction) => {
   next(new CustomError(`Route '${req.originalUrl}' not found`, 404))
