@@ -1,0 +1,33 @@
+{
+  "expo": {
+    "name": "Finance Tracker",
+    "slug": "finance-tracker",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "scheme": "financetracker",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": true,
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "com.srinivas.financetracker"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "backgroundColor": "#E6F4FE"
+      },
+      "package": "com.srinivas.financetracker",
+      "predictiveBackGestureEnabled": false
+    },
+    "web": {
+      "bundler": "metro",
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": ["expo-router", "expo-font"],
+    "experiments": {
+      "typedRoutes": true
+    }
+  }
+}
