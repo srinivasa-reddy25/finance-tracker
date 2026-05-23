@@ -11,17 +11,30 @@ export const CATEGORIES = [
 
 export type TCategory = (typeof CATEGORIES)[number];
 
-export const CATEGORY_META: Record<TCategory, { icon: string; color: string }> =
-  {
-    food: { icon: '🍔', color: '#F97316' },
-    transport: { icon: '🚗', color: '#3B82F6' },
-    entertainment: { icon: '🎬', color: '#A855F7' },
-    health: { icon: '💊', color: '#EF4444' },
-    shopping: { icon: '🛍️', color: '#EC4899' },
-    bills: { icon: '💡', color: '#EAB308' },
-    salary: { icon: '💰', color: '#16A34A' },
-    others: { icon: '📦', color: '#6B7280' },
-  };
+export const CATEGORY_META: Record<
+  TCategory,
+  { icon: string; color: string; bg: string }
+> = {
+  food: { icon: 'food-fork-drink', color: '#F97316', bg: '#FFF7ED' },
+  transport: { icon: 'car-outline', color: '#3B82F6', bg: '#EFF6FF' },
+  entertainment: { icon: 'television-play', color: '#A855F7', bg: '#FAF5FF' },
+  health: { icon: 'heart-pulse', color: '#EF4444', bg: '#FEF2F2' },
+  shopping: { icon: 'shopping-outline', color: '#EC4899', bg: '#FDF2F8' },
+  bills: { icon: 'receipt', color: '#EAB308', bg: '#FEFCE8' },
+  salary: { icon: 'cash-multiple', color: '#059669', bg: '#ECFDF5' },
+  others: { icon: 'shape-outline', color: '#6B7280', bg: '#F9FAFB' },
+};
+
+export const INCOME_CATEGORIES: TCategory[] = ['salary'];
+export const EXPENSE_CATEGORIES: TCategory[] = [
+  'food',
+  'transport',
+  'entertainment',
+  'health',
+  'shopping',
+  'bills',
+  'others',
+];
 
 export const TRANSACTION_SOURCES = ['manual', 'voice', 'image'] as const;
 export type TTransactionSource = (typeof TRANSACTION_SOURCES)[number];

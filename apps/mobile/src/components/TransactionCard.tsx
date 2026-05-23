@@ -1,14 +1,21 @@
 import React from 'react';
-import { View, Text, TouchableOpacity } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { CATEGORY_META } from '../constants/categories';
+import { colors, radius, spacing } from '../theme';
 import type { TTransaction } from '../types/transaction';
 
 type Props = {
   transaction: TTransaction;
   onDelete?: (id: string) => void;
+  isLast?: boolean;
 };
 
-export default function TransactionCard({ transaction, onDelete }: Props) {
+export default function TransactionCard({
+  transaction,
+  onDelete,
+  isLast,
+}: Props) {
   const meta = CATEGORY_META[transaction.category];
   const isIncome = transaction.category === 'salary';
   const date = new Date(transaction.date).toLocaleDateString('en-IN', {
@@ -17,39 +24,76 @@ export default function TransactionCard({ transaction, onDelete }: Props) {
   });
 
   return (
-    <View className="flex-row items-center bg-white px-4 py-3 border-b border-border">
-      <View
-        className="w-10 h-10 rounded-full items-center justify-center mr-3"
-        style={{ backgroundColor: meta.color + '20' }}
-      >
-        <Text className="text-lg">{meta.icon}</Text>
+    <View style={[styles.row, !isLast && styles.rowBorder]}>
+      <View style={[styles.iconWrap, { backgroundColor: meta.bg }]}>
+        <Icon name={meta.icon} size={20} color={meta.color} />
       </View>
 
-      <View className="flex-1">
-        <Text className="text-gray-900 font-medium text-sm" numberOfLines={1}>
+      <View style={styles.info}>
+        <Text style={styles.desc} numberOfLines={1}>
           {transaction.description}
         </Text>
-        <Text className="text-gray-400 text-xs mt-0.5">
+        <Text style={styles.meta}>
           {transaction.category} · {date}
         </Text>
       </View>
 
-      <View className="items-end">
+      <View style={styles.right}>
         <Text
-          className="font-semibold text-sm"
-          style={{ color: isIncome ? '#16A34A' : '#DC2626' }}
+          style={[
+            styles.amount,
+            { color: isIncome ? colors.income : colors.expense },
+          ]}
         >
           {isIncome ? '+' : '-'}₹{transaction.amount.toLocaleString('en-IN')}
         </Text>
         {onDelete && (
           <TouchableOpacity
             onPress={() => onDelete(transaction._id)}
-            className="mt-1"
+            style={styles.deleteBtn}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
           >
-            <Text className="text-gray-300 text-xs">delete</Text>
+            <Icon name="trash-can-outline" size={15} color={colors.textLight} />
           </TouchableOpacity>
         )}
       </View>
     </View>
   );
 }
+
+const styles = StyleSheet.create({
+  row: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.surface,
+    paddingHorizontal: spacing.base,
+    paddingVertical: 12,
+  },
+  rowBorder: {
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  iconWrap: {
+    width: 40,
+    height: 40,
+    borderRadius: radius.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: spacing.md,
+  },
+  info: { flex: 1 },
+  desc: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: colors.text,
+    marginBottom: 2,
+  },
+  meta: {
+    fontSize: 12,
+    color: colors.textSub,
+    textTransform: 'capitalize',
+  },
+  right: { alignItems: 'flex-end' },
+  amount: { fontSize: 15, fontWeight: '700' },
+  deleteBtn: { marginTop: 6 },
+});

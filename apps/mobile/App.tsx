@@ -1,6 +1,7 @@
 import React, { useEffect } from 'react';
 import { StatusBar } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { getAuth, onAuthStateChanged } from '@react-native-firebase/auth';
 import { useAuthStore } from './src/stores/authStore';
 import { useTransactionStore } from './src/stores/transactionStore';
@@ -23,9 +24,11 @@ export default function App() {
   }, []);
 
   return (
-    <SafeAreaProvider>
-      <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
-      <Navigation />
-    </SafeAreaProvider>
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <SafeAreaProvider>
+        <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
+        <Navigation />
+      </SafeAreaProvider>
+    </GestureHandlerRootView>
   );
 }

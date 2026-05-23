@@ -12,6 +12,10 @@ export const get_all_transactions = async (req: Request, res: Response) => {
 
   if (query.category) filter.category = query.category
 
+  if (query.search) {
+    filter.description = { $regex: query.search, $options: 'i' }
+  }
+
   if (query.month) {
     const parts = query.month.split('-').map(Number)
     const year = parts[0] as number
@@ -55,5 +59,6 @@ const query_schema = z.object({
   month: z
     .string()
     .regex(/^\d{4}-\d{2}$/, 'month must be in YYYY-MM format')
-    .optional()
+    .optional(),
+  search: z.string().min(1).optional()
 })

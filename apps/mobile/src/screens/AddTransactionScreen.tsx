@@ -9,22 +9,37 @@ import {
   Alert,
   KeyboardAvoidingView,
   Platform,
+  StyleSheet,
+  StatusBar,
 } from 'react-native';
+import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useTransactionStore } from '../stores/transactionStore';
 import {
-  CATEGORIES,
+  INCOME_CATEGORIES,
+  EXPENSE_CATEGORIES,
   CATEGORY_META,
   type TCategory,
 } from '../constants/categories';
+import { colors, spacing, radius, shadow } from '../theme';
+
+type TType = 'expense' | 'income';
 
 export default function AddTransactionScreen() {
   const { add } = useTransactionStore();
 
+  const [type, setType] = useState<TType>('expense');
   const [amount, setAmount] = useState('');
   const [description, setDescription] = useState('');
-  const [category, setCategory] = useState<TCategory>('others');
-  const [note, setNote] = useState('');
+  const [category, setCategory] = useState<TCategory>('food');
   const [loading, setLoading] = useState(false);
+
+  const categories = type === 'income' ? INCOME_CATEGORIES : EXPENSE_CATEGORIES;
+  const typeColor = type === 'income' ? colors.income : colors.expense;
+
+  const handleTypeChange = (t: TType) => {
+    setType(t);
+    setCategory(t === 'income' ? 'salary' : 'food');
+  };
 
   const handleSubmit = async () => {
     const parsedAmount = parseFloat(amount);
@@ -43,16 +58,13 @@ export default function AddTransactionScreen() {
         amount: parsedAmount,
         description: description.trim(),
         category,
-        note: note.trim() || undefined,
         source: 'manual',
       });
       setAmount('');
       setDescription('');
-      setCategory('others');
-      setNote('');
-      Alert.alert('Done', 'Transaction added');
+      setCategory(type === 'income' ? 'salary' : 'food');
     } catch {
-      Alert.alert('Error', 'Failed to add transaction');
+      Alert.alert('Error', 'Failed to add transaction. Try again.');
     } finally {
       setLoading(false);
     }
@@ -60,75 +72,134 @@ export default function AddTransactionScreen() {
 
   return (
     <KeyboardAvoidingView
-      className="flex-1"
+      style={styles.root}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
+      <StatusBar barStyle="dark-content" backgroundColor={colors.surface} />
+
       <ScrollView
-        className="flex-1 bg-surface"
+        style={styles.scroll}
         keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
       >
-        <View className="bg-white px-5 pt-14 pb-5">
-          <Text className="text-gray-900 font-bold text-xl">
-            Add Transaction
-          </Text>
+        {/* Header */}
+        <View style={styles.header}>
+          <Text style={styles.title}>Add Transaction</Text>
         </View>
 
-        <View className="bg-white mt-3 px-5 py-5 gap-5">
+        <View style={styles.body}>
+          {/* Type toggle */}
+          <View style={styles.typeToggle}>
+            {(['expense', 'income'] as TType[]).map(t => (
+              <TouchableOpacity
+                key={t}
+                onPress={() => handleTypeChange(t)}
+                style={[
+                  styles.typeBtn,
+                  type === t && {
+                    backgroundColor:
+                      t === 'income' ? colors.income : colors.expense,
+                  },
+                ]}
+                activeOpacity={0.8}
+              >
+                <Icon
+                  name={
+                    t === 'income'
+                      ? 'arrow-down-circle-outline'
+                      : 'arrow-up-circle-outline'
+                  }
+                  size={16}
+                  color={
+                    type === t
+                      ? '#FFFFFF'
+                      : t === 'income'
+                        ? colors.income
+                        : colors.expense
+                  }
+                />
+                <Text
+                  style={[
+                    styles.typeBtnText,
+                    { color: type === t ? '#FFFFFF' : colors.textSub },
+                  ]}
+                >
+                  {t.charAt(0).toUpperCase() + t.slice(1)}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+
           {/* Amount */}
-          <View>
-            <Text className="text-gray-500 text-xs font-medium mb-2">
-              AMOUNT (₹)
-            </Text>
+          <View style={styles.amountSection}>
+            <Text style={[styles.amountCurrency, { color: typeColor }]}>₹</Text>
             <TextInput
               value={amount}
               onChangeText={setAmount}
               keyboardType="numeric"
               placeholder="0"
-              placeholderTextColor="#9CA3AF"
-              className="text-gray-900 text-3xl font-bold border-b border-border pb-2"
+              placeholderTextColor={colors.border}
+              style={[styles.amountInput, { color: typeColor }]}
+              autoFocus
             />
           </View>
 
           {/* Description */}
-          <View>
-            <Text className="text-gray-500 text-xs font-medium mb-2">
-              DESCRIPTION
-            </Text>
+          <View style={styles.field}>
+            <Text style={styles.fieldLabel}>Description</Text>
             <TextInput
               value={description}
               onChangeText={setDescription}
               placeholder="What was this for?"
-              placeholderTextColor="#9CA3AF"
-              className="text-gray-900 text-sm border border-border rounded-xl px-4 py-3"
+              placeholderTextColor={colors.textLight}
+              style={styles.input}
+              returnKeyType="done"
             />
           </View>
 
-          {/* Category picker */}
-          <View>
-            <Text className="text-gray-500 text-xs font-medium mb-2">
-              CATEGORY
-            </Text>
-            <View className="flex-row flex-wrap gap-2">
-              {CATEGORIES.map(cat => {
+          {/* Category */}
+          <View style={styles.field}>
+            <Text style={styles.fieldLabel}>Category</Text>
+            <View style={styles.categoryGrid}>
+              {categories.map(cat => {
                 const meta = CATEGORY_META[cat];
                 const selected = category === cat;
                 return (
                   <TouchableOpacity
                     key={cat}
                     onPress={() => setCategory(cat)}
-                    className={`flex-row items-center gap-1.5 px-3 py-2 rounded-xl border ${
-                      selected
-                        ? 'border-primary bg-primary'
-                        : 'border-border bg-surface'
-                    }`}
+                    style={[
+                      styles.categoryBtn,
+                      selected && {
+                        backgroundColor: meta.bg,
+                        borderColor: meta.color,
+                      },
+                    ]}
+                    activeOpacity={0.75}
                   >
-                    <Text>{meta.icon}</Text>
-                    <Text
-                      className={`text-xs font-medium capitalize ${
-                        selected ? 'text-white' : 'text-gray-600'
-                      }`}
+                    <View
+                      style={[
+                        styles.catIconWrap,
+                        {
+                          backgroundColor: selected
+                            ? meta.color
+                            : colors.inputBg,
+                        },
+                      ]}
                     >
-                      {cat}
+                      <Icon
+                        name={meta.icon}
+                        size={16}
+                        color={selected ? '#FFFFFF' : meta.color}
+                      />
+                    </View>
+                    <Text
+                      style={[
+                        styles.catLabel,
+                        { color: selected ? meta.color : colors.textSub },
+                      ]}
+                    >
+                      {cat.charAt(0).toUpperCase() + cat.slice(1)}
                     </Text>
                   </TouchableOpacity>
                 );
@@ -136,35 +207,26 @@ export default function AddTransactionScreen() {
             </View>
           </View>
 
-          {/* Note (optional) */}
-          <View>
-            <Text className="text-gray-500 text-xs font-medium mb-2">
-              NOTE (OPTIONAL)
-            </Text>
-            <TextInput
-              value={note}
-              onChangeText={setNote}
-              placeholder="Any extra details..."
-              placeholderTextColor="#9CA3AF"
-              multiline
-              numberOfLines={3}
-              textAlignVertical="top"
-              className="text-gray-900 text-sm border border-border rounded-xl px-4 py-3"
-            />
-          </View>
-
           {/* Submit */}
           <TouchableOpacity
             onPress={handleSubmit}
             disabled={loading}
-            className="bg-primary py-4 rounded-2xl items-center mt-2"
+            style={[
+              styles.submitBtn,
+              { backgroundColor: typeColor },
+              shadow.card,
+            ]}
+            activeOpacity={0.85}
           >
             {loading ? (
-              <ActivityIndicator color="#fff" />
+              <ActivityIndicator color="#FFFFFF" />
             ) : (
-              <Text className="text-white font-semibold text-base">
-                Add Transaction
-              </Text>
+              <>
+                <Icon name="check" size={18} color="#FFFFFF" />
+                <Text style={styles.submitText}>
+                  Add {type === 'income' ? 'Income' : 'Expense'}
+                </Text>
+              </>
             )}
           </TouchableOpacity>
         </View>
@@ -172,3 +234,150 @@ export default function AddTransactionScreen() {
     </KeyboardAvoidingView>
   );
 }
+
+const styles = StyleSheet.create({
+  root: {
+    flex: 1,
+    backgroundColor: colors.bg,
+  },
+  scroll: {
+    flex: 1,
+  },
+  header: {
+    backgroundColor: colors.surface,
+    paddingHorizontal: spacing.lg,
+    paddingTop: 56,
+    paddingBottom: spacing.base,
+  },
+  title: {
+    fontSize: 26,
+    fontWeight: '800',
+    color: colors.text,
+    letterSpacing: -0.5,
+  },
+  body: {
+    padding: spacing.base,
+    gap: spacing.base,
+  },
+  typeToggle: {
+    flexDirection: 'row',
+    backgroundColor: colors.surface,
+    borderRadius: radius.xl,
+    padding: 4,
+    gap: 4,
+    ...{
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 1 },
+      shadowOpacity: 0.06,
+      shadowRadius: 4,
+      elevation: 2,
+    },
+  },
+  typeBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 10,
+    borderRadius: radius.lg,
+  },
+  typeBtnText: {
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  amountSection: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.surface,
+    borderRadius: radius.xl,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
+    gap: 8,
+    ...{
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 1 },
+      shadowOpacity: 0.06,
+      shadowRadius: 4,
+      elevation: 2,
+    },
+  },
+  amountCurrency: {
+    fontSize: 36,
+    fontWeight: '700',
+  },
+  amountInput: {
+    flex: 1,
+    fontSize: 44,
+    fontWeight: '800',
+    letterSpacing: -1,
+    padding: 0,
+  },
+  field: {
+    gap: spacing.sm,
+  },
+  fieldLabel: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: colors.textSub,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    paddingLeft: 4,
+  },
+  input: {
+    backgroundColor: colors.surface,
+    borderRadius: radius.lg,
+    paddingHorizontal: spacing.base,
+    paddingVertical: 14,
+    fontSize: 15,
+    color: colors.text,
+    ...{
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 1 },
+      shadowOpacity: 0.06,
+      shadowRadius: 4,
+      elevation: 2,
+    },
+  },
+  categoryGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.sm,
+  },
+  categoryBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: radius.lg,
+    borderWidth: 1.5,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+  },
+  catIconWrap: {
+    width: 26,
+    height: 26,
+    borderRadius: radius.sm,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  catLabel: {
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  submitBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.sm,
+    borderRadius: radius.xl,
+    paddingVertical: 16,
+    marginTop: spacing.sm,
+  },
+  submitText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '700',
+  },
+});

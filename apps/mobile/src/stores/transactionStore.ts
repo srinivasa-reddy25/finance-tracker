@@ -15,6 +15,7 @@ type TTransactionStore = {
     limit?: number;
     category?: string;
     month?: string;
+    search?: string;
   }) => Promise<void>;
   add: (data: TCreateTransaction) => Promise<void>;
   remove: (id: string) => Promise<void>;
@@ -34,6 +35,8 @@ export const useTransactionStore = create<TTransactionStore>((set, get) => ({
         transactions: res.data.data.transactions,
         pagination: res.data.data.pagination,
       });
+    } catch {
+      // network unavailable — keep existing data, don't crash
     } finally {
       set({ loading: false });
     }

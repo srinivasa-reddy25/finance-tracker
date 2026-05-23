@@ -1,20 +1,18 @@
 import React from 'react';
+import { View, StyleSheet } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { Text } from 'react-native';
+import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 
 import { useAuthStore } from '../stores/authStore';
 import LoginScreen from '../screens/LoginScreen';
 import DashboardScreen from '../screens/DashboardScreen';
 import HistoryScreen from '../screens/HistoryScreen';
 import AddTransactionScreen from '../screens/AddTransactionScreen';
+import { colors, radius, spacing } from '../theme';
 
-export type RootStackParams = {
-  Login: undefined;
-  Main: undefined;
-};
-
+export type RootStackParams = { Login: undefined; Main: undefined };
 export type BottomTabParams = {
   Dashboard: undefined;
   History: undefined;
@@ -24,57 +22,64 @@ export type BottomTabParams = {
 const Stack = createNativeStackNavigator<RootStackParams>();
 const Tab = createBottomTabNavigator<BottomTabParams>();
 
-function TabIcon({ label, focused }: { label: string; focused: boolean }) {
-  const icons: Record<string, string> = {
-    Dashboard: '🏠',
-    History: '📋',
-    Add: '➕',
-  };
+const TAB_ICONS: Record<string, { active: string; inactive: string }> = {
+  Dashboard: { active: 'view-dashboard', inactive: 'view-dashboard-outline' },
+  History: { active: 'clock', inactive: 'clock-outline' },
+  Add: { active: 'plus-circle', inactive: 'plus-circle-outline' },
+};
+
+function AddTabIcon({ focused }: { focused: boolean }) {
   return (
-    <Text style={{ fontSize: focused ? 22 : 20, opacity: focused ? 1 : 0.5 }}>
-      {icons[label]}
-    </Text>
+    <View style={[styles.addIcon, focused && styles.addIconActive]}>
+      <Icon
+        name="plus"
+        size={22}
+        color={focused ? '#FFFFFF' : colors.textSub}
+      />
+    </View>
   );
 }
 
 function MainTabs() {
   return (
-    <Tab.Navigator
-      screenOptions={({ route }) => ({
-        headerShown: false,
-        tabBarIcon: ({ focused }) => (
-          <TabIcon label={route.name} focused={focused} />
-        ),
-        tabBarLabel: route.name,
-        tabBarActiveTintColor: '#2563EB',
-        tabBarInactiveTintColor: '#9CA3AF',
-        tabBarStyle: {
-          borderTopColor: '#E2E8F0',
-          backgroundColor: '#FFFFFF',
-          elevation: 0,
-          shadowOpacity: 0,
-          height: 60,
-          paddingBottom: 8,
-        },
-        tabBarLabelStyle: {
-          fontSize: 11,
-          fontWeight: '500',
-        },
-      })}
-    >
-      <Tab.Screen name="Dashboard" component={DashboardScreen} />
-      <Tab.Screen name="History" component={HistoryScreen} />
-      <Tab.Screen name="Add" component={AddTransactionScreen} />
-    </Tab.Navigator>
+    <View style={{ flex: 1, backgroundColor: colors.surface }}>
+      <Tab.Navigator
+        sceneContainerStyle={{ backgroundColor: colors.surface }}
+        screenOptions={({ route }) => ({
+          headerShown: false,
+          tabBarIcon: ({ focused, color, size }) => {
+            if (route.name === 'Add') {
+              return <AddTabIcon focused={focused} />;
+            }
+            const icons = TAB_ICONS[route.name];
+            return (
+              <Icon
+                name={focused ? icons.active : icons.inactive}
+                size={size}
+                color={color}
+              />
+            );
+          },
+          tabBarActiveTintColor: colors.primary,
+          tabBarInactiveTintColor: colors.textLight,
+          tabBarShowLabel: true,
+          tabBarLabelStyle: styles.tabLabel,
+          tabBarStyle: styles.tabBar,
+          tabBarItemStyle: styles.tabItem,
+        })}
+      >
+        <Tab.Screen name="Dashboard" component={DashboardScreen} />
+        <Tab.Screen name="History" component={HistoryScreen} />
+        <Tab.Screen name="Add" component={AddTransactionScreen} />
+      </Tab.Navigator>
+    </View>
   );
 }
 
 export default function Navigation() {
   const { user, loading } = useAuthStore();
 
-  if (loading) {
-    return null;
-  }
+  if (loading) return null;
 
   return (
     <NavigationContainer>
@@ -90,3 +95,39 @@ export default function Navigation() {
     </NavigationContainer>
   );
 }
+
+const styles = StyleSheet.create({
+  tabBar: {
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radius.lg,
+    marginHorizontal: spacing.base,
+    marginBottom: spacing.base,
+    height: 64,
+    paddingBottom: 8,
+    paddingTop: 8,
+    elevation: 0,
+    shadowOpacity: 0,
+  },
+  tabItem: {
+    paddingTop: 0,
+  },
+  tabLabel: {
+    fontSize: 11,
+    fontWeight: '600',
+    marginTop: 2,
+  },
+  addIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: radius.full,
+    backgroundColor: colors.inputBg,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 4,
+  },
+  addIconActive: {
+    backgroundColor: colors.primary,
+  },
+});
