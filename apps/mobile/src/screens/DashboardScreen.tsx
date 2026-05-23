@@ -1,25 +1,41 @@
-import React, { useEffect, useMemo } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
-  View,
-  Text,
-  ScrollView,
   ActivityIndicator,
-  TouchableOpacity,
-  StyleSheet,
-  StatusBar,
+  Alert,
+  KeyboardAvoidingView,
+  Modal,
+  Platform,
   RefreshControl,
+  ScrollView,
+  StatusBar,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
-import { useTransactionStore } from '../stores/transactionStore';
-import { useAuthStore } from '../stores/authStore';
+import {
+  CATEGORY_META,
+  EXPENSE_CATEGORIES,
+  type TCategory,
+} from '../constants/categories';
 import { signOut } from '../services/firebase';
-import TransactionCard from '../components/TransactionCard';
-import { colors, spacing, radius, shadow } from '../theme';
+import { useAuthStore } from '../stores/authStore';
+import { useTransactionStore } from '../stores/transactionStore';
+import { colors, radius, shadow, spacing } from '../theme';
 
 export default function DashboardScreen() {
-  const { transactions, loading, fetch, remove } = useTransactionStore();
+  const { transactions, loading, fetch, add, remove } = useTransactionStore();
   const { user } = useAuthStore();
-  const [refreshing, setRefreshing] = React.useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+
+  // Add modal state
+  const [modalOpen, setModalOpen] = useState(false);
+  const [amount, setAmount] = useState('');
+  const [description, setDescription] = useState('');
+  const [category, setCategory] = useState<TCategory>('food');
+  const [adding, setAdding] = useState(false);
 
   const currentMonth = new Date().toISOString().slice(0, 7);
 
@@ -50,6 +66,39 @@ export default function DashboardScreen() {
     }
   };
 
+  const openModal = () => {
+    setAmount('');
+    setDescription('');
+    setCategory('food');
+    setModalOpen(true);
+  };
+
+  const handleAdd = async () => {
+    const parsed = parseFloat(amount);
+    if (!amount || isNaN(parsed) || parsed <= 0) {
+      Alert.alert('Invalid amount', 'Enter a valid amount greater than 0');
+      return;
+    }
+    if (!description.trim()) {
+      Alert.alert('Missing description', 'Please add a description');
+      return;
+    }
+    setAdding(true);
+    try {
+      await add({
+        amount: parsed,
+        description: description.trim(),
+        category,
+        source: 'manual',
+      });
+      setModalOpen(false);
+    } catch {
+      Alert.alert('Error', 'Failed to add transaction. Try again.');
+    } finally {
+      setAdding(false);
+    }
+  };
+
   const monthLabel = new Date().toLocaleDateString('en-IN', {
     month: 'long',
     year: 'numeric',
@@ -58,8 +107,7 @@ export default function DashboardScreen() {
   const hour = new Date().getHours();
   const greeting =
     hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
-
-  const recent = transactions.slice(0, 5);
+  const recent = transactions.slice(0, 3);
 
   return (
     <View style={styles.container}>
@@ -88,49 +136,22 @@ export default function DashboardScreen() {
           </TouchableOpacity>
         </View>
 
-        {/* Spending card */}
-        <View style={[styles.card, shadow.strong]}>
-          <Text style={styles.cardLabel}>{monthLabel}</Text>
-          <Text style={styles.cardAmount}>
+        {/* Spending hero — no card, just text on page */}
+        <View style={styles.hero}>
+          <Text style={styles.heroLabel}>Total Spent</Text>
+          <Text style={styles.heroAmount}>
             ₹{totalSpent.toLocaleString('en-IN')}
           </Text>
-          <Text style={styles.cardSub}>total spent</Text>
-
-          {totalIncome > 0 && (
-            <View style={styles.cardDivider}>
-              <View style={styles.cardStat}>
-                <Icon
-                  name="arrow-down-circle-outline"
-                  size={14}
-                  color="rgba(255,255,255,0.7)"
-                />
-                <Text style={styles.cardStatLabel}>Income</Text>
-                <Text style={styles.cardStatValue}>
-                  ₹{totalIncome.toLocaleString('en-IN')}
-                </Text>
-              </View>
-              <View style={styles.cardStat}>
-                <Icon
-                  name="arrow-up-circle-outline"
-                  size={14}
-                  color="rgba(255,255,255,0.7)"
-                />
-                <Text style={styles.cardStatLabel}>Saved</Text>
-                <Text style={styles.cardStatValue}>
-                  ₹
-                  {Math.max(0, totalIncome - totalSpent).toLocaleString(
-                    'en-IN',
-                  )}
-                </Text>
-              </View>
-            </View>
-          )}
+          <View style={styles.heroStats}>
+            <Text style={styles.heroStat}>{count} transactions</Text>
+            <View style={styles.heroDot} />
+            <Text style={styles.heroStat}>{monthLabel}</Text>
+          </View>
         </View>
 
         {/* Section header */}
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>Recent transactions</Text>
-          <Text style={styles.sectionCount}>{count} this month</Text>
         </View>
 
         {/* Transaction list */}
@@ -146,28 +167,183 @@ export default function DashboardScreen() {
               />
             </View>
             <Text style={styles.emptyTitle}>No transactions yet</Text>
-            <Text style={styles.emptySub}>Tap Add to record one</Text>
+            <Text style={styles.emptySub}>Tap + to record one</Text>
           </View>
         ) : (
-          <View style={styles.listCard}>
-            {recent.map((item, index) => (
-              <TransactionCard
-                key={item._id}
-                transaction={item}
-                onDelete={remove}
-                isLast={index === recent.length - 1}
-              />
-            ))}
+          <View style={styles.recentRow}>
+            {recent.map(item => {
+              const meta = CATEGORY_META[item.category];
+              const isIncome = item.category === 'salary';
+              const amountColor = isIncome ? colors.income : colors.expense;
+              const date = new Date(item.date).toLocaleDateString('en-IN', {
+                day: 'numeric',
+                month: 'short',
+              });
+              return (
+                <View key={item._id} style={styles.recentCard}>
+                  <View style={styles.recentTop}>
+                    <View
+                      style={[
+                        styles.recentIconWrap,
+                        { backgroundColor: meta.bg },
+                      ]}
+                    >
+                      <Icon name={meta.icon} size={16} color={meta.color} />
+                    </View>
+                    <Text
+                      style={[styles.recentAmount, { color: amountColor }]}
+                      numberOfLines={1}
+                      adjustsFontSizeToFit
+                      minimumFontScale={0.6}
+                    >
+                      {isIncome ? '+' : '-'}₹
+                      {item.amount.toLocaleString('en-IN')}
+                    </Text>
+                  </View>
+                  <View style={styles.recentFooter}>
+                    <Text style={styles.recentDesc} numberOfLines={1}>
+                      {item.description}
+                    </Text>
+                    <Text style={styles.recentDate}>{date}</Text>
+                  </View>
+                </View>
+              );
+            })}
           </View>
         )}
       </ScrollView>
+
+      {/* FAB */}
+      <TouchableOpacity
+        style={[styles.fab, shadow.strong]}
+        onPress={openModal}
+        activeOpacity={0.85}
+      >
+        <Icon name="plus" size={26} color="#FFFFFF" />
+      </TouchableOpacity>
+
+      {/* Add Transaction Modal */}
+      <Modal
+        visible={modalOpen}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setModalOpen(false)}
+      >
+        <KeyboardAvoidingView
+          style={styles.modalOverlay}
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        >
+          <TouchableOpacity
+            style={StyleSheet.absoluteFillObject}
+            activeOpacity={1}
+            onPress={() => setModalOpen(false)}
+          />
+          <View style={styles.dialog}>
+            {/* Dialog header */}
+            <View style={styles.dialogHeader}>
+              <Text style={styles.dialogTitle}>Add Expense</Text>
+              <TouchableOpacity onPress={() => setModalOpen(false)}>
+                <Icon name="close" size={20} color={colors.textSub} />
+              </TouchableOpacity>
+            </View>
+
+            {/* Amount */}
+            <View style={styles.amountRow}>
+              <Text style={styles.amountCurrency}>₹</Text>
+              <TextInput
+                value={amount}
+                onChangeText={setAmount}
+                keyboardType="numeric"
+                placeholder="0"
+                placeholderTextColor={colors.border}
+                style={styles.amountInput}
+                autoFocus
+              />
+            </View>
+
+            {/* Description */}
+            <TextInput
+              value={description}
+              onChangeText={setDescription}
+              placeholder="Description"
+              placeholderTextColor={colors.textLight}
+              style={styles.descInput}
+              returnKeyType="done"
+            />
+
+            {/* Categories */}
+            <View style={styles.categoryGrid}>
+              {EXPENSE_CATEGORIES.map(cat => {
+                const meta = CATEGORY_META[cat];
+                const selected = category === cat;
+                return (
+                  <TouchableOpacity
+                    key={cat}
+                    onPress={() => setCategory(cat)}
+                    style={[
+                      styles.catChip,
+                      selected && {
+                        backgroundColor: meta.bg,
+                        borderColor: meta.color,
+                      },
+                    ]}
+                    activeOpacity={0.75}
+                  >
+                    <View
+                      style={[
+                        styles.catIconWrap,
+                        {
+                          backgroundColor: selected
+                            ? meta.color
+                            : colors.inputBg,
+                        },
+                      ]}
+                    >
+                      <Icon
+                        name={meta.icon}
+                        size={13}
+                        color={selected ? '#FFF' : meta.color}
+                      />
+                    </View>
+                    <Text
+                      style={[
+                        styles.catLabel,
+                        { color: selected ? meta.color : colors.textSub },
+                      ]}
+                    >
+                      {cat.charAt(0).toUpperCase() + cat.slice(1)}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+
+            {/* Submit */}
+            <TouchableOpacity
+              onPress={handleAdd}
+              disabled={adding}
+              style={[styles.submitBtn, shadow.card]}
+              activeOpacity={0.85}
+            >
+              {adding ? (
+                <ActivityIndicator color="#FFF" />
+              ) : (
+                <>
+                  <Icon name="check" size={17} color="#FFF" />
+                  <Text style={styles.submitText}>Add Expense</Text>
+                </>
+              )}
+            </TouchableOpacity>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.surface },
-  scroll: { paddingBottom: 32 },
+  scroll: { paddingBottom: 100 },
 
   header: {
     flexDirection: 'row',
@@ -195,38 +371,44 @@ const styles = StyleSheet.create({
   },
   avatarText: { color: '#FFFFFF', fontSize: 17, fontWeight: '700' },
 
-  card: {
-    backgroundColor: colors.primary,
-    marginHorizontal: spacing.base,
-    marginTop: spacing.sm,
-    marginBottom: spacing.xl,
-    borderRadius: radius.xl,
-    padding: spacing.xl,
+  hero: {
+    alignItems: 'center',
+    paddingVertical: spacing.xl,
+    paddingHorizontal: spacing.base,
+    marginBottom: spacing.md,
   },
-  cardLabel: {
-    color: 'rgba(255,255,255,0.65)',
-    fontSize: 13,
-    marginBottom: spacing.xs,
+  heroLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: colors.textLight,
+    textTransform: 'uppercase',
+    letterSpacing: 1,
+    marginBottom: spacing.sm,
   },
-  cardAmount: {
-    color: '#FFFFFF',
-    fontSize: 40,
+  heroAmount: {
+    fontSize: 62,
     fontWeight: '800',
-    letterSpacing: -1.5,
-    marginBottom: 2,
+    color: colors.primary,
+    letterSpacing: -2,
+    textAlign: 'center',
   },
-  cardSub: { color: 'rgba(255,255,255,0.55)', fontSize: 13 },
-  cardDivider: {
+  heroStats: {
     flexDirection: 'row',
-    gap: spacing.xl,
-    marginTop: spacing.lg,
-    paddingTop: spacing.base,
-    borderTopWidth: 1,
-    borderTopColor: 'rgba(255,255,255,0.15)',
+    alignItems: 'center',
+    gap: spacing.sm,
+    marginTop: spacing.sm,
   },
-  cardStat: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  cardStatLabel: { color: 'rgba(255,255,255,0.65)', fontSize: 12 },
-  cardStatValue: { color: '#FFFFFF', fontSize: 13, fontWeight: '600' },
+  heroStat: {
+    fontSize: 12,
+    color: colors.textSub,
+    fontWeight: '500',
+  },
+  heroDot: {
+    width: 3,
+    height: 3,
+    borderRadius: 2,
+    backgroundColor: colors.border,
+  },
 
   sectionHeader: {
     flexDirection: 'row',
@@ -236,15 +418,58 @@ const styles = StyleSheet.create({
     marginBottom: spacing.sm,
   },
   sectionTitle: { fontSize: 16, fontWeight: '700', color: colors.text },
-  sectionCount: { fontSize: 12, color: colors.textSub },
 
-  listCard: {
-    marginHorizontal: spacing.base,
+  recentRow: {
+    flexDirection: 'row',
+    paddingHorizontal: spacing.base,
+    gap: spacing.sm,
+  },
+  recentCard: {
+    flex: 1,
     borderWidth: 1,
     borderColor: colors.border,
     borderRadius: radius.lg,
-    overflow: 'hidden',
+    padding: spacing.sm,
+    paddingVertical: 12,
     backgroundColor: colors.surface,
+    gap: 8,
+  },
+  recentTop: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 4,
+  },
+  recentIconWrap: {
+    width: 30,
+    height: 30,
+    borderRadius: radius.sm,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexShrink: 0,
+  },
+  recentAmount: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: colors.text,
+    letterSpacing: -0.4,
+    flex: 1,
+    textAlign: 'right',
+  },
+  recentFooter: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  recentDesc: {
+    fontSize: 9,
+    color: colors.textSub,
+    fontWeight: '500',
+    flex: 1,
+  },
+  recentDate: {
+    fontSize: 9,
+    color: colors.textLight,
   },
 
   empty: { alignItems: 'center', paddingTop: 48, paddingBottom: 80 },
@@ -264,4 +489,95 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   emptySub: { fontSize: 13, color: colors.textLight },
+
+  fab: {
+    position: 'absolute',
+    bottom: 20,
+    right: spacing.lg,
+    width: 56,
+    height: 56,
+    borderRadius: radius.full,
+    backgroundColor: colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    paddingHorizontal: spacing.base,
+  },
+  dialog: {
+    backgroundColor: colors.surface,
+    borderRadius: radius.xl,
+    padding: spacing.lg,
+    gap: spacing.md,
+  },
+  dialogHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  dialogTitle: { fontSize: 18, fontWeight: '800', color: colors.text },
+
+  amountRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.inputBg,
+    borderRadius: radius.lg,
+    paddingHorizontal: spacing.base,
+    paddingVertical: spacing.sm,
+    gap: 6,
+  },
+  amountCurrency: { fontSize: 28, fontWeight: '700', color: colors.expense },
+  amountInput: {
+    flex: 1,
+    fontSize: 36,
+    fontWeight: '800',
+    color: colors.expense,
+    padding: 0,
+  },
+
+  descInput: {
+    backgroundColor: colors.inputBg,
+    borderRadius: radius.lg,
+    paddingHorizontal: spacing.base,
+    paddingVertical: 12,
+    fontSize: 14,
+    color: colors.text,
+  },
+
+  categoryGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
+  catChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: radius.lg,
+    borderWidth: 1.5,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+  },
+  catIconWrap: {
+    width: 22,
+    height: 22,
+    borderRadius: radius.sm,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  catLabel: { fontSize: 12, fontWeight: '600' },
+
+  submitBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.sm,
+    backgroundColor: colors.expense,
+    borderRadius: radius.lg,
+    paddingVertical: 14,
+    marginTop: spacing.xs,
+  },
+  submitText: { color: '#FFF', fontSize: 15, fontWeight: '700' },
 });

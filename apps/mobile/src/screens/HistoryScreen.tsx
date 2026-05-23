@@ -9,7 +9,6 @@ import {
   Modal,
   StyleSheet,
   StatusBar,
-  Alert,
   Animated,
   RefreshControl,
 } from 'react-native';
@@ -23,6 +22,7 @@ import {
 } from '../constants/categories';
 import { colors, spacing, radius, shadow } from '../theme';
 import type { TTransaction } from '../types/transaction';
+import ConfirmDialog from '../components/ConfirmDialog';
 
 const ALL = 'all' as const;
 type TFilter = TCategory | typeof ALL;
@@ -35,11 +35,11 @@ const COL_GAP = 20;
 function SwipeableRow({
   item,
   index,
-  onDelete,
+  onDeleteRequest,
 }: {
   item: TTransaction;
   index: number;
-  onDelete: (item: TTransaction) => void;
+  onDeleteRequest: (item: TTransaction) => void;
 }) {
   const swipeRef = useRef<Swipeable>(null);
   const meta = CATEGORY_META[item.category];
@@ -63,14 +63,7 @@ function SwipeableRow({
         style={styles.deleteAction}
         onPress={() => {
           swipeRef.current?.close();
-          Alert.alert('Delete transaction', `Remove "${item.description}"?`, [
-            { text: 'Cancel', style: 'cancel' },
-            {
-              text: 'Delete',
-              style: 'destructive',
-              onPress: () => onDelete(item),
-            },
-          ]);
+          onDeleteRequest(item);
         }}
       >
         <Animated.View style={{ transform: [{ scale }] }}>
@@ -125,6 +118,7 @@ export default function HistoryScreen() {
   const [search, setSearch] = useState('');
   const [filterOpen, setFilterOpen] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<TTransaction | null>(null);
 
   const currentMonth = new Date().toISOString().slice(0, 7);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -302,7 +296,11 @@ export default function HistoryScreen() {
               />
             }
             renderItem={({ item, index }) => (
-              <SwipeableRow item={item} index={index} onDelete={handleDelete} />
+              <SwipeableRow
+                item={item}
+                index={index}
+                onDeleteRequest={setDeleteTarget}
+              />
             )}
             ListFooterComponent={
               pagination && pagination.total_pages > 1 && !search ? (
@@ -366,6 +364,18 @@ export default function HistoryScreen() {
           />
         )}
       </View>
+
+      <ConfirmDialog
+        visible={deleteTarget !== null}
+        title="Delete transaction"
+        message={`Remove "${deleteTarget?.description}"? This can't be undone.`}
+        confirmLabel="Delete"
+        onCancel={() => setDeleteTarget(null)}
+        onConfirm={() => {
+          if (deleteTarget) handleDelete(deleteTarget);
+          setDeleteTarget(null);
+        }}
+      />
 
       {/* Filter bottom sheet */}
       <Modal

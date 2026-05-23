@@ -9,14 +9,14 @@ import { useAuthStore } from '../stores/authStore';
 import LoginScreen from '../screens/LoginScreen';
 import DashboardScreen from '../screens/DashboardScreen';
 import HistoryScreen from '../screens/HistoryScreen';
-import AddTransactionScreen from '../screens/AddTransactionScreen';
+import ProfileScreen from '../screens/ProfileScreen';
 import { colors, radius, spacing } from '../theme';
 
 export type RootStackParams = { Login: undefined; Main: undefined };
 export type BottomTabParams = {
   Dashboard: undefined;
   History: undefined;
-  Add: undefined;
+  Profile: undefined;
 };
 
 const Stack = createNativeStackNavigator<RootStackParams>();
@@ -25,20 +25,8 @@ const Tab = createBottomTabNavigator<BottomTabParams>();
 const TAB_ICONS: Record<string, { active: string; inactive: string }> = {
   Dashboard: { active: 'view-dashboard', inactive: 'view-dashboard-outline' },
   History: { active: 'clock', inactive: 'clock-outline' },
-  Add: { active: 'plus-circle', inactive: 'plus-circle-outline' },
+  Profile: { active: 'account-circle', inactive: 'account-circle-outline' },
 };
-
-function AddTabIcon({ focused }: { focused: boolean }) {
-  return (
-    <View style={[styles.addIcon, focused && styles.addIconActive]}>
-      <Icon
-        name="plus"
-        size={22}
-        color={focused ? '#FFFFFF' : colors.textSub}
-      />
-    </View>
-  );
-}
 
 function MainTabs() {
   return (
@@ -48,9 +36,6 @@ function MainTabs() {
         screenOptions={({ route }) => ({
           headerShown: false,
           tabBarIcon: ({ focused, color, size }) => {
-            if (route.name === 'Add') {
-              return <AddTabIcon focused={focused} />;
-            }
             const icons = TAB_ICONS[route.name];
             return (
               <Icon
@@ -70,7 +55,7 @@ function MainTabs() {
       >
         <Tab.Screen name="Dashboard" component={DashboardScreen} />
         <Tab.Screen name="History" component={HistoryScreen} />
-        <Tab.Screen name="Add" component={AddTransactionScreen} />
+        <Tab.Screen name="Profile" component={ProfileScreen} />
       </Tab.Navigator>
     </View>
   );
@@ -110,24 +95,6 @@ const styles = StyleSheet.create({
     elevation: 0,
     shadowOpacity: 0,
   },
-  tabItem: {
-    paddingTop: 0,
-  },
-  tabLabel: {
-    fontSize: 11,
-    fontWeight: '600',
-    marginTop: 2,
-  },
-  addIcon: {
-    width: 44,
-    height: 44,
-    borderRadius: radius.full,
-    backgroundColor: colors.inputBg,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 4,
-  },
-  addIconActive: {
-    backgroundColor: colors.primary,
-  },
+  tabItem: { paddingTop: 0 },
+  tabLabel: { fontSize: 11, fontWeight: '600', marginTop: 2 },
 });
