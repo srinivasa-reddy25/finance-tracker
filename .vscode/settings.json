@@ -1,0 +1,72 @@
+{
+  "editor.formatOnSave": true,
+  "editor.tabSize": 2,
+  "editor.defaultFormatter": "esbenp.prettier-vscode",
+  "editor.quickSuggestions": {
+    "strings": true
+  },
+  "editor.codeActionsOnSave": {
+    "source.fixAll.eslint": "always",
+    "source.organizeImports": "always",
+    "source.removeUnusedImports": "always"
+  },
+  "eslint.format.enable": true,
+  "eslint.lintTask.enable": true,
+  "search.exclude": {
+    ".git": true,
+    ".next": true,
+    ".turbo": true,
+    "dist": true,
+    "node_modules": true,
+    "bun.lock": true,
+    "bun.lockb": true
+  },
+  "typescript.enablePromptUseWorkspaceTsdk": true,
+  "typescript.preferences.preferTypeOnlyAutoImports": true,
+  "typescript.preferences.autoImportFileExcludePatterns": [
+    "next/router.d.ts",
+    "next/dist/client/router.d.ts"
+  ],
+  "typescript.tsdk": "node_modules/typescript/lib",
+  "typescript.preferences.importModuleSpecifier": "non-relative",
+  "javascript.updateImportsOnFileMove.enabled": "always",
+  "typescript.updateImportsOnFileMove.enabled": "always",
+  "prettier.ignorePath": ".gitignore",
+  "prettier.requireConfig": true,
+  "[json][jsonc][yaml]": {
+    "editor.formatOnSave": true,
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  },
+  "[typescript][javascript][typescriptreact][javascriptreact]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  },
+  "[markdown]": {
+    "editor.defaultFormatter": "DavidAnson.vscode-markdownlint"
+  },
+  "[svg]": {
+    "editor.defaultFormatter": "jock.svg"
+  },
+  "eslint.validate": [
+    "javascript",
+    "javascriptreact",
+    "typescript",
+    "typescriptreact"
+  ],
+  "eslint.codeActionsOnSave.mode": "problems",
+  "eslint.workingDirectories": [{ "mode": "auto" }],
+  "tailwindCSS.includeLanguages": {
+    "typescript": "javascript",
+    "typescriptreact": "javascript"
+  },
+  "tailwindCSS.experimental.classRegex": [
+    ["cva\\(([^)]*)\\)", "[\"'`]([^\"'`]*).*?[\"'`]"],
+    ["cn\\(([^)]*)\\)", "[\"'`]([^\"'`]*).*?[\"'`]"]
+  ],
+  "cSpell.words": [
+    "commitlint",
+    "ianvs",
+    "turborepo",
+    "serviceworker",
+    "tailwindcss"
+  ]
+}

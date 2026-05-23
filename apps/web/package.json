@@ -1,0 +1,36 @@
+{
+  "name": "@tejadev/web",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Next.js web app for TejaDev monorepo template",
+  "scripts": {
+    "dev": "dotenv -e ../../.env -- next dev",
+    "build": "NODE_ENV=production dotenv -e ../../.env -- next build",
+    "start": "NODE_ENV=production dotenv -e ../../.env -- next start",
+    "clean": "rm -rf .next",
+    "lint": "eslint .",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@tanstack/react-query": "^5.66.8",
+    "@tejadev/shared": "0.0.0",
+    "@tejadev/ui": "workspace:*",
+    "axios": "^1.8.4",
+    "firebase": "^11.5.0",
+    "lucide-react": "^0.511.0",
+    "next": "^16.0.0",
+    "next-themes": "^0.4.6",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  },
+  "devDependencies": {
+    "@tejadev/eslint-config": "workspace:*",
+    "@tejadev/typescript-config": "workspace:*",
+    "@types/node": "^22.10.2",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "autoprefixer": "^10.4.20",
+    "postcss": "^8.4.49",
+    "tailwindcss": "^3.4.17"
+  }
+}

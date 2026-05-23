@@ -1,0 +1,34 @@
+{
+  "name": "db",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Shared mongoose connection and model registry",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "clean": "rm -rf dist tsconfig.tsbuildinfo",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "lint": "eslint ."
+  },
+  "dependencies": {
+    "@tejadev/shared": "workspace:*",
+    "colors": "^1.4.0",
+    "mongoose": "^8.10.1"
+  },
+  "devDependencies": {
+    "@tejadev/eslint-config": "workspace:*",
+    "@tejadev/typescript-config": "workspace:*",
+    "@types/node": "^22.10.2"
+  }
+}

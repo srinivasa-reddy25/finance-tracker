@@ -1,0 +1,29 @@
+# Dependencies
+node_modules
+
+# Build artifacts
+.next
+dist
+
+# Cache and temporary files
+.turbo
+.cache
+.temp
+*.log
+.logs
+
+# Environment files
+.env
+*.local
+
+# Local files (scripts, configs, etc.)
+*.local.*
+
+# TypeScript
+tsconfig.tsbuildinfo
+
+.nvmrc
+# System files
+.DS_Store
+
+firebase.json

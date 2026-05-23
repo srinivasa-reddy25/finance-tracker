@@ -1,0 +1,17 @@
+#!/usr/bin/env sh
+
+echo "📝 Validating commit message..."
+
+# Run commitlint with your config file
+if command -v bunx >/dev/null 2>&1; then
+  bunx commitlint --config commitlint.config.js --edit "$1"
+else
+  npx --yes commitlint --config commitlint.config.js --edit "$1"
+fi
+
+if [ $? -eq 0 ]; then
+  echo "✅ Commit message is valid!"
+else
+  echo "❌ Commit message validation failed!"
+  exit 1
+fi

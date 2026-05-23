@@ -1,0 +1,32 @@
+{
+  "name": "logging",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Shared structured logging utilities for workspaces",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "clean": "rm -rf dist tsconfig.tsbuildinfo",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "lint": "eslint ."
+  },
+  "dependencies": {
+    "@axiomhq/js": "^1.2.0"
+  },
+  "devDependencies": {
+    "@tejadev/eslint-config": "workspace:*",
+    "@tejadev/typescript-config": "workspace:*",
+    "@types/node": "^22.10.2"
+  }
+}
