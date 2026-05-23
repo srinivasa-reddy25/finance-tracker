@@ -1,4 +1,4 @@
-package com.mobile
+package com.tejareddy.financetracker
 
 import android.app.Application
 import com.facebook.react.PackageList
