@@ -1,82 +1,73 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 
-import type { TApiResponse, TNote } from '@tejadev/shared'
+import type { TApiResponse, TTransaction } from '@tejadev/shared'
 import { api } from '@/lib/api'
 
-type TNoteWithId = TNote & { _id: string }
+type TTransactionWithId = TTransaction & { _id: string }
+
+type TGetAllResponse = {
+  transactions: TTransactionWithId[]
+  pagination: {
+    total: number
+    page: number
+    limit: number
+    total_pages: number
+  }
+}
 
 // --- api calls ---
 
-const getAllNotes = (): Promise<TApiResponse<TNoteWithId[]>> => {
-  return api.get('/note')
+const getAllTransactions = (params?: {
+  page?: number
+  limit?: number
+  category?: string
+  month?: string
+}): Promise<TApiResponse<TGetAllResponse>> => {
+  return api.get('/transactions', { params })
 }
 
-const getNoteById = (note_id: string): Promise<TApiResponse<TNoteWithId>> => {
-  return api.get(`/note/${note_id}`)
+const createTransaction = (
+  body: Omit<TTransaction, 'user_id' | 'createdAt' | 'updatedAt'>
+): Promise<TApiResponse<{ transaction_id: string }>> => {
+  return api.post('/transactions', body)
 }
 
-const createNote = (body: {
-  note: string
-}): Promise<TApiResponse<{ note_id: string }>> => {
-  return api.post('/note', body)
-}
-
-const updateNoteById = (
-  note_id: string,
-  body: { note: string }
-): Promise<TApiResponse<void>> => {
-  return api.patch(`/note/${note_id}`, body)
-}
-
-const deleteNoteById = (note_id: string): Promise<TApiResponse<void>> => {
-  return api.delete(`/note/${note_id}`)
+const deleteTransactionById = (id: string): Promise<TApiResponse<void>> => {
+  return api.delete(`/transactions/${id}`)
 }
 
 // --- hooks ---
 
-export const useGetAllNotes = () => {
+export const useGetAllTransactions = (params?: {
+  page?: number
+  limit?: number
+  category?: string
+  month?: string
+}) => {
   return useQuery({
-    queryKey: ['notes'],
-    queryFn: getAllNotes
+    queryKey: ['transactions', params],
+    queryFn: () => getAllTransactions(params)
   })
 }
 
-export const useGetNoteById = (note_id: string) => {
-  return useQuery({
-    queryKey: ['notes', note_id],
-    queryFn: () => getNoteById(note_id),
-    enabled: !!note_id
-  })
-}
-
-export const useCreateNote = () => {
+export const useCreateTransaction = () => {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: (body: { note: string }) => createNote(body),
+    mutationFn: (
+      body: Omit<TTransaction, 'user_id' | 'createdAt' | 'updatedAt'>
+    ) => createTransaction(body),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['notes'] })
+      queryClient.invalidateQueries({ queryKey: ['transactions'] })
     }
   })
 }
 
-export const useUpdateNoteById = () => {
+export const useDeleteTransaction = () => {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: ({ note_id, note }: { note_id: string; note: string }) =>
-      updateNoteById(note_id, { note }),
-    onSuccess: (_data, { note_id }) => {
-      queryClient.invalidateQueries({ queryKey: ['notes'] })
-      queryClient.invalidateQueries({ queryKey: ['notes', note_id] })
-    }
-  })
-}
-
-export const useDeleteNoteById = () => {
-  const queryClient = useQueryClient()
-  return useMutation({
-    mutationFn: (note_id: string) => deleteNoteById(note_id),
+    mutationFn: (id: string) => deleteTransactionById(id),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['notes'] })
+      queryClient.invalidateQueries({ queryKey: ['transactions'] })
     }
   })
 }
