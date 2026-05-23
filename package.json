@@ -23,7 +23,8 @@
     "node": ">=18"
   },
   "workspaces": [
-    "apps/*",
+    "apps/api",
+    "apps/web",
     "packages/*"
   ],
   "devDependencies": {
