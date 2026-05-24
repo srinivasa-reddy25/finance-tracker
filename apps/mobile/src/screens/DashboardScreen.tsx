@@ -22,12 +22,14 @@ import {
 } from '../constants/categories';
 import { signOut } from '../services/firebase';
 import { useAuthStore } from '../stores/authStore';
+import { useCategoryStore } from '../stores/categoryStore';
 import { useTransactionStore } from '../stores/transactionStore';
 import { colors, radius, shadow, spacing } from '../theme';
 
 export default function DashboardScreen() {
   const { transactions, loading, fetch, add, remove } = useTransactionStore();
   const { user } = useAuthStore();
+  const { categories: customCats, fetch: fetchCats } = useCategoryStore();
   const [refreshing, setRefreshing] = useState(false);
 
   // Add modal state
@@ -35,7 +37,7 @@ export default function DashboardScreen() {
   const [amount, setAmount] = useState('');
   const [description, setDescription] = useState('');
   const [note, setNote] = useState('');
-  const [category, setCategory] = useState<TCategory>('food');
+  const [category, setCategory] = useState<string>('food');
   const [adding, setAdding] = useState(false);
   const amountRef = useRef<TextInput>(null);
 
@@ -43,6 +45,7 @@ export default function DashboardScreen() {
 
   useEffect(() => {
     fetch({ month: currentMonth, limit: 10 });
+    fetchCats();
   }, []);
 
   const { totalSpent, totalIncome, count } = useMemo(() => {
@@ -294,20 +297,32 @@ export default function DashboardScreen() {
                 returnKeyType="done"
               />
 
-              {/* Categories */}
+              {/* Categories — default + custom */}
               <View style={styles.categoryGrid}>
-                {EXPENSE_CATEGORIES.map(cat => {
-                  const meta = CATEGORY_META[cat];
-                  const selected = category === cat;
+                {[
+                  ...EXPENSE_CATEGORIES.map(cat => ({
+                    key: cat,
+                    label: cat.charAt(0).toUpperCase() + cat.slice(1),
+                    ...CATEGORY_META[cat],
+                  })),
+                  ...customCats.map(c => ({
+                    key: c.name.toLowerCase(),
+                    label: c.name,
+                    icon: c.icon,
+                    color: c.color,
+                    bg: c.bg,
+                  })),
+                ].map(cat => {
+                  const selected = category === cat.key;
                   return (
                     <TouchableOpacity
-                      key={cat}
-                      onPress={() => setCategory(cat)}
+                      key={cat.key}
+                      onPress={() => setCategory(cat.key)}
                       style={[
                         styles.catChip,
                         selected && {
-                          backgroundColor: meta.bg,
-                          borderColor: meta.color,
+                          backgroundColor: cat.bg,
+                          borderColor: cat.color,
                         },
                       ]}
                       activeOpacity={0.75}
@@ -317,24 +332,24 @@ export default function DashboardScreen() {
                           styles.catIconWrap,
                           {
                             backgroundColor: selected
-                              ? meta.color
+                              ? cat.color
                               : colors.inputBg,
                           },
                         ]}
                       >
                         <Icon
-                          name={meta.icon}
+                          name={cat.icon}
                           size={13}
-                          color={selected ? '#FFF' : meta.color}
+                          color={selected ? '#FFF' : cat.color}
                         />
                       </View>
                       <Text
                         style={[
                           styles.catLabel,
-                          { color: selected ? meta.color : colors.textSub },
+                          { color: selected ? cat.color : colors.textSub },
                         ]}
                       >
-                        {cat.charAt(0).toUpperCase() + cat.slice(1)}
+                        {cat.label}
                       </Text>
                     </TouchableOpacity>
                   );

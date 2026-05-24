@@ -3,7 +3,7 @@ import type { Request, Response } from 'express'
 import { mg } from 'db'
 import { z } from 'zod'
 
-import { CATEGORIES, TRANSACTION_SOURCES } from '@tejadev/shared'
+import { TRANSACTION_SOURCES } from '@tejadev/shared'
 
 import { throw_error } from '../../utils/throw-error.ts'
 
@@ -33,7 +33,9 @@ const body_schema = z.object({
     .string({ required_error: 'Description is required' })
     .trim()
     .min(1, 'Description is required'),
-  category: z.enum(CATEGORIES, { required_error: 'Category is required' }),
+  category: z
+    .string({ required_error: 'Category is required' })
+    .min(1, 'Category is required'),
   note: z.string().trim().optional(),
   date: z.coerce.date().optional(),
   source: z.enum(TRANSACTION_SOURCES).default('manual')
