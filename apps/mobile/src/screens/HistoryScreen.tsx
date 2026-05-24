@@ -11,7 +11,6 @@ import {
   StatusBar,
   Animated,
   RefreshControl,
-  ScrollView,
 } from 'react-native';
 import { Swipeable } from 'react-native-gesture-handler';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
@@ -28,10 +27,50 @@ import ConfirmDialog from '../components/ConfirmDialog';
 const ALL = 'all' as const;
 type TFilter = TCategory | typeof ALL;
 
+type TDatePreset = 'this_month' | '30d' | '60d' | '90d';
+
+const DATE_PRESETS: {
+  key: TDatePreset;
+  label: string;
+  sublabel: string;
+  icon: string;
+}[] = [
+  {
+    key: 'this_month',
+    label: 'This month',
+    sublabel: 'Current calendar month',
+    icon: 'calendar-today',
+  },
+  {
+    key: '30d',
+    label: 'Last 30 days',
+    sublabel: 'Rolling 30-day window',
+    icon: 'calendar-clock',
+  },
+  {
+    key: '60d',
+    label: 'Last 60 days',
+    sublabel: 'Rolling 60-day window',
+    icon: 'calendar-clock',
+  },
+  {
+    key: '90d',
+    label: 'Last 90 days',
+    sublabel: 'Rolling 90-day window',
+    icon: 'calendar-clock',
+  },
+];
+
 const COL_CAT = 44;
 const COL_DATE = 64;
 const COL_AMOUNT = 62;
 const COL_GAP = 20;
+
+function daysAgoStr(n: number) {
+  const d = new Date();
+  d.setDate(d.getDate() - n);
+  return d.toISOString().slice(0, 10);
+}
 
 function SwipeableRow({
   item,
@@ -125,48 +164,41 @@ export default function HistoryScreen() {
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState('');
   const [filterOpen, setFilterOpen] = useState(false);
+  const [dateSheetOpen, setDateSheetOpen] = useState(false);
+  const [datePreset, setDatePreset] = useState<TDatePreset>('this_month');
   const [refreshing, setRefreshing] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<TTransaction | null>(null);
-
-  // Date range
-  const [fromMonth, setFromMonth] = useState<string | null>(null);
-  const [toMonth, setToMonth] = useState<string | null>(null);
-  const [monthPickerOpen, setMonthPickerOpen] = useState(false);
-  const [monthPickerTarget, setMonthPickerTarget] = useState<'from' | 'to'>(
-    'from',
-  );
 
   const currentMonth = new Date().toISOString().slice(0, 7);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const hasDateRange = fromMonth !== null || toMonth !== null;
-
-  // Convert YYYY-MM to from/to ISO date strings
-  const monthToFrom = (m: string) => `${m}-01`;
-  const monthToTo = (m: string) => {
-    const [y, mo] = m.split('-').map(Number);
-    const last = new Date(y!, mo!, 0).getDate();
-    return `${m}-${String(last).padStart(2, '0')}`;
-  };
+  const getDateParams = useCallback(() => {
+    const today = new Date().toISOString().slice(0, 10);
+    switch (datePreset) {
+      case '30d':
+        return { from: daysAgoStr(30), to: today };
+      case '60d':
+        return { from: daysAgoStr(60), to: today };
+      case '90d':
+        return { from: daysAgoStr(90), to: today };
+      default:
+        return { month: currentMonth };
+    }
+  }, [datePreset, currentMonth]);
 
   const buildParams = useCallback(
     (p = 1) => ({
       page: p,
       category: filter === ALL ? undefined : filter,
       search: search.trim() || undefined,
-      ...(hasDateRange
-        ? {
-            from: fromMonth ? monthToFrom(fromMonth) : undefined,
-            to: toMonth ? monthToTo(toMonth) : undefined,
-          }
-        : { month: currentMonth }),
+      ...getDateParams(),
     }),
-    [filter, search, fromMonth, toMonth, hasDateRange, currentMonth],
+    [filter, search, getDateParams],
   );
 
   useEffect(() => {
     fetch(buildParams(page));
-  }, [filter, page, fromMonth, toMonth]);
+  }, [filter, page, datePreset]);
 
   const isMounted = useRef(false);
   useEffect(() => {
@@ -184,38 +216,17 @@ export default function HistoryScreen() {
     };
   }, [search]);
 
-  const filtered = transactions;
-
   const handleFilterSelect = useCallback((f: TFilter) => {
     setFilter(f);
     setPage(1);
     setFilterOpen(false);
   }, []);
 
-  const clearDateRange = useCallback(() => {
-    setFromMonth(null);
-    setToMonth(null);
+  const handlePresetSelect = useCallback((preset: TDatePreset) => {
+    setDatePreset(preset);
     setPage(1);
+    setDateSheetOpen(false);
   }, []);
-
-  const openMonthPicker = (target: 'from' | 'to') => {
-    setMonthPickerTarget(target);
-    setMonthPickerOpen(true);
-  };
-
-  // Build last 24 months list
-  const monthOptions = Array.from({ length: 24 }, (_, i) => {
-    const d = new Date();
-    d.setDate(1);
-    d.setMonth(d.getMonth() - i);
-    return d.toISOString().slice(0, 7);
-  });
-
-  const formatMonth = (m: string) =>
-    new Date(m + '-01').toLocaleDateString('en-IN', {
-      month: 'short',
-      year: 'numeric',
-    });
 
   const handleRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -225,7 +236,7 @@ export default function HistoryScreen() {
     } finally {
       setRefreshing(false);
     }
-  }, [filter, search, fromMonth, toMonth]);
+  }, [filter, search, datePreset]);
 
   const handleDelete = useCallback(
     (item: TTransaction) => {
@@ -235,6 +246,16 @@ export default function HistoryScreen() {
   );
 
   const activeFilterMeta = filter !== ALL ? CATEGORY_META[filter] : null;
+  const dateActive = datePreset !== 'this_month';
+  const activeDateMeta = DATE_PRESETS.find(p => p.key === datePreset)!;
+  const dateBtnLabel =
+    datePreset === 'this_month'
+      ? 'Month'
+      : datePreset === '30d'
+        ? '30d'
+        : datePreset === '60d'
+          ? '60d'
+          : '90d';
 
   return (
     <View style={styles.container}>
@@ -257,7 +278,7 @@ export default function HistoryScreen() {
         </View>
       </View>
 
-      {/* Search + Filter */}
+      {/* Search + Date + Filter toolbar */}
       <View style={styles.toolbar}>
         <View style={styles.searchWrap}>
           <Icon name="magnify" size={15} color={colors.textLight} />
@@ -275,6 +296,41 @@ export default function HistoryScreen() {
           )}
         </View>
 
+        {/* Date preset button */}
+        <TouchableOpacity
+          onPress={() => setDateSheetOpen(true)}
+          style={[
+            styles.filterBtn,
+            dateActive && {
+              backgroundColor: colors.primaryLight,
+              borderColor: colors.primary,
+            },
+          ]}
+        >
+          <Icon
+            name="calendar-range"
+            size={14}
+            color={dateActive ? colors.primary : colors.textSub}
+          />
+          <Text
+            style={[
+              styles.filterBtnText,
+              dateActive && { color: colors.primary },
+            ]}
+          >
+            {dateBtnLabel}
+          </Text>
+          {dateActive && (
+            <TouchableOpacity
+              onPress={() => handlePresetSelect('this_month')}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            >
+              <Icon name="close" size={13} color={colors.primary} />
+            </TouchableOpacity>
+          )}
+        </TouchableOpacity>
+
+        {/* Category filter button */}
         <TouchableOpacity
           onPress={() => setFilterOpen(true)}
           style={[
@@ -311,103 +367,70 @@ export default function HistoryScreen() {
         </TouchableOpacity>
       </View>
 
-      {/* Date range row */}
-      <View style={styles.dateRow}>
-        <TouchableOpacity
-          style={[styles.dateBtn, fromMonth && styles.dateBtnActive]}
-          onPress={() => openMonthPicker('from')}
-        >
-          <Icon
-            name="calendar-start"
-            size={13}
-            color={fromMonth ? colors.primary : colors.textSub}
-          />
-          <Text
-            style={[styles.dateBtnText, fromMonth && { color: colors.primary }]}
-          >
-            {fromMonth ? formatMonth(fromMonth) : 'From'}
-          </Text>
-        </TouchableOpacity>
-
-        <Icon name="arrow-right" size={14} color={colors.border} />
-
-        <TouchableOpacity
-          style={[styles.dateBtn, toMonth && styles.dateBtnActive]}
-          onPress={() => openMonthPicker('to')}
-        >
-          <Icon
-            name="calendar-end"
-            size={13}
-            color={toMonth ? colors.primary : colors.textSub}
-          />
-          <Text
-            style={[styles.dateBtnText, toMonth && { color: colors.primary }]}
-          >
-            {toMonth ? formatMonth(toMonth) : 'To'}
-          </Text>
-        </TouchableOpacity>
-
-        {hasDateRange && (
-          <TouchableOpacity onPress={clearDateRange} style={styles.dateClear}>
-            <Icon name="close-circle" size={16} color={colors.textLight} />
-          </TouchableOpacity>
-        )}
-      </View>
-
-      {/* Month picker modal */}
+      {/* Date preset sheet */}
       <Modal
-        visible={monthPickerOpen}
+        visible={dateSheetOpen}
         transparent
-        animationType="fade"
-        onRequestClose={() => setMonthPickerOpen(false)}
+        animationType="slide"
+        onRequestClose={() => setDateSheetOpen(false)}
       >
         <TouchableOpacity
-          style={styles.monthOverlay}
+          style={styles.overlay}
           activeOpacity={1}
-          onPress={() => setMonthPickerOpen(false)}
+          onPress={() => setDateSheetOpen(false)}
         >
-          <View style={styles.monthSheet}>
-            <Text style={styles.monthSheetTitle}>
-              {monthPickerTarget === 'from' ? 'From month' : 'To month'}
-            </Text>
-            <ScrollView showsVerticalScrollIndicator={false}>
-              {monthOptions.map(m => {
-                const isSelected =
-                  monthPickerTarget === 'from'
-                    ? fromMonth === m
-                    : toMonth === m;
-                return (
-                  <TouchableOpacity
-                    key={m}
+          <View style={styles.sheet}>
+            <View style={styles.sheetHandle} />
+            <Text style={styles.sheetTitle}>Date range</Text>
+
+            {DATE_PRESETS.map(preset => {
+              const active = datePreset === preset.key;
+              return (
+                <TouchableOpacity
+                  key={preset.key}
+                  onPress={() => handlePresetSelect(preset.key)}
+                  style={[
+                    styles.sheetOption,
+                    active && styles.sheetOptionActive,
+                  ]}
+                >
+                  <View
                     style={[
-                      styles.monthOption,
-                      isSelected && styles.monthOptionActive,
+                      styles.sheetIcon,
+                      {
+                        backgroundColor: active
+                          ? colors.primary
+                          : colors.primaryLight,
+                      },
                     ]}
-                    onPress={() => {
-                      if (monthPickerTarget === 'from') setFromMonth(m);
-                      else setToMonth(m);
-                      setPage(1);
-                      setMonthPickerOpen(false);
-                    }}
                   >
+                    <Icon
+                      name={preset.icon}
+                      size={15}
+                      color={active ? '#FFF' : colors.primary}
+                    />
+                  </View>
+                  <View style={{ flex: 1 }}>
                     <Text
                       style={[
-                        styles.monthOptionText,
-                        isSelected && {
-                          color: colors.primary,
-                          fontWeight: '700',
-                        },
+                        styles.sheetOptionText,
+                        active && { color: colors.primary, fontWeight: '700' },
                       ]}
                     >
-                      {formatMonth(m)}
+                      {preset.label}
                     </Text>
-                    {isSelected && (
-                      <Icon name="check" size={16} color={colors.primary} />
-                    )}
-                  </TouchableOpacity>
-                );
-              })}
-            </ScrollView>
+                    <Text style={styles.sheetOptionSub}>{preset.sublabel}</Text>
+                  </View>
+                  {active && (
+                    <Icon
+                      name="check-circle"
+                      size={18}
+                      color={colors.primary}
+                    />
+                  )}
+                </TouchableOpacity>
+              );
+            })}
           </View>
         </TouchableOpacity>
       </Modal>
@@ -427,7 +450,7 @@ export default function HistoryScreen() {
 
         {loading && !refreshing ? (
           <ActivityIndicator style={{ marginTop: 48 }} color={colors.primary} />
-        ) : filtered.length === 0 ? (
+        ) : transactions.length === 0 ? (
           <View style={styles.empty}>
             <Icon name="receipt-text-outline" size={36} color={colors.border} />
             <Text style={styles.emptyText}>
@@ -436,7 +459,7 @@ export default function HistoryScreen() {
           </View>
         ) : (
           <FlatList
-            data={filtered}
+            data={transactions}
             keyExtractor={item => item._id}
             style={styles.table}
             refreshControl={
@@ -529,7 +552,7 @@ export default function HistoryScreen() {
         }}
       />
 
-      {/* Filter bottom sheet */}
+      {/* Category filter bottom sheet */}
       <Modal
         visible={filterOpen}
         transparent
@@ -564,19 +587,21 @@ export default function HistoryScreen() {
                   color={colors.primary}
                 />
               </View>
-              <Text
-                style={[
-                  styles.sheetOptionText,
-                  filter === ALL && {
-                    color: colors.primary,
-                    fontWeight: '700',
-                  },
-                ]}
-              >
-                All categories
-              </Text>
+              <View style={{ flex: 1 }}>
+                <Text
+                  style={[
+                    styles.sheetOptionText,
+                    filter === ALL && {
+                      color: colors.primary,
+                      fontWeight: '700',
+                    },
+                  ]}
+                >
+                  All categories
+                </Text>
+              </View>
               {filter === ALL && (
-                <Icon name="check" size={16} color={colors.primary} />
+                <Icon name="check-circle" size={18} color={colors.primary} />
               )}
             </TouchableOpacity>
 
@@ -606,15 +631,19 @@ export default function HistoryScreen() {
                       color={active ? '#FFF' : meta.color}
                     />
                   </View>
-                  <Text
-                    style={[
-                      styles.sheetOptionText,
-                      active && { color: meta.color, fontWeight: '700' },
-                    ]}
-                  >
-                    {cat.charAt(0).toUpperCase() + cat.slice(1)}
-                  </Text>
-                  {active && <Icon name="check" size={16} color={meta.color} />}
+                  <View style={{ flex: 1 }}>
+                    <Text
+                      style={[
+                        styles.sheetOptionText,
+                        active && { color: meta.color, fontWeight: '700' },
+                      ]}
+                    >
+                      {cat.charAt(0).toUpperCase() + cat.slice(1)}
+                    </Text>
+                  </View>
+                  {active && (
+                    <Icon name="check-circle" size={18} color={meta.color} />
+                  )}
                 </TouchableOpacity>
               );
             })}
@@ -691,68 +720,6 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
   },
   filterBtnText: { fontSize: 13, fontWeight: '600', color: colors.textSub },
-
-  dateRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-    paddingHorizontal: spacing.base,
-    paddingBottom: spacing.md,
-  },
-  dateBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-    flex: 1,
-    paddingHorizontal: spacing.md,
-    paddingVertical: 8,
-    borderRadius: radius.md,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surface,
-  },
-  dateBtnActive: {
-    borderColor: colors.primary,
-    backgroundColor: colors.primaryLight,
-  },
-  dateBtnText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: colors.textSub,
-  },
-  dateClear: {
-    padding: 4,
-  },
-  monthOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.45)',
-    justifyContent: 'center',
-    paddingHorizontal: spacing.xl,
-  },
-  monthSheet: {
-    backgroundColor: colors.surface,
-    borderRadius: radius.xl,
-    padding: spacing.lg,
-    maxHeight: 360,
-  },
-  monthSheetTitle: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: colors.textSub,
-    textTransform: 'uppercase',
-    letterSpacing: 0.6,
-    marginBottom: spacing.sm,
-  },
-  monthOption: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: 12,
-    paddingHorizontal: spacing.sm,
-    borderRadius: radius.md,
-  },
-  monthOptionActive: { backgroundColor: colors.primaryLight },
-  monthOptionText: { fontSize: 15, color: colors.textMed, fontWeight: '500' },
 
   tableHead: {
     flexDirection: 'row',
@@ -910,21 +877,24 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: spacing.sm,
     paddingHorizontal: spacing.lg,
-    paddingVertical: 8,
+    paddingVertical: 10,
   },
   sheetOptionActive: { backgroundColor: colors.inputBg },
   sheetIcon: {
-    width: 28,
-    height: 28,
-    borderRadius: radius.sm,
+    width: 34,
+    height: 34,
+    borderRadius: radius.md,
     alignItems: 'center',
     justifyContent: 'center',
   },
   sheetOptionText: {
-    flex: 1,
     fontSize: 14,
     color: colors.textMed,
     fontWeight: '500',
-    textTransform: 'capitalize',
+  },
+  sheetOptionSub: {
+    fontSize: 11,
+    color: colors.textLight,
+    marginTop: 1,
   },
 });
