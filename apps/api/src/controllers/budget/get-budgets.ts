@@ -26,13 +26,23 @@ export const get_budgets = async (req: Request, res: Response) => {
     spending.map((s: { _id: string; total: number }) => [s._id, s.total])
   )
 
-  const result = budgets.map((b) => ({
-    ...b,
-    spent: spending_map.get(b.category) ?? 0,
-    percentage: Math.round(
-      (((spending_map.get(b.category) ?? 0) as number) / b.amount) * 100
-    )
-  }))
+  // Total of all non-salary spending this month (used for the overall budget)
+  const total_spent = spending.reduce(
+    (sum: number, s: { _id: string; total: number }) => sum + s.total,
+    0
+  )
+
+  const result = budgets.map((b) => {
+    const spent =
+      b.category === '__overall__'
+        ? total_spent
+        : ((spending_map.get(b.category) ?? 0) as number)
+    return {
+      ...b,
+      spent,
+      percentage: Math.round((spent / b.amount) * 100)
+    }
+  })
 
   res.json({ message: 'Budgets fetched', data: { budgets: result } })
 }

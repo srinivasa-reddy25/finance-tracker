@@ -13,11 +13,14 @@ import BudgetScreen from '../screens/BudgetScreen';
 import ProfileScreen from '../screens/ProfileScreen';
 import { colors, radius, spacing } from '../theme';
 
-export type RootStackParams = { Login: undefined; Main: undefined };
+export type RootStackParams = {
+  Login: undefined;
+  Main: undefined;
+  Budget: undefined;
+};
 export type BottomTabParams = {
   Dashboard: undefined;
   History: undefined;
-  Budgets: undefined;
   Profile: undefined;
 };
 
@@ -27,7 +30,6 @@ const Tab = createBottomTabNavigator<BottomTabParams>();
 const TAB_ICONS: Record<string, { active: string; inactive: string }> = {
   Dashboard: { active: 'view-dashboard', inactive: 'view-dashboard-outline' },
   History: { active: 'clock', inactive: 'clock-outline' },
-  Budgets: { active: 'piggy-bank', inactive: 'piggy-bank-outline' },
   Profile: { active: 'account-circle', inactive: 'account-circle-outline' },
 };
 
@@ -58,7 +60,6 @@ function MainTabs() {
       >
         <Tab.Screen name="Dashboard" component={DashboardScreen} />
         <Tab.Screen name="History" component={HistoryScreen} />
-        <Tab.Screen name="Budgets" component={BudgetScreen} />
         <Tab.Screen name="Profile" component={ProfileScreen} />
       </Tab.Navigator>
     </View>
@@ -73,10 +74,17 @@ export default function Navigation() {
   return (
     <NavigationContainer>
       <Stack.Navigator
-        screenOptions={{ headerShown: false, animation: 'fade' }}
+        screenOptions={{ headerShown: false, animation: 'slide_from_right' }}
       >
         {user ? (
-          <Stack.Screen name="Main" component={MainTabs} />
+          <>
+            <Stack.Screen
+              name="Main"
+              component={MainTabs}
+              options={{ animation: 'fade' }}
+            />
+            <Stack.Screen name="Budget" component={BudgetScreen} />
+          </>
         ) : (
           <Stack.Screen name="Login" component={LoginScreen} />
         )}

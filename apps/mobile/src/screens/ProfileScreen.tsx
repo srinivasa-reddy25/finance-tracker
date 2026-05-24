@@ -13,7 +13,10 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
+import type { RootStackParams } from '../navigation';
 import { useAuthStore } from '../stores/authStore';
 import { useCategoryStore } from '../stores/categoryStore';
 import { useTransactionStore } from '../stores/transactionStore';
@@ -58,6 +61,8 @@ const PRESET_COLORS: { color: string; bg: string }[] = [
 ];
 
 export default function ProfileScreen() {
+  const navigation =
+    useNavigation<NativeStackNavigationProp<RootStackParams>>();
   const { user } = useAuthStore();
   const { transactions, pagination } = useTransactionStore();
   const {
@@ -211,6 +216,27 @@ export default function ProfileScreen() {
         <View style={styles.section}>
           <Text style={styles.sectionLabel}>Customization</Text>
           <View style={styles.card}>
+            <TouchableOpacity
+              style={styles.row}
+              onPress={() => navigation.navigate('Budget')}
+              activeOpacity={0.7}
+            >
+              <View style={styles.rowIconWrap}>
+                <Icon
+                  name="piggy-bank-outline"
+                  size={17}
+                  color={colors.primary}
+                />
+              </View>
+              <View style={styles.rowContent}>
+                <Text style={styles.rowLabel}>Budgets</Text>
+                <Text style={styles.rowValue}>Set monthly spending limits</Text>
+              </View>
+              <Icon name="chevron-right" size={18} color={colors.textLight} />
+            </TouchableOpacity>
+
+            <View style={styles.divider} />
+
             <TouchableOpacity
               style={styles.row}
               onPress={openCatSheet}

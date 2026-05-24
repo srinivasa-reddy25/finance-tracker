@@ -13,6 +13,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { CATEGORY_META, EXPENSE_CATEGORIES } from '../constants/categories';
 import { useBudgetStore } from '../stores/budgetStore';
@@ -22,16 +23,12 @@ import type { TBudget } from '../types/budget';
 
 const AMBER = '#D97706';
 const AMBER_BG = '#FEF3C7';
+const OVERALL_KEY = '__overall__';
 
 function progressColor(pct: number) {
   if (pct >= 100) return colors.expense;
   if (pct >= 70) return AMBER;
   return colors.income;
-}
-function progressBg(pct: number) {
-  if (pct >= 100) return colors.expenseLight;
-  if (pct >= 70) return AMBER_BG;
-  return colors.incomeLight;
 }
 
 type TCategoryMeta = {
@@ -42,11 +39,19 @@ type TCategoryMeta = {
   bg: string;
 };
 
+const OVERALL_META: TCategoryMeta = {
+  key: OVERALL_KEY,
+  label: 'Overall',
+  icon: 'wallet-outline',
+  color: colors.primary,
+  bg: colors.primaryLight,
+};
+
 export default function BudgetScreen() {
+  const navigation = useNavigation();
   const { budgets, loading, fetch, upsert, remove } = useBudgetStore();
   const { categories: customCats, fetch: fetchCats } = useCategoryStore();
 
-  // sheet state
   const [sheetOpen, setSheetOpen] = useState(false);
   const [editBudget, setEditBudget] = useState<TBudget | null>(null);
   const [selectedCat, setSelectedCat] = useState<TCategoryMeta | null>(null);
@@ -59,8 +64,8 @@ export default function BudgetScreen() {
     fetchCats();
   }, []);
 
-  // All categories available for budgeting (expense defaults + custom)
-  const allCategories: TCategoryMeta[] = [
+  const allCategoryOptions: TCategoryMeta[] = [
+    OVERALL_META,
     ...EXPENSE_CATEGORIES.map(key => ({
       key,
       label: key.charAt(0).toUpperCase() + key.slice(1),
@@ -75,9 +80,26 @@ export default function BudgetScreen() {
     })),
   ];
 
-  // Categories that don't have a budget yet
   const budgetedKeys = new Set(budgets.map(b => b.category));
-  const unbudgetedCats = allCategories.filter(c => !budgetedKeys.has(c.key));
+  const unbudgetedCats = allCategoryOptions.filter(
+    c => !budgetedKeys.has(c.key),
+  );
+
+  const overallBudget = budgets.find(b => b.category === OVERALL_KEY) ?? null;
+  const categoryBudgets = budgets.filter(b => b.category !== OVERALL_KEY);
+
+  const getCatMeta = (category: string): TCategoryMeta => {
+    if (category === OVERALL_KEY) return OVERALL_META;
+    return (
+      allCategoryOptions.find(c => c.key === category) ?? {
+        key: category,
+        label: category.charAt(0).toUpperCase() + category.slice(1),
+        icon: 'shape-outline',
+        color: colors.textSub,
+        bg: colors.inputBg,
+      }
+    );
+  };
 
   const openAdd = () => {
     setEditBudget(null);
@@ -88,8 +110,7 @@ export default function BudgetScreen() {
 
   const openEdit = (b: TBudget) => {
     setEditBudget(b);
-    const meta = allCategories.find(c => c.key === b.category);
-    setSelectedCat(meta ?? null);
+    setSelectedCat(getCatMeta(b.category));
     setAmountStr(String(b.amount));
     setSheetOpen(true);
   };
@@ -106,33 +127,22 @@ export default function BudgetScreen() {
     }
   };
 
-  const handleDelete = async (b: TBudget) => {
-    await remove(b.category);
-  };
-
-  const totalBudgeted = budgets.reduce((s, b) => s + b.amount, 0);
-  const totalSpent = budgets.reduce((s, b) => s + b.spent, 0);
-  const overallPct =
-    totalBudgeted > 0 ? Math.round((totalSpent / totalBudgeted) * 100) : 0;
-
-  const getCatMeta = (category: string): TCategoryMeta => {
-    const found = allCategories.find(c => c.key === category);
-    return (
-      found ?? {
-        key: category,
-        label: category.charAt(0).toUpperCase() + category.slice(1),
-        icon: 'shape-outline',
-        color: colors.textSub,
-        bg: colors.inputBg,
-      }
-    );
-  };
+  const totalCatBudgeted = categoryBudgets.reduce((s, b) => s + b.amount, 0);
+  const totalCatSpent = categoryBudgets.reduce((s, b) => s + b.spent, 0);
 
   return (
     <View style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor={colors.surface} />
 
+      {/* Header with back button */}
       <View style={styles.header}>
+        <TouchableOpacity
+          onPress={() => navigation.goBack()}
+          style={styles.backBtn}
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+        >
+          <Icon name="arrow-left" size={22} color={colors.text} />
+        </TouchableOpacity>
         <Text style={styles.title}>Budgets</Text>
         <View style={styles.headerBadge}>
           <Icon
@@ -149,160 +159,134 @@ export default function BudgetScreen() {
         </View>
       </View>
 
-      {/* Summary card */}
-      {budgets.length > 0 && (
-        <View style={styles.summaryCard}>
-          <View style={styles.summaryRow}>
-            <Text style={styles.summaryLabel}>Total spent</Text>
-            <Text style={styles.summaryLabel}>of budgeted</Text>
-          </View>
-          <View style={styles.summaryRow}>
-            <Text
-              style={[
-                styles.summaryAmount,
-                { color: progressColor(overallPct) },
-              ]}
-            >
-              ₹{totalSpent.toLocaleString('en-IN')}
-            </Text>
-            <Text style={styles.summaryTotal}>
-              ₹{totalBudgeted.toLocaleString('en-IN')}
-            </Text>
-          </View>
-          <View style={styles.overallBarBg}>
-            <View
-              style={[
-                styles.overallBarFill,
-                {
-                  width: `${Math.min(overallPct, 100)}%` as `${number}%`,
-                  backgroundColor: progressColor(overallPct),
-                },
-              ]}
-            />
-          </View>
-          <Text style={styles.summaryPct}>{overallPct}% used</Text>
-        </View>
-      )}
-
       {loading ? (
         <ActivityIndicator style={{ marginTop: 64 }} color={colors.primary} />
-      ) : budgets.length === 0 ? (
-        <View style={styles.empty}>
-          <View style={styles.emptyIcon}>
-            <Icon name="piggy-bank-outline" size={40} color={colors.primary} />
-          </View>
-          <Text style={styles.emptyTitle}>No budgets set</Text>
-          <Text style={styles.emptySubtitle}>
-            Set monthly spending limits per category to stay on track.
-          </Text>
-          <TouchableOpacity style={styles.emptyBtn} onPress={openAdd}>
-            <Icon name="plus" size={16} color="#FFF" />
-            <Text style={styles.emptyBtnText}>Add your first budget</Text>
-          </TouchableOpacity>
-        </View>
       ) : (
         <FlatList
-          data={budgets}
+          data={categoryBudgets}
           keyExtractor={b => b._id}
           contentContainerStyle={styles.list}
           showsVerticalScrollIndicator={false}
-          renderItem={({ item }) => {
-            const meta = getCatMeta(item.category);
-            const pct = Math.min(item.percentage, 100);
-            const over = item.percentage > 100;
-            return (
-              <TouchableOpacity
-                style={styles.card}
-                onPress={() => openEdit(item)}
-                activeOpacity={0.7}
-              >
-                <View style={styles.cardTop}>
-                  <View style={[styles.cardIcon, { backgroundColor: meta.bg }]}>
-                    <Icon name={meta.icon} size={18} color={meta.color} />
+          ListHeaderComponent={
+            <>
+              {/* Overall budget card */}
+              <View style={styles.sectionLabel}>
+                <Text style={styles.sectionLabelText}>Overall limit</Text>
+              </View>
+              {overallBudget ? (
+                <BudgetCard
+                  budget={overallBudget}
+                  meta={OVERALL_META}
+                  onPress={() => openEdit(overallBudget)}
+                  isOverall
+                />
+              ) : (
+                <TouchableOpacity
+                  style={styles.emptyOverallCard}
+                  onPress={() => {
+                    setEditBudget(null);
+                    setSelectedCat(OVERALL_META);
+                    setAmountStr('');
+                    setSheetOpen(true);
+                  }}
+                  activeOpacity={0.7}
+                >
+                  <View style={styles.emptyOverallIcon}>
+                    <Icon
+                      name="wallet-plus-outline"
+                      size={22}
+                      color={colors.primary}
+                    />
                   </View>
-                  <View style={styles.cardInfo}>
-                    <Text style={styles.cardCat}>{meta.label}</Text>
-                    <Text style={styles.cardAmounts}>
-                      <Text
-                        style={{
-                          color: progressColor(item.percentage),
-                          fontWeight: '700',
-                        }}
-                      >
-                        ₹{item.spent.toLocaleString('en-IN')}
-                      </Text>
-                      <Text style={{ color: colors.textLight }}>
-                        {' '}
-                        / ₹{item.amount.toLocaleString('en-IN')}
-                      </Text>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.emptyOverallTitle}>
+                      Set overall budget
+                    </Text>
+                    <Text style={styles.emptyOverallSub}>
+                      Cap your total monthly spending
                     </Text>
                   </View>
-                  <View style={styles.cardRight}>
-                    <Text
-                      style={[
-                        styles.cardPct,
-                        { color: progressColor(item.percentage) },
-                      ]}
-                    >
-                      {item.percentage}%
-                    </Text>
-                    {over && (
-                      <Icon
-                        name="alert-circle"
-                        size={13}
-                        color={colors.expense}
-                      />
-                    )}
-                  </View>
-                </View>
+                  <Icon
+                    name="chevron-right"
+                    size={18}
+                    color={colors.textLight}
+                  />
+                </TouchableOpacity>
+              )}
 
-                <View style={styles.barBg}>
+              {/* Category budgets header */}
+              <View style={[styles.sectionLabel, { marginTop: spacing.lg }]}>
+                <Text style={styles.sectionLabelText}>By category</Text>
+                {unbudgetedCats.length > 0 && (
+                  <TouchableOpacity
+                    onPress={openAdd}
+                    style={styles.sectionAddBtn}
+                  >
+                    <Icon name="plus" size={13} color={colors.primary} />
+                    <Text style={styles.sectionAddBtnText}>Add</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+
+              {categoryBudgets.length === 0 && (
+                <TouchableOpacity
+                  style={styles.emptyOverallCard}
+                  onPress={openAdd}
+                  activeOpacity={0.7}
+                >
                   <View
                     style={[
-                      styles.barFill,
-                      {
-                        width: `${pct}%` as `${number}%`,
-                        backgroundColor: progressColor(item.percentage),
-                      },
+                      styles.emptyOverallIcon,
+                      { backgroundColor: colors.inputBg },
                     ]}
-                  />
-                </View>
-
-                {over && (
-                  <View style={styles.overBadge}>
+                  >
                     <Icon
-                      name="alert-circle-outline"
-                      size={12}
-                      color={colors.expense}
+                      name="tag-plus-outline"
+                      size={22}
+                      color={colors.textSub}
                     />
-                    <Text style={styles.overBadgeText}>
-                      Over by ₹
-                      {(item.spent - item.amount).toLocaleString('en-IN')}
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.emptyOverallTitle}>
+                      No category budgets
+                    </Text>
+                    <Text style={styles.emptyOverallSub}>
+                      Set limits per category to track spending
                     </Text>
                   </View>
-                )}
-              </TouchableOpacity>
-            );
-          }}
+                  <Icon
+                    name="chevron-right"
+                    size={18}
+                    color={colors.textLight}
+                  />
+                </TouchableOpacity>
+              )}
+            </>
+          }
+          renderItem={({ item }) => (
+            <BudgetCard
+              budget={item}
+              meta={getCatMeta(item.category)}
+              onPress={() => openEdit(item)}
+            />
+          )}
           ListFooterComponent={
-            unbudgetedCats.length > 0 ? (
+            categoryBudgets.length > 0 && unbudgetedCats.length > 0 ? (
               <TouchableOpacity style={styles.addMoreBtn} onPress={openAdd}>
                 <Icon
                   name="plus-circle-outline"
                   size={18}
                   color={colors.primary}
                 />
-                <Text style={styles.addMoreText}>
-                  Add budget for another category
-                </Text>
+                <Text style={styles.addMoreText}>Add another category</Text>
               </TouchableOpacity>
             ) : null
           }
         />
       )}
 
-      {/* FAB — only when budgets exist */}
-      {budgets.length > 0 && unbudgetedCats.length > 0 && (
+      {/* FAB — when there are unbudgeted categories */}
+      {!loading && unbudgetedCats.length > 0 && budgets.length > 0 && (
         <TouchableOpacity style={styles.fab} onPress={openAdd}>
           <Icon name="plus" size={22} color="#FFF" />
         </TouchableOpacity>
@@ -335,7 +319,7 @@ export default function BudgetScreen() {
                 {editBudget ? 'Edit budget' : 'Set budget'}
               </Text>
 
-              {/* Category picker (only when adding new) */}
+              {/* Category picker — only when adding */}
               {!editBudget && (
                 <>
                   <Text style={styles.fieldLabel}>Category</Text>
@@ -382,7 +366,7 @@ export default function BudgetScreen() {
                 </>
               )}
 
-              {/* If editing, show category label */}
+              {/* Category label when editing */}
               {editBudget && selectedCat && (
                 <View style={styles.editCatRow}>
                   <View
@@ -401,7 +385,6 @@ export default function BudgetScreen() {
                 </View>
               )}
 
-              {/* Amount input */}
               <Text style={styles.fieldLabel}>Monthly limit (₹)</Text>
               <View style={styles.amountWrap}>
                 <Text style={styles.rupee}>₹</Text>
@@ -421,7 +404,7 @@ export default function BudgetScreen() {
                   <TouchableOpacity
                     style={styles.deleteBtn}
                     onPress={async () => {
-                      await handleDelete(editBudget);
+                      await remove(editBudget.category);
                       setSheetOpen(false);
                     }}
                   >
@@ -433,7 +416,7 @@ export default function BudgetScreen() {
                   </TouchableOpacity>
                 )}
                 <TouchableOpacity
-                  style={[styles.cancelBtn, editBudget && { flex: 1 }]}
+                  style={styles.cancelBtn}
                   onPress={() => setSheetOpen(false)}
                 >
                   <Text style={styles.cancelBtnText}>Cancel</Text>
@@ -458,19 +441,109 @@ export default function BudgetScreen() {
   );
 }
 
+function BudgetCard({
+  budget,
+  meta,
+  onPress,
+  isOverall = false,
+}: {
+  budget: TBudget;
+  meta: TCategoryMeta;
+  onPress: () => void;
+  isOverall?: boolean;
+}) {
+  const pct = Math.min(budget.percentage, 100);
+  const over = budget.percentage > 100;
+
+  return (
+    <TouchableOpacity
+      style={[styles.card, isOverall && styles.overallCard]}
+      onPress={onPress}
+      activeOpacity={0.7}
+    >
+      <View style={styles.cardTop}>
+        <View style={[styles.cardIcon, { backgroundColor: meta.bg }]}>
+          <Icon name={meta.icon} size={18} color={meta.color} />
+        </View>
+        <View style={styles.cardInfo}>
+          <Text style={styles.cardCat}>{meta.label}</Text>
+          <Text style={styles.cardAmounts}>
+            <Text
+              style={{
+                color: progressColor(budget.percentage),
+                fontWeight: '700',
+              }}
+            >
+              ₹{budget.spent.toLocaleString('en-IN')}
+            </Text>
+            <Text style={{ color: colors.textLight }}>
+              {' '}
+              / ₹{budget.amount.toLocaleString('en-IN')}
+            </Text>
+          </Text>
+        </View>
+        <View style={styles.cardRight}>
+          <Text
+            style={[
+              styles.cardPct,
+              { color: progressColor(budget.percentage) },
+            ]}
+          >
+            {budget.percentage}%
+          </Text>
+          {over && (
+            <Icon name="alert-circle" size={13} color={colors.expense} />
+          )}
+        </View>
+      </View>
+
+      <View style={styles.barBg}>
+        <View
+          style={[
+            styles.barFill,
+            {
+              width: `${pct}%` as `${number}%`,
+              backgroundColor: progressColor(budget.percentage),
+            },
+          ]}
+        />
+      </View>
+
+      {over && (
+        <View style={styles.overBadge}>
+          <Icon name="alert-circle-outline" size={12} color={colors.expense} />
+          <Text style={styles.overBadgeText}>
+            Over by ₹{(budget.spent - budget.amount).toLocaleString('en-IN')}
+          </Text>
+        </View>
+      )}
+    </TouchableOpacity>
+  );
+}
+
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.surface },
 
   header: {
-    paddingHorizontal: spacing.lg,
-    paddingTop: 56,
-    paddingBottom: spacing.md,
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
+    paddingHorizontal: spacing.base,
+    paddingTop: 56,
+    paddingBottom: spacing.md,
+    gap: spacing.sm,
+  },
+  backBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   title: {
-    fontSize: 26,
+    flex: 1,
+    fontSize: 22,
     fontWeight: '800',
     color: colors.text,
     letterSpacing: -0.5,
@@ -490,69 +563,82 @@ const styles = StyleSheet.create({
     color: colors.primary,
   },
 
-  summaryCard: {
-    marginHorizontal: spacing.base,
-    marginBottom: spacing.base,
-    backgroundColor: colors.surface,
-    borderRadius: radius.lg,
-    padding: spacing.base,
-    borderWidth: 1,
-    borderColor: colors.border,
-    ...shadow.card,
-  },
-  summaryRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'baseline',
-    marginBottom: 4,
-  },
-  summaryLabel: {
-    fontSize: 11,
-    fontWeight: '600',
-    color: colors.textSub,
-    textTransform: 'uppercase',
-    letterSpacing: 0.4,
-  },
-  summaryAmount: {
-    fontSize: 24,
-    fontWeight: '800',
-    letterSpacing: -0.5,
-  },
-  summaryTotal: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: colors.textSub,
-  },
-  overallBarBg: {
-    height: 6,
-    backgroundColor: colors.inputBg,
-    borderRadius: radius.full,
-    marginTop: spacing.sm,
-    marginBottom: 6,
-    overflow: 'hidden',
-  },
-  overallBarFill: {
-    height: '100%',
-    borderRadius: radius.full,
-  },
-  summaryPct: {
-    fontSize: 11,
-    color: colors.textLight,
-    fontWeight: '600',
-  },
-
   list: {
     padding: spacing.base,
-    gap: spacing.sm,
     paddingBottom: 100,
   },
+
+  sectionLabel: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: spacing.sm,
+  },
+  sectionLabelText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: colors.textSub,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  sectionAddBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    backgroundColor: colors.primaryLight,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 4,
+    borderRadius: radius.full,
+  },
+  sectionAddBtnText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: colors.primary,
+  },
+
+  emptyOverallCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+    padding: spacing.base,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+    marginBottom: spacing.sm,
+  },
+  emptyOverallIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: radius.md,
+    backgroundColor: colors.primaryLight,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  emptyOverallTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: colors.text,
+    marginBottom: 2,
+  },
+  emptyOverallSub: {
+    fontSize: 12,
+    color: colors.textSub,
+  },
+
   card: {
     backgroundColor: colors.surface,
     borderRadius: radius.lg,
     padding: spacing.base,
     borderWidth: 1,
     borderColor: colors.border,
+    marginBottom: spacing.sm,
     ...shadow.card,
+  },
+  overallCard: {
+    borderColor: colors.primary,
+    borderWidth: 1.5,
+    backgroundColor: colors.primaryLight,
   },
   cardTop: {
     flexDirection: 'row',
@@ -574,39 +660,23 @@ const styles = StyleSheet.create({
     color: colors.text,
     textTransform: 'capitalize',
   },
-  cardAmounts: {
-    fontSize: 13,
-    marginTop: 2,
-  },
-  cardRight: {
-    alignItems: 'flex-end',
-    gap: 2,
-  },
-  cardPct: {
-    fontSize: 14,
-    fontWeight: '800',
-  },
+  cardAmounts: { fontSize: 13, marginTop: 2 },
+  cardRight: { alignItems: 'flex-end', gap: 2 },
+  cardPct: { fontSize: 14, fontWeight: '800' },
   barBg: {
     height: 6,
-    backgroundColor: colors.inputBg,
+    backgroundColor: 'rgba(0,0,0,0.08)',
     borderRadius: radius.full,
     overflow: 'hidden',
   },
-  barFill: {
-    height: '100%',
-    borderRadius: radius.full,
-  },
+  barFill: { height: '100%', borderRadius: radius.full },
   overBadge: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
     marginTop: 8,
   },
-  overBadgeText: {
-    fontSize: 11,
-    color: colors.expense,
-    fontWeight: '600',
-  },
+  overBadgeText: { fontSize: 11, color: colors.expense, fontWeight: '600' },
 
   addMoreBtn: {
     flexDirection: 'row',
@@ -614,64 +684,17 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: spacing.sm,
     paddingVertical: spacing.base,
-    marginTop: spacing.sm,
+    marginTop: spacing.xs,
     borderWidth: 1,
     borderColor: colors.primary,
     borderRadius: radius.lg,
     borderStyle: 'dashed',
   },
-  addMoreText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: colors.primary,
-  },
-
-  empty: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: spacing.xl,
-    gap: spacing.md,
-  },
-  emptyIcon: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: colors.primaryLight,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: spacing.sm,
-  },
-  emptyTitle: {
-    fontSize: 20,
-    fontWeight: '800',
-    color: colors.text,
-  },
-  emptySubtitle: {
-    fontSize: 14,
-    color: colors.textSub,
-    textAlign: 'center',
-    lineHeight: 20,
-  },
-  emptyBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-    backgroundColor: colors.primary,
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.md,
-    borderRadius: radius.full,
-    marginTop: spacing.sm,
-  },
-  emptyBtnText: {
-    color: '#FFF',
-    fontWeight: '700',
-    fontSize: 14,
-  },
+  addMoreText: { fontSize: 14, fontWeight: '600', color: colors.primary },
 
   fab: {
     position: 'absolute',
-    bottom: 90,
+    bottom: 24,
     right: spacing.lg,
     width: 52,
     height: 52,
@@ -710,7 +733,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.lg,
     marginBottom: spacing.base,
   },
-
   fieldLabel: {
     fontSize: 11,
     fontWeight: '700',
@@ -720,7 +742,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.lg,
     marginBottom: spacing.sm,
   },
-
   catChip: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -738,7 +759,6 @@ const styles = StyleSheet.create({
     color: colors.textSub,
     textTransform: 'capitalize',
   },
-
   editCatRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -759,7 +779,6 @@ const styles = StyleSheet.create({
     color: colors.text,
     textTransform: 'capitalize',
   },
-
   amountWrap: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -773,11 +792,7 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.md,
     gap: spacing.sm,
   },
-  rupee: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: colors.textSub,
-  },
+  rupee: { fontSize: 20, fontWeight: '700', color: colors.textSub },
   amountInput: {
     flex: 1,
     fontSize: 22,
@@ -785,7 +800,6 @@ const styles = StyleSheet.create({
     color: colors.text,
     padding: 0,
   },
-
   sheetActions: {
     flexDirection: 'row',
     gap: spacing.sm,
@@ -809,11 +823,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  cancelBtnText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: colors.textSub,
-  },
+  cancelBtnText: { fontSize: 14, fontWeight: '600', color: colors.textSub },
   saveBtn: {
     flex: 2,
     height: 44,
@@ -822,9 +832,5 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  saveBtnText: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#FFF',
-  },
+  saveBtnText: { fontSize: 14, fontWeight: '700', color: '#FFF' },
 });
