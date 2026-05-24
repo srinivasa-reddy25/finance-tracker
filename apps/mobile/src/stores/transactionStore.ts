@@ -16,6 +16,8 @@ type TTransactionStore = {
     category?: string;
     month?: string;
     search?: string;
+    from?: string;
+    to?: string;
   }) => Promise<void>;
   add: (data: TCreateTransaction) => Promise<void>;
   remove: (id: string) => Promise<void>;

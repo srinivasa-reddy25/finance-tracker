@@ -34,6 +34,7 @@ export default function DashboardScreen() {
   const [modalOpen, setModalOpen] = useState(false);
   const [amount, setAmount] = useState('');
   const [description, setDescription] = useState('');
+  const [note, setNote] = useState('');
   const [category, setCategory] = useState<TCategory>('food');
   const [adding, setAdding] = useState(false);
 
@@ -69,6 +70,7 @@ export default function DashboardScreen() {
   const openModal = () => {
     setAmount('');
     setDescription('');
+    setNote('');
     setCategory('food');
     setModalOpen(true);
   };
@@ -88,6 +90,7 @@ export default function DashboardScreen() {
       await add({
         amount: parsed,
         description: description.trim(),
+        note: note.trim() || undefined,
         category,
         source: 'manual',
       });
@@ -266,6 +269,16 @@ export default function DashboardScreen() {
               value={description}
               onChangeText={setDescription}
               placeholder="Description"
+              placeholderTextColor={colors.textLight}
+              style={styles.descInput}
+              returnKeyType="next"
+            />
+
+            {/* Note (optional) */}
+            <TextInput
+              value={note}
+              onChangeText={setNote}
+              placeholder="Add a note (optional)"
               placeholderTextColor={colors.textLight}
               style={styles.descInput}
               returnKeyType="done"

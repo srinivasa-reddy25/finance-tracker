@@ -11,6 +11,7 @@ import {
   StatusBar,
   Animated,
   RefreshControl,
+  ScrollView,
 } from 'react-native';
 import { Swipeable } from 'react-native-gesture-handler';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
@@ -85,9 +86,16 @@ function SwipeableRow({
       <View
         style={[styles.row, index % 2 === 1 && styles.rowAlt, { gap: COL_GAP }]}
       >
-        <Text style={[styles.nameCell]} numberOfLines={1}>
-          {item.description}
-        </Text>
+        <View style={{ flex: 1 }}>
+          <Text style={styles.nameCell} numberOfLines={1}>
+            {item.description}
+          </Text>
+          {item.note ? (
+            <Text style={styles.noteCell} numberOfLines={1}>
+              {item.note}
+            </Text>
+          ) : null}
+        </View>
 
         <View style={{ width: COL_CAT, alignItems: 'center' }}>
           <View style={[styles.catIcon, { backgroundColor: meta.bg }]}>
@@ -120,17 +128,45 @@ export default function HistoryScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<TTransaction | null>(null);
 
+  // Date range
+  const [fromMonth, setFromMonth] = useState<string | null>(null);
+  const [toMonth, setToMonth] = useState<string | null>(null);
+  const [monthPickerOpen, setMonthPickerOpen] = useState(false);
+  const [monthPickerTarget, setMonthPickerTarget] = useState<'from' | 'to'>(
+    'from',
+  );
+
   const currentMonth = new Date().toISOString().slice(0, 7);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  useEffect(() => {
-    fetch({
-      month: currentMonth,
-      page,
+  const hasDateRange = fromMonth !== null || toMonth !== null;
+
+  // Convert YYYY-MM to from/to ISO date strings
+  const monthToFrom = (m: string) => `${m}-01`;
+  const monthToTo = (m: string) => {
+    const [y, mo] = m.split('-').map(Number);
+    const last = new Date(y!, mo!, 0).getDate();
+    return `${m}-${String(last).padStart(2, '0')}`;
+  };
+
+  const buildParams = useCallback(
+    (p = 1) => ({
+      page: p,
       category: filter === ALL ? undefined : filter,
       search: search.trim() || undefined,
-    });
-  }, [filter, page]);
+      ...(hasDateRange
+        ? {
+            from: fromMonth ? monthToFrom(fromMonth) : undefined,
+            to: toMonth ? monthToTo(toMonth) : undefined,
+          }
+        : { month: currentMonth }),
+    }),
+    [filter, search, fromMonth, toMonth, hasDateRange, currentMonth],
+  );
+
+  useEffect(() => {
+    fetch(buildParams(page));
+  }, [filter, page, fromMonth, toMonth]);
 
   const isMounted = useRef(false);
   useEffect(() => {
@@ -141,12 +177,7 @@ export default function HistoryScreen() {
     if (debounceRef.current) clearTimeout(debounceRef.current);
     debounceRef.current = setTimeout(() => {
       setPage(1);
-      fetch({
-        month: currentMonth,
-        page: 1,
-        category: filter === ALL ? undefined : filter,
-        search: search.trim() || undefined,
-      });
+      fetch(buildParams(1));
     }, 400);
     return () => {
       if (debounceRef.current) clearTimeout(debounceRef.current);
@@ -161,20 +192,40 @@ export default function HistoryScreen() {
     setFilterOpen(false);
   }, []);
 
+  const clearDateRange = useCallback(() => {
+    setFromMonth(null);
+    setToMonth(null);
+    setPage(1);
+  }, []);
+
+  const openMonthPicker = (target: 'from' | 'to') => {
+    setMonthPickerTarget(target);
+    setMonthPickerOpen(true);
+  };
+
+  // Build last 24 months list
+  const monthOptions = Array.from({ length: 24 }, (_, i) => {
+    const d = new Date();
+    d.setDate(1);
+    d.setMonth(d.getMonth() - i);
+    return d.toISOString().slice(0, 7);
+  });
+
+  const formatMonth = (m: string) =>
+    new Date(m + '-01').toLocaleDateString('en-IN', {
+      month: 'short',
+      year: 'numeric',
+    });
+
   const handleRefresh = useCallback(async () => {
     setRefreshing(true);
     try {
-      await fetch({
-        month: currentMonth,
-        page: 1,
-        category: filter === ALL ? undefined : filter,
-        search: search.trim() || undefined,
-      });
+      await fetch(buildParams(1));
       setPage(1);
     } finally {
       setRefreshing(false);
     }
-  }, [filter, search]);
+  }, [filter, search, fromMonth, toMonth]);
 
   const handleDelete = useCallback(
     (item: TTransaction) => {
@@ -259,6 +310,107 @@ export default function HistoryScreen() {
           )}
         </TouchableOpacity>
       </View>
+
+      {/* Date range row */}
+      <View style={styles.dateRow}>
+        <TouchableOpacity
+          style={[styles.dateBtn, fromMonth && styles.dateBtnActive]}
+          onPress={() => openMonthPicker('from')}
+        >
+          <Icon
+            name="calendar-start"
+            size={13}
+            color={fromMonth ? colors.primary : colors.textSub}
+          />
+          <Text
+            style={[styles.dateBtnText, fromMonth && { color: colors.primary }]}
+          >
+            {fromMonth ? formatMonth(fromMonth) : 'From'}
+          </Text>
+        </TouchableOpacity>
+
+        <Icon name="arrow-right" size={14} color={colors.border} />
+
+        <TouchableOpacity
+          style={[styles.dateBtn, toMonth && styles.dateBtnActive]}
+          onPress={() => openMonthPicker('to')}
+        >
+          <Icon
+            name="calendar-end"
+            size={13}
+            color={toMonth ? colors.primary : colors.textSub}
+          />
+          <Text
+            style={[styles.dateBtnText, toMonth && { color: colors.primary }]}
+          >
+            {toMonth ? formatMonth(toMonth) : 'To'}
+          </Text>
+        </TouchableOpacity>
+
+        {hasDateRange && (
+          <TouchableOpacity onPress={clearDateRange} style={styles.dateClear}>
+            <Icon name="close-circle" size={16} color={colors.textLight} />
+          </TouchableOpacity>
+        )}
+      </View>
+
+      {/* Month picker modal */}
+      <Modal
+        visible={monthPickerOpen}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setMonthPickerOpen(false)}
+      >
+        <TouchableOpacity
+          style={styles.monthOverlay}
+          activeOpacity={1}
+          onPress={() => setMonthPickerOpen(false)}
+        >
+          <View style={styles.monthSheet}>
+            <Text style={styles.monthSheetTitle}>
+              {monthPickerTarget === 'from' ? 'From month' : 'To month'}
+            </Text>
+            <ScrollView showsVerticalScrollIndicator={false}>
+              {monthOptions.map(m => {
+                const isSelected =
+                  monthPickerTarget === 'from'
+                    ? fromMonth === m
+                    : toMonth === m;
+                return (
+                  <TouchableOpacity
+                    key={m}
+                    style={[
+                      styles.monthOption,
+                      isSelected && styles.monthOptionActive,
+                    ]}
+                    onPress={() => {
+                      if (monthPickerTarget === 'from') setFromMonth(m);
+                      else setToMonth(m);
+                      setPage(1);
+                      setMonthPickerOpen(false);
+                    }}
+                  >
+                    <Text
+                      style={[
+                        styles.monthOptionText,
+                        isSelected && {
+                          color: colors.primary,
+                          fontWeight: '700',
+                        },
+                      ]}
+                    >
+                      {formatMonth(m)}
+                    </Text>
+                    {isSelected && (
+                      <Icon name="check" size={16} color={colors.primary} />
+                    )}
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
+          </View>
+        </TouchableOpacity>
+      </Modal>
 
       <View style={styles.tableWrapper}>
         {/* Table header */}
@@ -540,6 +692,68 @@ const styles = StyleSheet.create({
   },
   filterBtnText: { fontSize: 13, fontWeight: '600', color: colors.textSub },
 
+  dateRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    paddingHorizontal: spacing.base,
+    paddingBottom: spacing.md,
+  },
+  dateBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    flex: 1,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 8,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+  },
+  dateBtnActive: {
+    borderColor: colors.primary,
+    backgroundColor: colors.primaryLight,
+  },
+  dateBtnText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: colors.textSub,
+  },
+  dateClear: {
+    padding: 4,
+  },
+  monthOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.45)',
+    justifyContent: 'center',
+    paddingHorizontal: spacing.xl,
+  },
+  monthSheet: {
+    backgroundColor: colors.surface,
+    borderRadius: radius.xl,
+    padding: spacing.lg,
+    maxHeight: 360,
+  },
+  monthSheetTitle: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: colors.textSub,
+    textTransform: 'uppercase',
+    letterSpacing: 0.6,
+    marginBottom: spacing.sm,
+  },
+  monthOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 12,
+    paddingHorizontal: spacing.sm,
+    borderRadius: radius.md,
+  },
+  monthOptionActive: { backgroundColor: colors.primaryLight },
+  monthOptionText: { fontSize: 15, color: colors.textMed, fontWeight: '500' },
+
   tableHead: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -583,10 +797,14 @@ const styles = StyleSheet.create({
   rowAlt: { backgroundColor: '#FAFBFC' },
 
   nameCell: {
-    flex: 1,
     fontSize: 14,
     fontWeight: '600',
     color: colors.text,
+  },
+  noteCell: {
+    fontSize: 11,
+    color: colors.textLight,
+    marginTop: 1,
   },
   dateCell: {
     width: COL_DATE,
