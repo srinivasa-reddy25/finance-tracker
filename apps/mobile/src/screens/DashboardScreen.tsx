@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -37,6 +37,7 @@ export default function DashboardScreen() {
   const [note, setNote] = useState('');
   const [category, setCategory] = useState<TCategory>('food');
   const [adding, setAdding] = useState(false);
+  const amountRef = useRef<TextInput>(null);
 
   const currentMonth = new Date().toISOString().slice(0, 7);
 
@@ -68,11 +69,15 @@ export default function DashboardScreen() {
   };
 
   const openModal = () => {
+    setModalOpen(true);
+    setTimeout(() => amountRef.current?.focus(), 100);
+  };
+
+  const resetForm = () => {
     setAmount('');
     setDescription('');
     setNote('');
     setCategory('food');
-    setModalOpen(true);
   };
 
   const handleAdd = async () => {
@@ -94,6 +99,7 @@ export default function DashboardScreen() {
         category,
         source: 'manual',
       });
+      resetForm();
       setModalOpen(false);
     } catch {
       Alert.alert('Error', 'Failed to add transaction. Try again.');
@@ -254,13 +260,13 @@ export default function DashboardScreen() {
             <View style={styles.amountRow}>
               <Text style={styles.amountCurrency}>₹</Text>
               <TextInput
+                ref={amountRef}
                 value={amount}
                 onChangeText={setAmount}
                 keyboardType="numeric"
                 placeholder="0"
                 placeholderTextColor={colors.border}
                 style={styles.amountInput}
-                autoFocus
               />
             </View>
 
