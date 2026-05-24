@@ -70,7 +70,6 @@ export default function DashboardScreen() {
 
   const openModal = () => {
     setModalOpen(true);
-    setTimeout(() => amountRef.current?.focus(), 100);
   };
 
   const resetForm = () => {
@@ -237,123 +236,129 @@ export default function DashboardScreen() {
         transparent
         animationType="fade"
         onRequestClose={() => setModalOpen(false)}
+        onShow={() => amountRef.current?.focus()}
       >
         <KeyboardAvoidingView
-          style={styles.modalOverlay}
+          style={{ flex: 1 }}
           behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         >
           <TouchableOpacity
-            style={StyleSheet.absoluteFillObject}
+            style={styles.modalOverlay}
             activeOpacity={1}
             onPress={() => setModalOpen(false)}
-          />
-          <View style={styles.dialog}>
-            {/* Dialog header */}
-            <View style={styles.dialogHeader}>
-              <Text style={styles.dialogTitle}>Add Expense</Text>
-              <TouchableOpacity onPress={() => setModalOpen(false)}>
-                <Icon name="close" size={20} color={colors.textSub} />
-              </TouchableOpacity>
-            </View>
+          >
+            <TouchableOpacity
+              activeOpacity={1}
+              style={styles.dialog}
+              onPress={() => {}}
+            >
+              {/* Dialog header */}
+              <View style={styles.dialogHeader}>
+                <Text style={styles.dialogTitle}>Add Expense</Text>
+                <TouchableOpacity onPress={() => setModalOpen(false)}>
+                  <Icon name="close" size={20} color={colors.textSub} />
+                </TouchableOpacity>
+              </View>
 
-            {/* Amount */}
-            <View style={styles.amountRow}>
-              <Text style={styles.amountCurrency}>₹</Text>
+              {/* Amount */}
+              <View style={styles.amountRow}>
+                <Text style={styles.amountCurrency}>₹</Text>
+                <TextInput
+                  ref={amountRef}
+                  value={amount}
+                  onChangeText={setAmount}
+                  keyboardType="numeric"
+                  placeholder="0"
+                  placeholderTextColor={colors.border}
+                  style={styles.amountInput}
+                />
+              </View>
+
+              {/* Description */}
               <TextInput
-                ref={amountRef}
-                value={amount}
-                onChangeText={setAmount}
-                keyboardType="numeric"
-                placeholder="0"
-                placeholderTextColor={colors.border}
-                style={styles.amountInput}
+                value={description}
+                onChangeText={setDescription}
+                placeholder="Description"
+                placeholderTextColor={colors.textLight}
+                style={styles.descInput}
+                returnKeyType="next"
               />
-            </View>
 
-            {/* Description */}
-            <TextInput
-              value={description}
-              onChangeText={setDescription}
-              placeholder="Description"
-              placeholderTextColor={colors.textLight}
-              style={styles.descInput}
-              returnKeyType="next"
-            />
+              {/* Note (optional) */}
+              <TextInput
+                value={note}
+                onChangeText={setNote}
+                placeholder="Add a note (optional)"
+                placeholderTextColor={colors.textLight}
+                style={styles.descInput}
+                returnKeyType="done"
+              />
 
-            {/* Note (optional) */}
-            <TextInput
-              value={note}
-              onChangeText={setNote}
-              placeholder="Add a note (optional)"
-              placeholderTextColor={colors.textLight}
-              style={styles.descInput}
-              returnKeyType="done"
-            />
-
-            {/* Categories */}
-            <View style={styles.categoryGrid}>
-              {EXPENSE_CATEGORIES.map(cat => {
-                const meta = CATEGORY_META[cat];
-                const selected = category === cat;
-                return (
-                  <TouchableOpacity
-                    key={cat}
-                    onPress={() => setCategory(cat)}
-                    style={[
-                      styles.catChip,
-                      selected && {
-                        backgroundColor: meta.bg,
-                        borderColor: meta.color,
-                      },
-                    ]}
-                    activeOpacity={0.75}
-                  >
-                    <View
+              {/* Categories */}
+              <View style={styles.categoryGrid}>
+                {EXPENSE_CATEGORIES.map(cat => {
+                  const meta = CATEGORY_META[cat];
+                  const selected = category === cat;
+                  return (
+                    <TouchableOpacity
+                      key={cat}
+                      onPress={() => setCategory(cat)}
                       style={[
-                        styles.catIconWrap,
-                        {
-                          backgroundColor: selected
-                            ? meta.color
-                            : colors.inputBg,
+                        styles.catChip,
+                        selected && {
+                          backgroundColor: meta.bg,
+                          borderColor: meta.color,
                         },
                       ]}
+                      activeOpacity={0.75}
                     >
-                      <Icon
-                        name={meta.icon}
-                        size={13}
-                        color={selected ? '#FFF' : meta.color}
-                      />
-                    </View>
-                    <Text
-                      style={[
-                        styles.catLabel,
-                        { color: selected ? meta.color : colors.textSub },
-                      ]}
-                    >
-                      {cat.charAt(0).toUpperCase() + cat.slice(1)}
-                    </Text>
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
+                      <View
+                        style={[
+                          styles.catIconWrap,
+                          {
+                            backgroundColor: selected
+                              ? meta.color
+                              : colors.inputBg,
+                          },
+                        ]}
+                      >
+                        <Icon
+                          name={meta.icon}
+                          size={13}
+                          color={selected ? '#FFF' : meta.color}
+                        />
+                      </View>
+                      <Text
+                        style={[
+                          styles.catLabel,
+                          { color: selected ? meta.color : colors.textSub },
+                        ]}
+                      >
+                        {cat.charAt(0).toUpperCase() + cat.slice(1)}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
 
-            {/* Submit */}
-            <TouchableOpacity
-              onPress={handleAdd}
-              disabled={adding}
-              style={[styles.submitBtn, shadow.card]}
-              activeOpacity={0.85}
-            >
-              {adding ? (
-                <ActivityIndicator color="#FFF" />
-              ) : (
-                <>
-                  <Icon name="check" size={17} color="#FFF" />
-                  <Text style={styles.submitText}>Add Expense</Text>
-                </>
-              )}
+              {/* Submit */}
+              <TouchableOpacity
+                onPress={handleAdd}
+                disabled={adding}
+                style={[styles.submitBtn, shadow.card]}
+                activeOpacity={0.85}
+              >
+                {adding ? (
+                  <ActivityIndicator color="#FFF" />
+                ) : (
+                  <>
+                    <Icon name="check" size={17} color="#FFF" />
+                    <Text style={styles.submitText}>Add Expense</Text>
+                  </>
+                )}
+              </TouchableOpacity>
             </TouchableOpacity>
-          </View>
+          </TouchableOpacity>
         </KeyboardAvoidingView>
       </Modal>
     </View>
@@ -525,6 +530,7 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.5)',
     justifyContent: 'center',
+    alignItems: 'center',
     paddingHorizontal: spacing.base,
   },
   dialog: {
@@ -532,6 +538,7 @@ const styles = StyleSheet.create({
     borderRadius: radius.xl,
     padding: spacing.lg,
     gap: spacing.md,
+    width: '100%',
   },
   dialogHeader: {
     flexDirection: 'row',
