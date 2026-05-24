@@ -287,11 +287,8 @@ export default function DashboardScreen() {
 
             {/* Category dropdown */}
             <TouchableOpacity
-              style={[
-                styles.catDropdown,
-                catSheetOpen && styles.catDropdownOpen,
-              ]}
-              onPress={() => setCatSheetOpen(v => !v)}
+              style={styles.catDropdown}
+              onPress={() => setCatSheetOpen(true)}
               activeOpacity={0.8}
             >
               <View
@@ -314,59 +311,8 @@ export default function DashboardScreen() {
               >
                 {category.charAt(0).toUpperCase() + category.slice(1)}
               </Text>
-              <Icon
-                name={catSheetOpen ? 'chevron-up' : 'chevron-down'}
-                size={18}
-                color={colors.textSub}
-              />
+              <Icon name="chevron-down" size={18} color={colors.textSub} />
             </TouchableOpacity>
-
-            {catSheetOpen && (
-              <View style={styles.catList}>
-                {EXPENSE_CATEGORIES.map(cat => {
-                  const meta = CATEGORY_META[cat];
-                  const selected = category === cat;
-                  return (
-                    <TouchableOpacity
-                      key={cat}
-                      style={[
-                        styles.catListItem,
-                        selected && { backgroundColor: meta.bg },
-                      ]}
-                      onPress={() => {
-                        setCategory(cat);
-                        setCatSheetOpen(false);
-                      }}
-                      activeOpacity={0.7}
-                    >
-                      <View
-                        style={[
-                          styles.catListIcon,
-                          { backgroundColor: selected ? meta.color : meta.bg },
-                        ]}
-                      >
-                        <Icon
-                          name={meta.icon}
-                          size={14}
-                          color={selected ? '#FFF' : meta.color}
-                        />
-                      </View>
-                      <Text
-                        style={[
-                          styles.catListText,
-                          selected && { color: meta.color, fontWeight: '700' },
-                        ]}
-                      >
-                        {cat.charAt(0).toUpperCase() + cat.slice(1)}
-                      </Text>
-                      {selected && (
-                        <Icon name="check" size={14} color={meta.color} />
-                      )}
-                    </TouchableOpacity>
-                  );
-                })}
-              </View>
-            )}
 
             {/* Submit */}
             <TouchableOpacity
@@ -386,6 +332,67 @@ export default function DashboardScreen() {
             </TouchableOpacity>
           </View>
         </KeyboardAvoidingView>
+      </Modal>
+
+      {/* Category picker sheet */}
+      <Modal
+        visible={catSheetOpen}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setCatSheetOpen(false)}
+      >
+        <TouchableOpacity
+          style={styles.sheetOverlay}
+          activeOpacity={1}
+          onPress={() => setCatSheetOpen(false)}
+        >
+          <View style={styles.catSheet}>
+            <View style={styles.sheetHandle} />
+            <Text style={styles.sheetTitle}>Select category</Text>
+            {EXPENSE_CATEGORIES.map(cat => {
+              const meta = CATEGORY_META[cat];
+              const selected = category === cat;
+              return (
+                <TouchableOpacity
+                  key={cat}
+                  style={[
+                    styles.sheetOption,
+                    selected && styles.sheetOptionActive,
+                  ]}
+                  onPress={() => {
+                    setCategory(cat);
+                    setCatSheetOpen(false);
+                  }}
+                  activeOpacity={0.75}
+                >
+                  <View
+                    style={[
+                      styles.sheetIcon,
+                      { backgroundColor: selected ? meta.color : meta.bg },
+                    ]}
+                  >
+                    <Icon
+                      name={meta.icon}
+                      size={16}
+                      color={selected ? '#FFF' : meta.color}
+                    />
+                  </View>
+                  <Text
+                    style={[
+                      styles.sheetOptionText,
+                      selected && { color: meta.color, fontWeight: '700' },
+                    ]}
+                  >
+                    {cat.charAt(0).toUpperCase() + cat.slice(1)}
+                  </Text>
+                  {selected && (
+                    <Icon name="check" size={16} color={meta.color} />
+                  )}
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+        </TouchableOpacity>
       </Modal>
     </View>
   );
@@ -621,39 +628,53 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
   },
-  catDropdownOpen: {
-    borderBottomLeftRadius: 0,
-    borderBottomRightRadius: 0,
-    borderBottomColor: 'transparent',
+  sheetOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.45)',
+    justifyContent: 'flex-end',
   },
-  catList: {
-    borderWidth: 1,
-    borderTopWidth: 0,
-    borderColor: colors.border,
-    borderBottomLeftRadius: radius.lg,
-    borderBottomRightRadius: radius.lg,
+  catSheet: {
     backgroundColor: colors.surface,
-    overflow: 'hidden',
+    borderTopLeftRadius: radius.xl,
+    borderTopRightRadius: radius.xl,
+    paddingBottom: 48,
   },
-  catListItem: {
+  sheetHandle: {
+    width: 36,
+    height: 4,
+    backgroundColor: colors.border,
+    borderRadius: radius.full,
+    alignSelf: 'center',
+    marginTop: spacing.md,
+    marginBottom: spacing.sm,
+  },
+  sheetTitle: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: colors.textSub,
+    textTransform: 'uppercase',
+    letterSpacing: 0.6,
+    paddingHorizontal: spacing.lg,
+    marginBottom: 4,
+  },
+  sheetOption: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.sm,
-    paddingHorizontal: spacing.base,
+    paddingHorizontal: spacing.lg,
     paddingVertical: 10,
-    borderTopWidth: 1,
-    borderTopColor: colors.border,
   },
-  catListIcon: {
-    width: 26,
-    height: 26,
+  sheetOptionActive: { backgroundColor: colors.inputBg },
+  sheetIcon: {
+    width: 30,
+    height: 30,
     borderRadius: radius.sm,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  catListText: {
+  sheetOptionText: {
     flex: 1,
-    fontSize: 13,
+    fontSize: 14,
     color: colors.textMed,
     fontWeight: '500',
     textTransform: 'capitalize',
