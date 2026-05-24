@@ -236,7 +236,7 @@ export default function DashboardScreen() {
         transparent
         animationType="fade"
         onRequestClose={() => setModalOpen(false)}
-        onShow={() => amountRef.current?.focus()}
+        onShow={() => setTimeout(() => amountRef.current?.focus(), 150)}
       >
         <KeyboardAvoidingView
           style={{ flex: 1 }}
