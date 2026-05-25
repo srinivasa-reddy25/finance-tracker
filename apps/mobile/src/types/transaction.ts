@@ -1,11 +1,11 @@
-import type { TCategory, TTransactionSource } from '../constants/categories';
+import type { TTransactionSource } from '../constants/categories';
 
 export type TTransaction = {
   _id: string;
   user_id: string;
   amount: number;
   description: string;
-  category: TCategory;
+  category: string;
   note?: string;
   date: string;
   source: TTransactionSource;
@@ -15,7 +15,7 @@ export type TTransaction = {
 export type TCreateTransaction = {
   amount: number;
   description: string;
-  category: TCategory;
+  category: string;
   note?: string;
   date?: string;
   source: TTransactionSource;

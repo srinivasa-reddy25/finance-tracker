@@ -17,7 +17,7 @@ export const update_transaction_by_id = async (req: Request, res: Response) => {
   }
 
   const transaction = await mg.Transaction.findOneAndUpdate(
-    { _id: id, user_id: req.user.firebase_uid },
+    { _id: id, user_id: req.user._id.toString() },
     { $set: body.data },
     { new: true }
   )

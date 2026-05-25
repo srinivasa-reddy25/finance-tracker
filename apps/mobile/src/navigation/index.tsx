@@ -9,14 +9,14 @@ import { useAuthStore } from '../stores/authStore';
 import LoginScreen from '../screens/LoginScreen';
 import DashboardScreen from '../screens/DashboardScreen';
 import HistoryScreen from '../screens/HistoryScreen';
-import BudgetScreen from '../screens/BudgetScreen';
+import CategoriesScreen from '../screens/CategoriesScreen';
 import ProfileScreen from '../screens/ProfileScreen';
 import { colors, radius, spacing } from '../theme';
 
 export type RootStackParams = {
   Login: undefined;
   Main: undefined;
-  Budget: undefined;
+  Categories: undefined;
 };
 export type BottomTabParams = {
   Dashboard: undefined;
@@ -83,7 +83,7 @@ export default function Navigation() {
               component={MainTabs}
               options={{ animation: 'fade' }}
             />
-            <Stack.Screen name="Budget" component={BudgetScreen} />
+            <Stack.Screen name="Categories" component={CategoriesScreen} />
           </>
         ) : (
           <Stack.Screen name="Login" component={LoginScreen} />

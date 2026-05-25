@@ -7,6 +7,7 @@ export type TUser = {
   firebase_uid: string
   provider: TAuthProvider
   is_active: boolean
+  budget?: number | null
   createdAt?: Date
   updatedAt?: Date
 }

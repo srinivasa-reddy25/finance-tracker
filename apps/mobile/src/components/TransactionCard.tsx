@@ -1,9 +1,14 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
-import { CATEGORY_META } from '../constants/categories';
 import { colors, radius, spacing } from '../theme';
 import type { TTransaction } from '../types/transaction';
+
+const FALLBACK_META = {
+  icon: 'shape-outline',
+  color: '#6B7280',
+  bg: '#F9FAFB',
+};
 
 type Props = {
   transaction: TTransaction;
@@ -16,8 +21,8 @@ export default function TransactionCard({
   onDelete,
   isLast,
 }: Props) {
-  const meta = CATEGORY_META[transaction.category];
-  const isIncome = transaction.category === 'salary';
+  const meta = FALLBACK_META;
+  const isIncome = false;
   const date = new Date(transaction.date).toLocaleDateString('en-IN', {
     day: 'numeric',
     month: 'short',

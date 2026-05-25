@@ -1,4 +1,10 @@
-import React, { useEffect, useState, useCallback, useRef } from 'react';
+import React, {
+  useEffect,
+  useState,
+  useCallback,
+  useRef,
+  useMemo,
+} from 'react';
 import {
   View,
   Text,
@@ -15,17 +21,21 @@ import {
 import { Swipeable } from 'react-native-gesture-handler';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useTransactionStore } from '../stores/transactionStore';
-import {
-  CATEGORIES,
-  CATEGORY_META,
-  type TCategory,
-} from '../constants/categories';
+import { useCategoryStore } from '../stores/categoryStore';
 import { colors, spacing, radius, shadow } from '../theme';
 import type { TTransaction } from '../types/transaction';
 import ConfirmDialog from '../components/ConfirmDialog';
 
 const ALL = 'all' as const;
-type TFilter = TCategory | typeof ALL;
+type TFilter = string | typeof ALL;
+
+type TCategoryMeta = {
+  icon: string;
+  color: string;
+  bg: string;
+  name: string;
+  is_income: boolean;
+};
 
 type TDatePreset = 'this_month' | '30d' | '60d' | '90d';
 
@@ -76,14 +86,22 @@ function SwipeableRow({
   item,
   index,
   onDeleteRequest,
+  categoryMap,
 }: {
   item: TTransaction;
   index: number;
   onDeleteRequest: (item: TTransaction) => void;
+  categoryMap: Map<string, TCategoryMeta>;
 }) {
   const swipeRef = useRef<Swipeable>(null);
-  const meta = CATEGORY_META[item.category];
-  const isIncome = item.category === 'salary';
+  const meta = categoryMap.get(item.category) ?? {
+    icon: 'shape-outline',
+    color: '#6B7280',
+    bg: '#F9FAFB',
+    name: item.category,
+    is_income: false,
+  };
+  const isIncome = meta.is_income;
   const date = new Date(item.date).toLocaleDateString('en-IN', {
     day: 'numeric',
     month: 'short',
@@ -160,6 +178,11 @@ function SwipeableRow({
 export default function HistoryScreen() {
   const { transactions, pagination, loading, fetch, remove } =
     useTransactionStore();
+  const {
+    categories,
+    loading: catLoading,
+    fetch: fetchCats,
+  } = useCategoryStore();
   const [filter, setFilter] = useState<TFilter>(ALL);
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState('');
@@ -171,6 +194,23 @@ export default function HistoryScreen() {
 
   const currentMonth = new Date().toISOString().slice(0, 7);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const categoryMap = useMemo(
+    () =>
+      new Map<string, TCategoryMeta>(
+        categories.map(c => [
+          c.key,
+          {
+            icon: c.icon,
+            color: c.color,
+            bg: c.bg,
+            name: c.name,
+            is_income: c.is_income,
+          },
+        ]),
+      ),
+    [categories],
+  );
 
   const getDateParams = useCallback(() => {
     const today = new Date().toISOString().slice(0, 10);
@@ -195,6 +235,10 @@ export default function HistoryScreen() {
     }),
     [filter, search, getDateParams],
   );
+
+  useEffect(() => {
+    fetchCats();
+  }, []);
 
   useEffect(() => {
     fetch(buildParams(page));
@@ -245,7 +289,8 @@ export default function HistoryScreen() {
     [remove],
   );
 
-  const activeFilterMeta = filter !== ALL ? CATEGORY_META[filter] : null;
+  const activeFilterMeta =
+    filter !== ALL ? (categoryMap.get(filter) ?? null) : null;
   const dateActive = datePreset !== 'this_month';
   const activeDateMeta = DATE_PRESETS.find(p => p.key === datePreset)!;
   const dateBtnLabel =
@@ -352,9 +397,7 @@ export default function HistoryScreen() {
               filter !== ALL && { color: activeFilterMeta!.color },
             ]}
           >
-            {filter === ALL
-              ? 'Filter'
-              : filter.charAt(0).toUpperCase() + filter.slice(1)}
+            {filter === ALL ? 'Filter' : (activeFilterMeta?.name ?? filter)}
           </Text>
           {filter !== ALL && (
             <TouchableOpacity
@@ -448,7 +491,7 @@ export default function HistoryScreen() {
           </Text>
         </View>
 
-        {loading && !refreshing ? (
+        {(loading || catLoading) && !refreshing ? (
           <ActivityIndicator style={{ marginTop: 48 }} color={colors.primary} />
         ) : transactions.length === 0 ? (
           <View style={styles.empty}>
@@ -475,6 +518,7 @@ export default function HistoryScreen() {
                 item={item}
                 index={index}
                 onDeleteRequest={setDeleteTarget}
+                categoryMap={categoryMap}
               />
             )}
             ListFooterComponent={
@@ -607,13 +651,12 @@ export default function HistoryScreen() {
 
             <View style={styles.sheetDivider} />
 
-            {CATEGORIES.map(cat => {
-              const meta = CATEGORY_META[cat];
-              const active = filter === cat;
+            {categories.map(cat => {
+              const active = filter === cat.key;
               return (
                 <TouchableOpacity
-                  key={cat}
-                  onPress={() => handleFilterSelect(cat)}
+                  key={cat.key}
+                  onPress={() => handleFilterSelect(cat.key)}
                   style={[
                     styles.sheetOption,
                     active && styles.sheetOptionActive,
@@ -622,27 +665,27 @@ export default function HistoryScreen() {
                   <View
                     style={[
                       styles.sheetIcon,
-                      { backgroundColor: active ? meta.color : meta.bg },
+                      { backgroundColor: active ? cat.color : cat.bg },
                     ]}
                   >
                     <Icon
-                      name={meta.icon}
+                      name={cat.icon}
                       size={15}
-                      color={active ? '#FFF' : meta.color}
+                      color={active ? '#FFF' : cat.color}
                     />
                   </View>
                   <View style={{ flex: 1 }}>
                     <Text
                       style={[
                         styles.sheetOptionText,
-                        active && { color: meta.color, fontWeight: '700' },
+                        active && { color: cat.color, fontWeight: '700' },
                       ]}
                     >
-                      {cat.charAt(0).toUpperCase() + cat.slice(1)}
+                      {cat.name}
                     </Text>
                   </View>
                   {active && (
-                    <Icon name="check-circle" size={18} color={meta.color} />
+                    <Icon name="check-circle" size={18} color={cat.color} />
                   )}
                 </TouchableOpacity>
               );

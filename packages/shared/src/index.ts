@@ -10,5 +10,4 @@ export type {
   TTransactionSource
 } from './types/transaction.js'
 
-export type { TBudget } from './types/budget.js'
 export type { TUserCategory } from './types/user-category.js'

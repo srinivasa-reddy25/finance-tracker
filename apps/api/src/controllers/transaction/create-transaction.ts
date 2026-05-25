@@ -16,7 +16,7 @@ export const create_transaction = async (req: Request, res: Response) => {
 
   const transaction = await mg.Transaction.create({
     ...body.data,
-    user_id: req.user.firebase_uid
+    user_id: req.user._id.toString()
   })
 
   res.status(201).json({

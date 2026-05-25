@@ -8,7 +8,7 @@ import { CATEGORIES } from '@tejadev/shared'
 export const get_all_transactions = async (req: Request, res: Response) => {
   const query = query_schema.parse(req.query)
 
-  const filter: Record<string, unknown> = { user_id: req.user.firebase_uid }
+  const filter: Record<string, unknown> = { user_id: req.user._id.toString() }
 
   if (query.category) filter.category = query.category
 

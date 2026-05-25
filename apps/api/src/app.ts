@@ -19,7 +19,6 @@ import { request_id_handler } from './middlewares/request-id.ts'
 import { success_handler } from './middlewares/success-handler.ts'
 import { ai_router } from './routes/ai.ts'
 import { auth_router } from './routes/auth.ts'
-import { budgets_router } from './routes/budgets.ts'
 import { categories_router } from './routes/categories.ts'
 import { transactions_router } from './routes/transactions.ts'
 import CustomError from './utils/CustomError.ts'
@@ -67,7 +66,6 @@ app.get('/api/v1', (_req: Request, res: Response) => {
 app.use('/api/v1/auth', auth_router)
 app.use('/api/v1/transactions', transactions_router)
 app.use('/api/v1/categories', categories_router)
-app.use('/api/v1/budgets', budgets_router)
 app.use('/api/v1/ai', ai_router)
 
 app.all('*', (req: Request, _res: Response, next: NextFunction) => {

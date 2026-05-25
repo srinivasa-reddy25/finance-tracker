@@ -15,11 +15,6 @@ import {
   View,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
-import {
-  CATEGORY_META,
-  EXPENSE_CATEGORIES,
-  type TCategory,
-} from '../constants/categories';
 import { signOut } from '../services/firebase';
 import { useAuthStore } from '../stores/authStore';
 import { useCategoryStore } from '../stores/categoryStore';
@@ -29,7 +24,11 @@ import { colors, radius, shadow, spacing } from '../theme';
 export default function DashboardScreen() {
   const { transactions, loading, fetch, add, remove } = useTransactionStore();
   const { user } = useAuthStore();
-  const { categories: customCats, fetch: fetchCats } = useCategoryStore();
+  const {
+    categories,
+    loading: catLoading,
+    fetch: fetchCats,
+  } = useCategoryStore();
   const [refreshing, setRefreshing] = useState(false);
 
   // Add modal state
@@ -37,7 +36,7 @@ export default function DashboardScreen() {
   const [amount, setAmount] = useState('');
   const [description, setDescription] = useState('');
   const [note, setNote] = useState('');
-  const [category, setCategory] = useState<string>('food');
+  const [category, setCategory] = useState<string>('');
   const [adding, setAdding] = useState(false);
   const amountRef = useRef<TextInput>(null);
 
@@ -48,19 +47,29 @@ export default function DashboardScreen() {
     fetchCats();
   }, []);
 
+  const categoryMap = useMemo(
+    () => new Map(categories.map(c => [c.key, c])),
+    [categories],
+  );
+
+  const expenseCategories = useMemo(
+    () => categories.filter(c => !c.is_income),
+    [categories],
+  );
+
   const { totalSpent, totalIncome, count } = useMemo(() => {
     const spent = transactions
-      .filter(t => t.category !== 'salary')
+      .filter(t => !categoryMap.get(t.category)?.is_income)
       .reduce((s, t) => s + t.amount, 0);
     const income = transactions
-      .filter(t => t.category === 'salary')
+      .filter(t => categoryMap.get(t.category)?.is_income)
       .reduce((s, t) => s + t.amount, 0);
     return {
       totalSpent: spent,
       totalIncome: income,
       count: transactions.length,
     };
-  }, [transactions]);
+  }, [transactions, categoryMap]);
 
   const handleRefresh = async () => {
     setRefreshing(true);
@@ -72,6 +81,8 @@ export default function DashboardScreen() {
   };
 
   const openModal = () => {
+    if (categories.length === 0) fetchCats();
+    setCategory(expenseCategories[0]?.key ?? '');
     setModalOpen(true);
   };
 
@@ -79,7 +90,7 @@ export default function DashboardScreen() {
     setAmount('');
     setDescription('');
     setNote('');
-    setCategory('food');
+    setCategory(expenseCategories[0]?.key ?? 'food');
   };
 
   const handleAdd = async () => {
@@ -166,7 +177,7 @@ export default function DashboardScreen() {
         </View>
 
         {/* Transaction list */}
-        {loading && !refreshing ? (
+        {(loading || catLoading) && !refreshing ? (
           <ActivityIndicator style={{ marginTop: 40 }} color={colors.primary} />
         ) : recent.length === 0 ? (
           <View style={styles.empty}>
@@ -183,8 +194,13 @@ export default function DashboardScreen() {
         ) : (
           <View style={styles.recentRow}>
             {recent.map(item => {
-              const meta = CATEGORY_META[item.category];
-              const isIncome = item.category === 'salary';
+              const meta = categoryMap.get(item.category) ?? {
+                icon: 'shape-outline',
+                color: '#6B7280',
+                bg: '#F9FAFB',
+              };
+              const isIncome =
+                categoryMap.get(item.category)?.is_income ?? false;
               const amountColor = isIncome ? colors.income : colors.expense;
               const date = new Date(item.date).toLocaleDateString('en-IN', {
                 day: 'numeric',
@@ -297,70 +313,68 @@ export default function DashboardScreen() {
                 returnKeyType="done"
               />
 
-              {/* Categories — default + custom */}
-              <View style={styles.categoryGrid}>
-                {[
-                  ...EXPENSE_CATEGORIES.map(cat => ({
-                    key: cat,
-                    label: cat.charAt(0).toUpperCase() + cat.slice(1),
-                    ...CATEGORY_META[cat],
-                  })),
-                  ...customCats.map(c => ({
-                    key: c.name.toLowerCase(),
-                    label: c.name,
-                    icon: c.icon,
-                    color: c.color,
-                    bg: c.bg,
-                  })),
-                ].map(cat => {
-                  const selected = category === cat.key;
-                  return (
-                    <TouchableOpacity
-                      key={cat.key}
-                      onPress={() => setCategory(cat.key)}
-                      style={[
-                        styles.catChip,
-                        selected && {
-                          backgroundColor: cat.bg,
-                          borderColor: cat.color,
-                        },
-                      ]}
-                      activeOpacity={0.75}
-                    >
-                      <View
+              {/* Categories from store */}
+              {catLoading ? (
+                <ActivityIndicator
+                  color={colors.primary}
+                  style={{ marginVertical: spacing.lg }}
+                />
+              ) : (
+                <View style={styles.categoryGrid}>
+                  {expenseCategories.map(cat => {
+                    const selected = category === cat.key;
+                    return (
+                      <TouchableOpacity
+                        key={cat.key}
+                        onPress={() => setCategory(cat.key)}
                         style={[
-                          styles.catIconWrap,
-                          {
-                            backgroundColor: selected
-                              ? cat.color
-                              : colors.inputBg,
+                          styles.catChip,
+                          selected && {
+                            backgroundColor: cat.bg,
+                            borderColor: cat.color,
                           },
                         ]}
+                        activeOpacity={0.75}
                       >
-                        <Icon
-                          name={cat.icon}
-                          size={13}
-                          color={selected ? '#FFF' : cat.color}
-                        />
-                      </View>
-                      <Text
-                        style={[
-                          styles.catLabel,
-                          { color: selected ? cat.color : colors.textSub },
-                        ]}
-                      >
-                        {cat.label}
-                      </Text>
-                    </TouchableOpacity>
-                  );
-                })}
-              </View>
+                        <View
+                          style={[
+                            styles.catIconWrap,
+                            {
+                              backgroundColor: selected
+                                ? cat.color
+                                : colors.inputBg,
+                            },
+                          ]}
+                        >
+                          <Icon
+                            name={cat.icon}
+                            size={13}
+                            color={selected ? '#FFF' : cat.color}
+                          />
+                        </View>
+                        <Text
+                          style={[
+                            styles.catLabel,
+                            { color: selected ? cat.color : colors.textSub },
+                          ]}
+                        >
+                          {cat.name}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+              )}
 
               {/* Submit */}
               <TouchableOpacity
                 onPress={handleAdd}
-                disabled={adding}
-                style={[styles.submitBtn, shadow.card]}
+                disabled={adding || catLoading || !category}
+                style={[
+                  styles.submitBtn,
+                  shadow.card,
+                  (catLoading || !category) && { opacity: 0.5 },
+                ]}
                 activeOpacity={0.85}
               >
                 {adding ? (
