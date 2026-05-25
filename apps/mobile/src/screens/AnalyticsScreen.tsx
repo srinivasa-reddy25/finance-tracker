@@ -9,7 +9,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { BarChart, PieChart } from 'react-native-gifted-charts';
+import { LineChart, PieChart } from 'react-native-gifted-charts';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { api } from '../services/api';
 import { useCategoryStore } from '../stores/categoryStore';
@@ -38,10 +38,17 @@ function prevMonth(year: number, mon: number): [number, number] {
   return [year, mon - 1];
 }
 
+function fmtK(n: number) {
+  if (n >= 100000) return `₹${(n / 100000).toFixed(1)}L`;
+  if (n >= 1000) return `₹${(n / 1000).toFixed(1)}k`;
+  return `₹${n}`;
+}
+
 export default function AnalyticsScreen() {
   const { categories, fetch: fetchCats } = useCategoryStore();
   const [data, setData] = useState<TAnalyticsData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [selectedPie, setSelectedPie] = useState<number | null>(null);
 
   const now = new Date();
   const [year, setYear] = useState(now.getFullYear());
@@ -57,6 +64,7 @@ export default function AnalyticsScreen() {
 
   const fetchData = async (y: number, m: number) => {
     setLoading(true);
+    setSelectedPie(null);
     try {
       const month = `${y}-${String(m).padStart(2, '0')}`;
       const res = await api.get('/analytics', { params: { month } });
@@ -86,11 +94,11 @@ export default function AnalyticsScreen() {
     fetchData(ny, nm);
   };
 
-  // Totals
   const totalSpent = useMemo(
     () => (data?.current_by_category ?? []).reduce((s, c) => s + c.amount, 0),
     [data],
   );
+
   const totalBudget = useMemo(
     () =>
       categories
@@ -99,67 +107,64 @@ export default function AnalyticsScreen() {
     [categories],
   );
 
-  // Donut data
+  // Donut ring data
   const donutData = useMemo(() => {
     const remaining = Math.max((totalBudget || totalSpent) - totalSpent, 0);
     const over = totalBudget > 0 && totalSpent > totalBudget;
     return [
-      {
-        value: totalSpent,
-        color: over ? colors.expense : colors.primary,
-      },
-      {
-        value: remaining,
-        color: colors.border,
-      },
+      { value: totalSpent, color: over ? colors.expense : colors.primary },
+      { value: remaining, color: colors.border },
     ];
   }, [totalSpent, totalBudget]);
 
-  // Daily bar chart — fill in 0s for days with no spending
+  // Area line chart data (all days of month)
   const daysInMonth = new Date(year, mon, 0).getDate();
-  const dailyBars = useMemo(() => {
+  const lineData = useMemo(() => {
     const map = new Map((data?.daily ?? []).map(d => [d.day, d.amount]));
     return Array.from({ length: daysInMonth }, (_, i) => ({
       value: map.get(i + 1) ?? 0,
-      label: (i + 1) % 5 === 1 ? String(i + 1) : '',
-      frontColor: (map.get(i + 1) ?? 0) > 0 ? colors.primary : colors.border,
-      topLabelComponent: undefined,
+      label: (i + 1) % 7 === 1 ? String(i + 1) : '',
+      dataPointText: '',
     }));
   }, [data, daysInMonth]);
 
-  // Category breakdown sorted by amount
+  const hasAnySpend = lineData.some(d => d.value > 0);
+  const maxDaily = Math.max(...lineData.map(d => d.value), 1);
+
+  // Pie chart — category breakdown
   const categoryRows = useMemo(() => {
     const rows = (data?.current_by_category ?? [])
-      .map(c => {
-        const meta = categoryMap.get(c.category);
-        return { ...c, meta };
-      })
+      .map(c => ({ ...c, meta: categoryMap.get(c.category) }))
       .filter(c => c.meta && !c.meta.is_income && c.amount > 0)
       .sort((a, b) => b.amount - a.amount);
-    const max = rows[0]?.amount ?? 1;
-    return rows.map(r => ({ ...r, pct: r.amount / max }));
+    return rows;
   }, [data, categoryMap]);
 
-  // Month comparison
+  const pieData = useMemo(
+    () =>
+      categoryRows.map((r, i) => ({
+        value: r.amount,
+        color: r.meta!.color,
+        focused: selectedPie === i,
+      })),
+    [categoryRows, selectedPie],
+  );
+
+  // Comparison rows
   const comparisonRows = useMemo(() => {
     const prevMap = new Map(
       (data?.prev_by_category ?? []).map(c => [c.category, c.amount]),
     );
     return (data?.current_by_category ?? [])
-      .map(c => {
-        const meta = categoryMap.get(c.category);
-        const prev = prevMap.get(c.category) ?? 0;
-        return { category: c.category, current: c.amount, prev, meta };
-      })
-      .filter(c => c.meta && !c.meta.is_income && (c.current > 0 || c.prev > 0))
-      .sort((a, b) => b.current - a.current)
+      .map(c => ({
+        ...c,
+        meta: categoryMap.get(c.category),
+        prev: prevMap.get(c.category) ?? 0,
+      }))
+      .filter(c => c.meta && !c.meta.is_income && (c.amount > 0 || c.prev > 0))
+      .sort((a, b) => b.amount - a.amount)
       .slice(0, 5);
   }, [data, categoryMap]);
-
-  const maxComparison = useMemo(
-    () => Math.max(...comparisonRows.flatMap(r => [r.current, r.prev]), 1),
-    [comparisonRows],
-  );
 
   const pct = totalBudget > 0 ? Math.min(totalSpent / totalBudget, 1) : null;
   const over = totalBudget > 0 && totalSpent > totalBudget;
@@ -168,7 +173,6 @@ export default function AnalyticsScreen() {
     <View style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor={colors.surface} />
 
-      {/* Header */}
       <View style={styles.header}>
         <Text style={styles.title}>Analytics</Text>
       </View>
@@ -203,7 +207,7 @@ export default function AnalyticsScreen() {
           showsVerticalScrollIndicator={false}
           contentContainerStyle={styles.scroll}
         >
-          {/* ── Spending Ring ───────────────────────────── */}
+          {/* ── Spending Ring ─────────────────────────── */}
           <View style={styles.card}>
             <Text style={styles.cardTitle}>Monthly Snapshot</Text>
             <View style={styles.donutWrap}>
@@ -216,10 +220,9 @@ export default function AnalyticsScreen() {
                 centerLabelComponent={() => (
                   <View style={styles.donutCenter}>
                     <Text style={styles.donutAmount}>
-                      ₹
-                      {Math.round(totalSpent / 1000) >= 1
-                        ? `${(totalSpent / 1000).toFixed(1)}k`
-                        : totalSpent.toLocaleString('en-IN')}
+                      {totalSpent >= 1000
+                        ? `₹${(totalSpent / 1000).toFixed(1)}k`
+                        : `₹${totalSpent}`}
                     </Text>
                     <Text style={styles.donutSub}>
                       {totalBudget > 0 ? 'spent' : 'this month'}
@@ -228,7 +231,7 @@ export default function AnalyticsScreen() {
                 )}
               />
               <View style={styles.donutLegend}>
-                {totalBudget > 0 && (
+                {totalBudget > 0 ? (
                   <>
                     <View style={styles.legendRow}>
                       <View
@@ -269,8 +272,7 @@ export default function AnalyticsScreen() {
                       </Text>
                     </View>
                   </>
-                )}
-                {totalBudget === 0 && (
+                ) : (
                   <Text style={styles.noBudgetHint}>
                     Set category budgets{'\n'}to track progress
                   </Text>
@@ -279,175 +281,197 @@ export default function AnalyticsScreen() {
             </View>
           </View>
 
-          {/* ── Daily Spending ───────────────────────────── */}
+          {/* ── Daily Spending (Area Chart) ───────────── */}
           <View style={styles.card}>
             <Text style={styles.cardTitle}>Daily Spending</Text>
-            {dailyBars.every(b => b.value === 0) ? (
+            {!hasAnySpend ? (
               <Text style={styles.emptyHint}>No transactions this month</Text>
             ) : (
-              <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                <BarChart
-                  data={dailyBars}
-                  barWidth={7}
-                  spacing={5}
-                  roundedTop
-                  hideRules
-                  hideYAxisText
+              <View style={{ marginTop: 4 }}>
+                <LineChart
+                  areaChart
+                  curved
+                  data={lineData}
+                  width={CHART_W}
+                  height={130}
+                  color={colors.primary}
+                  thickness={2}
+                  startFillColor={colors.primary}
+                  endFillColor={colors.primaryLight}
+                  startOpacity={0.25}
+                  endOpacity={0.02}
+                  dataPointsColor={colors.primary}
+                  dataPointsRadius={3}
+                  hideDataPoints={false}
                   xAxisColor={colors.border}
                   xAxisThickness={1}
                   yAxisThickness={0}
+                  hideRules
+                  hideYAxisText
+                  xAxisLabelTextStyle={styles.axisLabel}
                   noOfSections={3}
-                  barBorderRadius={4}
-                  labelWidth={12}
-                  xAxisLabelTextStyle={styles.barLabel}
-                  height={120}
-                  width={Math.max(CHART_W, daysInMonth * 12)}
+                  maxValue={maxDaily * 1.2}
                   isAnimated
-                  animationDuration={600}
+                  animationDuration={700}
+                  onPress={(item: { value: number }, index: number) => {
+                    // no-op — data point tap
+                  }}
                 />
-              </ScrollView>
+                {/* Max spend label */}
+                <View style={styles.dailyHint}>
+                  <Text style={styles.dailyHintText}>
+                    Peak: {fmtK(maxDaily)}
+                  </Text>
+                  <Text style={styles.dailyHintText}>
+                    Total: {fmtK(totalSpent)}
+                  </Text>
+                </View>
+              </View>
             )}
           </View>
 
-          {/* ── Category Breakdown ───────────────────────── */}
+          {/* ── Category Pie ──────────────────────────── */}
           {categoryRows.length > 0 && (
             <View style={styles.card}>
               <Text style={styles.cardTitle}>By Category</Text>
-              {categoryRows.map(row => (
-                <View key={row.category} style={styles.catRow}>
-                  <View style={styles.catRowHeader}>
-                    <View style={styles.catRowLeft}>
-                      <View
-                        style={[
-                          styles.catDot,
-                          { backgroundColor: row.meta!.bg },
-                        ]}
-                      >
-                        <Icon
-                          name={row.meta!.icon}
-                          size={12}
-                          color={row.meta!.color}
-                        />
-                      </View>
-                      <Text style={styles.catName}>{row.meta!.name}</Text>
-                    </View>
-                    <Text style={styles.catAmount}>
-                      ₹{row.amount.toLocaleString('en-IN')}
-                    </Text>
-                  </View>
-                  <View style={styles.barBg}>
-                    <View
+              <View style={styles.pieWrap}>
+                <PieChart
+                  data={pieData}
+                  radius={100}
+                  strokeWidth={2}
+                  strokeColor={colors.surface}
+                  focusOnPress
+                  onPress={(_item: unknown, index: number) =>
+                    setSelectedPie(prev => (prev === index ? null : index))
+                  }
+                  isAnimated
+                />
+              </View>
+
+              {/* Legend */}
+              <View style={styles.pieLegend}>
+                {categoryRows.map((row, i) => {
+                  const pctVal =
+                    totalSpent > 0
+                      ? Math.round((row.amount / totalSpent) * 100)
+                      : 0;
+                  const active = selectedPie === i;
+                  return (
+                    <TouchableOpacity
+                      key={row.category}
                       style={[
-                        styles.barFill,
-                        {
-                          width: `${row.pct * 100}%` as `${number}%`,
-                          backgroundColor: row.meta!.color,
-                        },
+                        styles.legendItem,
+                        active && styles.legendItemActive,
                       ]}
-                    />
-                  </View>
-                </View>
-              ))}
+                      onPress={() =>
+                        setSelectedPie(prev => (prev === i ? null : i))
+                      }
+                      activeOpacity={0.7}
+                    >
+                      <View style={styles.legendLeft}>
+                        <View
+                          style={[
+                            styles.legendSwatch,
+                            { backgroundColor: row.meta!.color },
+                          ]}
+                        />
+                        <View
+                          style={[
+                            styles.legendIcon,
+                            { backgroundColor: row.meta!.bg },
+                          ]}
+                        >
+                          <Icon
+                            name={row.meta!.icon}
+                            size={12}
+                            color={row.meta!.color}
+                          />
+                        </View>
+                        <Text style={styles.legendName} numberOfLines={1}>
+                          {row.meta!.name}
+                        </Text>
+                      </View>
+                      <View style={styles.legendRight}>
+                        <Text
+                          style={[styles.legendPct, { color: row.meta!.color }]}
+                        >
+                          {pctVal}%
+                        </Text>
+                        <Text style={styles.legendAmt}>
+                          ₹{row.amount.toLocaleString('en-IN')}
+                        </Text>
+                      </View>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
             </View>
           )}
 
-          {/* ── Month Comparison ─────────────────────────── */}
+          {/* ── VS Last Month ─────────────────────────── */}
           {comparisonRows.length > 0 && (
             <View style={styles.card}>
-              <View style={styles.compHeader}>
-                <Text style={styles.cardTitle}>vs Last Month</Text>
-                <View style={styles.compLegend}>
-                  <View style={styles.legendRow}>
-                    <View
-                      style={[
-                        styles.legendDot,
-                        { backgroundColor: colors.primary },
-                      ]}
-                    />
-                    <Text style={styles.legendLabel}>This</Text>
-                  </View>
-                  <View style={styles.legendRow}>
-                    <View
-                      style={[
-                        styles.legendDot,
-                        { backgroundColor: colors.border },
-                      ]}
-                    />
-                    <Text style={styles.legendLabel}>Last</Text>
-                  </View>
-                </View>
-              </View>
-
+              <Text style={styles.cardTitle}>vs Last Month</Text>
               {comparisonRows.map(row => {
-                const currPct = row.current / maxComparison;
-                const prevPct = row.prev / maxComparison;
-                const diff = row.current - row.prev;
+                const diff = row.amount - row.prev;
+                const diffPct =
+                  row.prev > 0
+                    ? Math.round(Math.abs(diff / row.prev) * 100)
+                    : null;
+                const isUp = diff > 0;
+                const isDown = diff < 0;
                 return (
                   <View key={row.category} style={styles.compRow}>
-                    <View style={styles.compRowLeft}>
-                      <View
-                        style={[
-                          styles.catDot,
-                          { backgroundColor: row.meta!.bg },
-                        ]}
-                      >
-                        <Icon
-                          name={row.meta!.icon}
-                          size={12}
-                          color={row.meta!.color}
-                        />
-                      </View>
-                      <Text style={styles.catName} numberOfLines={1}>
-                        {row.meta!.name}
+                    <View
+                      style={[
+                        styles.compIcon,
+                        { backgroundColor: row.meta!.bg },
+                      ]}
+                    >
+                      <Icon
+                        name={row.meta!.icon}
+                        size={16}
+                        color={row.meta!.color}
+                      />
+                    </View>
+                    <View style={styles.compInfo}>
+                      <Text style={styles.compName}>{row.meta!.name}</Text>
+                      <Text style={styles.compPrev}>
+                        Last: {row.prev > 0 ? fmtK(row.prev) : '—'}
                       </Text>
                     </View>
-                    <View style={styles.compBars}>
-                      <View style={styles.compBarRow}>
-                        <View style={styles.compBarBg}>
-                          <View
-                            style={[
-                              styles.compBarFill,
-                              {
-                                width: `${currPct * 100}%` as `${number}%`,
-                                backgroundColor: colors.primary,
-                              },
-                            ]}
+                    <View style={styles.compRight}>
+                      <Text style={styles.compCurrent}>{fmtK(row.amount)}</Text>
+                      {diffPct != null && (
+                        <View
+                          style={[
+                            styles.diffBadge,
+                            {
+                              backgroundColor: isUp
+                                ? colors.expenseLight
+                                : colors.incomeLight,
+                            },
+                          ]}
+                        >
+                          <Icon
+                            name={isUp ? 'trending-up' : 'trending-down'}
+                            size={10}
+                            color={isUp ? colors.expense : colors.income}
                           />
-                        </View>
-                        <Text style={styles.compAmt}>
-                          ₹{(row.current / 1000).toFixed(1)}k
-                        </Text>
-                      </View>
-                      <View style={styles.compBarRow}>
-                        <View style={styles.compBarBg}>
-                          <View
+                          <Text
                             style={[
-                              styles.compBarFill,
-                              {
-                                width: `${prevPct * 100}%` as `${number}%`,
-                                backgroundColor: colors.border,
-                              },
+                              styles.diffText,
+                              { color: isUp ? colors.expense : colors.income },
                             ]}
-                          />
+                          >
+                            {diffPct}%
+                          </Text>
                         </View>
-                        <Text style={styles.compAmt}>
-                          ₹{(row.prev / 1000).toFixed(1)}k
-                        </Text>
-                      </View>
+                      )}
+                      {!isUp && !isDown && (
+                        <Text style={styles.diffSame}>No change</Text>
+                      )}
                     </View>
-                    {row.prev > 0 && (
-                      <Text
-                        style={[
-                          styles.diffBadge,
-                          {
-                            color: diff > 0 ? colors.expense : colors.income,
-                          },
-                        ]}
-                      >
-                        {diff > 0 ? '+' : ''}
-                        {Math.round((diff / row.prev) * 100)}%
-                      </Text>
-                    )}
                   </View>
                 );
               })}
@@ -548,82 +572,85 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
   },
   pctText: { fontSize: 13, fontWeight: '700' },
-  noBudgetHint: {
-    fontSize: 12,
-    color: colors.textLight,
-    lineHeight: 18,
-  },
+  noBudgetHint: { fontSize: 12, color: colors.textLight, lineHeight: 18 },
 
-  // Daily bar
-  barLabel: { fontSize: 9, color: colors.textLight },
+  // Daily area chart
+  axisLabel: { fontSize: 9, color: colors.textLight },
   emptyHint: {
     fontSize: 13,
     color: colors.textLight,
     textAlign: 'center',
     paddingVertical: spacing.xl,
   },
-
-  // Category breakdown
-  catRow: { marginBottom: spacing.md },
-  catRowHeader: {
+  dailyHint: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 6,
+    marginTop: spacing.sm,
+    paddingHorizontal: 4,
   },
-  catRowLeft: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  catDot: {
+  dailyHintText: { fontSize: 11, color: colors.textSub, fontWeight: '500' },
+
+  // Pie chart
+  pieWrap: { alignItems: 'center', marginBottom: spacing.base },
+  pieLegend: { gap: 6 },
+  legendItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 8,
+    paddingHorizontal: spacing.sm,
+    borderRadius: radius.md,
+  },
+  legendItemActive: { backgroundColor: colors.inputBg },
+  legendLeft: { flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1 },
+  legendSwatch: { width: 10, height: 10, borderRadius: 5 },
+  legendIcon: {
     width: 24,
     height: 24,
     borderRadius: radius.full,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  catName: { fontSize: 13, fontWeight: '600', color: colors.text },
-  catAmount: { fontSize: 13, fontWeight: '700', color: colors.text },
-  barBg: {
-    height: 6,
-    backgroundColor: colors.inputBg,
-    borderRadius: radius.full,
-    overflow: 'hidden',
+  legendName: { fontSize: 13, fontWeight: '500', color: colors.text, flex: 1 },
+  legendRight: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+  legendPct: { fontSize: 13, fontWeight: '700', width: 36, textAlign: 'right' },
+  legendAmt: {
+    fontSize: 12,
+    color: colors.textSub,
+    width: 72,
+    textAlign: 'right',
   },
-  barFill: { height: 6, borderRadius: radius.full },
 
   // Comparison
-  compHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: spacing.base,
-  },
-  compLegend: { flexDirection: 'row', gap: spacing.md },
   compRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.sm,
-    marginBottom: spacing.md,
+    gap: spacing.md,
+    paddingVertical: 10,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.border,
   },
-  compRowLeft: {
+  compIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: radius.full,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexShrink: 0,
+  },
+  compInfo: { flex: 1 },
+  compName: { fontSize: 14, fontWeight: '600', color: colors.text },
+  compPrev: { fontSize: 11, color: colors.textSub, marginTop: 1 },
+  compRight: { alignItems: 'flex-end', gap: 4 },
+  compCurrent: { fontSize: 15, fontWeight: '700', color: colors.text },
+  diffBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
-    width: 90,
-  },
-  compBars: { flex: 1, gap: 4 },
-  compBarRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  compBarBg: {
-    flex: 1,
-    height: 6,
-    backgroundColor: colors.inputBg,
+    gap: 3,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
     borderRadius: radius.full,
-    overflow: 'hidden',
   },
-  compBarFill: { height: 6, borderRadius: radius.full },
-  compAmt: {
-    fontSize: 10,
-    color: colors.textSub,
-    width: 36,
-    textAlign: 'right',
-  },
-  diffBadge: { fontSize: 11, fontWeight: '700', width: 36, textAlign: 'right' },
+  diffText: { fontSize: 11, fontWeight: '700' },
+  diffSame: { fontSize: 11, color: colors.textLight },
 });

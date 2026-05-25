@@ -2,6 +2,8 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
+  Animated,
+  Easing,
   KeyboardAvoidingView,
   Modal,
   Platform,
@@ -14,12 +16,41 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { signOut } from '../services/firebase';
 import { useAuthStore } from '../stores/authStore';
 import { useCategoryStore } from '../stores/categoryStore';
 import { useTransactionStore } from '../stores/transactionStore';
 import { colors, radius, shadow, spacing } from '../theme';
+
+function useCountUp(target: number, resetKey: number, duration = 900) {
+  const animated = useRef(new Animated.Value(0)).current;
+  const [display, setDisplay] = useState(0);
+  const prevTarget = useRef(0);
+
+  useEffect(() => {
+    animated.stopAnimation();
+    animated.setValue(0);
+    prevTarget.current = 0;
+    Animated.timing(animated, {
+      toValue: target,
+      duration,
+      easing: Easing.out(Easing.cubic),
+      useNativeDriver: false,
+    }).start();
+    prevTarget.current = target;
+  }, [target, resetKey]);
+
+  useEffect(() => {
+    const listener = animated.addListener(({ value }) => {
+      setDisplay(Math.round(value));
+    });
+    return () => animated.removeListener(listener);
+  }, []);
+
+  return display;
+}
 
 export default function DashboardScreen() {
   const { transactions, loading, fetch, add, remove } = useTransactionStore();
@@ -30,6 +61,7 @@ export default function DashboardScreen() {
     fetch: fetchCats,
   } = useCategoryStore();
   const [refreshing, setRefreshing] = useState(false);
+  const [refreshCount, setRefreshCount] = useState(0);
 
   // Add modal state
   const [modalOpen, setModalOpen] = useState(false);
@@ -78,7 +110,11 @@ export default function DashboardScreen() {
   const handleRefresh = async () => {
     setRefreshing(true);
     try {
-      await fetch({ month: currentMonth, limit: 10 });
+      await Promise.all([
+        fetch({ month: currentMonth, limit: 10 }),
+        fetchCats(),
+      ]);
+      setRefreshCount(c => c + 1);
     } finally {
       setRefreshing(false);
     }
@@ -124,6 +160,8 @@ export default function DashboardScreen() {
       setAdding(false);
     }
   };
+
+  const animatedSpent = useCountUp(totalSpent, refreshCount);
 
   const monthLabel = new Date().toLocaleDateString('en-IN', {
     month: 'long',
@@ -172,7 +210,7 @@ export default function DashboardScreen() {
               </Text>
             )}
             <Text style={styles.heroAmount}>
-              ₹{totalSpent.toLocaleString('en-IN')}
+              ₹{animatedSpent.toLocaleString('en-IN')}
             </Text>
             {totalBudget != null && (
               <Text style={styles.heroBudget}>
