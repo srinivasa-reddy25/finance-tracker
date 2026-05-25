@@ -19,37 +19,47 @@ The foundation. Everything a user needs to track daily expenses.
 
 ---
 
-## V2 — Complete Finance Tracker
+## V2 — Complete Finance Tracker ✅ Done (Recurring deferred)
 
 Make it a proper finance app. Everything a good tracker should have.
 
-**Budget Management**
+**Budget Management** ✅
 - Set an overall monthly spending limit
 - Set limits per category (food, transport, entertainment, etc.)
 - Visual indicator showing how close you are to each limit
 
-**Charts & Graphs**
-- Monthly spending trend (bar/line chart)
-- Category breakdown (pie or donut chart)
-- Week-over-week comparison
-- Make them look great — infographic quality, not generic
+**Charts & Graphs** ✅
+- Analytics tab with 4 sections:
+  - Monthly Snapshot — donut ring with budget vs spent
+  - Daily Spending — area chart, last 10 days, tap-to-see-amount tooltip, timezone-aware
+  - By Category — custom SVG donut with connector labels outside each slice, tap-to-reveal center tooltip
+  - VS Last Month — card list with trending up/down badges
+- Month picker with left arrow disabled at join month
 
-**Recurring Transactions**
+**Dashboard Upgrades** ✅
+- Total spent centered with budget suffix (phantom spacer)
+- Animated number counter on load and pull-to-refresh
+- Pull-to-refresh fetches transactions + categories in parallel
+
+**History Revamp** ✅
+- Google Pay-style grouped-by-date list (SectionList)
+- Circle category icons, description + time, amount top-aligned
+- Infinite scroll (replaces pagination buttons)
+- "Today" / "Yesterday" / full date section headers
+
+**Recurring Transactions** ⏸ Deferred to later
 - Mark a transaction as recurring
-- Remind or prompt user — not auto-add (UX to be decided while building)
-
-**Date Range Filter**
-- Filter history by custom date range, not just current month
-
-**Notes on Transactions**
-- Add an optional note to any transaction (separate from description)
-- Backend schema update needed
+- Remind or prompt user — not auto-add
 
 ---
 
-## V3 — Stand Out Features
+## V3 — Stand Out Features 🔄 In Progress
 
 The things that make this app feel premium and different.
+
+**Home Screen Widget** ← Current focus
+- Quick glance at today's spend / remaining budget
+- Native widget (iOS + Android)
 
 **Smart Spending Insights**
 - Surface patterns: "You spend most on Fridays", "Food is up 40% vs last month"
@@ -60,10 +70,6 @@ The things that make this app feel premium and different.
 - Sent to user's email
 - Also shown as a card in the app
 - Top category, biggest single spend, comparison to previous month
-
-**Home Screen Widget**
-- Quick glance at today's spend / remaining budget
-- Native widget (iOS + Android)
 
 ---
 

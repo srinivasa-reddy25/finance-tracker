@@ -4,7 +4,7 @@ import { mg } from 'db'
 import { z } from 'zod'
 
 export const get_analytics = async (req: Request, res: Response) => {
-  const { month } = query_schema.parse(req.query)
+  const { month, tz } = query_schema.parse(req.query)
   const user_id = req.user._id.toString()
 
   const parts = month.split('-').map(Number)
@@ -17,11 +17,14 @@ export const get_analytics = async (req: Request, res: Response) => {
   const prev_end = new Date(year, mon - 1, 1)
 
   const [daily_agg, current_agg, prev_agg] = await Promise.all([
-    // Spending per day of current month
+    // Spending per day — use device timezone so day numbers match local date
     mg.Transaction.aggregate([
       { $match: { user_id, date: { $gte: month_start, $lt: month_end } } },
       {
-        $group: { _id: { $dayOfMonth: '$date' }, amount: { $sum: '$amount' } }
+        $group: {
+          _id: { $dayOfMonth: { date: '$date', timezone: tz } },
+          amount: { $sum: '$amount' }
+        }
       },
       { $sort: { _id: 1 } }
     ]),
@@ -62,5 +65,6 @@ const query_schema = z.object({
   month: z
     .string()
     .regex(/^\d{4}-\d{2}$/, 'month must be YYYY-MM format')
-    .default(() => new Date().toISOString().slice(0, 7))
+    .default(() => new Date().toISOString().slice(0, 7)),
+  tz: z.string().default('Asia/Kolkata')
 })
