@@ -18,6 +18,7 @@ import error_handler from './middlewares/error-handler.ts'
 import { request_id_handler } from './middlewares/request-id.ts'
 import { success_handler } from './middlewares/success-handler.ts'
 import { ai_router } from './routes/ai.ts'
+import { analytics_router } from './routes/analytics.ts'
 import { auth_router } from './routes/auth.ts'
 import { categories_router } from './routes/categories.ts'
 import { transactions_router } from './routes/transactions.ts'
@@ -66,6 +67,7 @@ app.get('/api/v1', (_req: Request, res: Response) => {
 app.use('/api/v1/auth', auth_router)
 app.use('/api/v1/transactions', transactions_router)
 app.use('/api/v1/categories', categories_router)
+app.use('/api/v1/analytics', analytics_router)
 app.use('/api/v1/ai', ai_router)
 
 app.all('*', (req: Request, _res: Response, next: NextFunction) => {

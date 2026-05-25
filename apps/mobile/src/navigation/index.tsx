@@ -6,10 +6,11 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 
 import { useAuthStore } from '../stores/authStore';
-import LoginScreen from '../screens/LoginScreen';
+import AnalyticsScreen from '../screens/AnalyticsScreen';
+import CategoriesScreen from '../screens/CategoriesScreen';
 import DashboardScreen from '../screens/DashboardScreen';
 import HistoryScreen from '../screens/HistoryScreen';
-import CategoriesScreen from '../screens/CategoriesScreen';
+import LoginScreen from '../screens/LoginScreen';
 import ProfileScreen from '../screens/ProfileScreen';
 import { colors, radius, spacing } from '../theme';
 
@@ -21,6 +22,7 @@ export type RootStackParams = {
 export type BottomTabParams = {
   Dashboard: undefined;
   History: undefined;
+  Analytics: undefined;
   Profile: undefined;
 };
 
@@ -30,6 +32,7 @@ const Tab = createBottomTabNavigator<BottomTabParams>();
 const TAB_ICONS: Record<string, { active: string; inactive: string }> = {
   Dashboard: { active: 'view-dashboard', inactive: 'view-dashboard-outline' },
   History: { active: 'clock', inactive: 'clock-outline' },
+  Analytics: { active: 'chart-bar', inactive: 'chart-bar' },
   Profile: { active: 'account-circle', inactive: 'account-circle-outline' },
 };
 
@@ -60,6 +63,7 @@ function MainTabs() {
       >
         <Tab.Screen name="Dashboard" component={DashboardScreen} />
         <Tab.Screen name="History" component={HistoryScreen} />
+        <Tab.Screen name="Analytics" component={AnalyticsScreen} />
         <Tab.Screen name="Profile" component={ProfileScreen} />
       </Tab.Navigator>
     </View>
