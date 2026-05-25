@@ -8,7 +8,7 @@ import React, {
 import {
   View,
   Text,
-  FlatList,
+  SectionList,
   ActivityIndicator,
   TouchableOpacity,
   TextInput,
@@ -38,6 +38,8 @@ type TCategoryMeta = {
 };
 
 type TDatePreset = 'this_month' | '30d' | '60d' | '90d';
+
+type TSection = { title: string; data: TTransaction[] };
 
 const DATE_PRESETS: {
   key: TDatePreset;
@@ -71,40 +73,62 @@ const DATE_PRESETS: {
   },
 ];
 
-const COL_CAT = 44;
-const COL_DATE = 64;
-const COL_AMOUNT = 62;
-const COL_GAP = 20;
-
 function daysAgoStr(n: number) {
   const d = new Date();
   d.setDate(d.getDate() - n);
   return d.toISOString().slice(0, 10);
 }
 
+function groupByDate(transactions: TTransaction[]): TSection[] {
+  const todayStr = new Date().toDateString();
+  const yesterdayStr = new Date(Date.now() - 86400000).toDateString();
+  const groups = new Map<string, TTransaction[]>();
+
+  for (const tx of transactions) {
+    const key = new Date(tx.date).toDateString();
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key)!.push(tx);
+  }
+
+  return Array.from(groups.entries()).map(([key, data]) => {
+    let title: string;
+    if (key === todayStr) title = 'Today';
+    else if (key === yesterdayStr) title = 'Yesterday';
+    else
+      title = new Date(key).toLocaleDateString('en-IN', {
+        day: 'numeric',
+        month: 'long',
+        year: 'numeric',
+      });
+    return { title, data };
+  });
+}
+
 function SwipeableRow({
   item,
-  index,
   onDeleteRequest,
   categoryMap,
+  isLast,
 }: {
   item: TTransaction;
-  index: number;
   onDeleteRequest: (item: TTransaction) => void;
   categoryMap: Map<string, TCategoryMeta>;
+  isLast: boolean;
 }) {
   const swipeRef = useRef<Swipeable>(null);
   const meta = categoryMap.get(item.category) ?? {
     icon: 'shape-outline',
     color: '#6B7280',
-    bg: '#F9FAFB',
+    bg: '#F3F4F6',
     name: item.category,
     is_income: false,
   };
   const isIncome = meta.is_income;
-  const date = new Date(item.date).toLocaleDateString('en-IN', {
-    day: 'numeric',
-    month: 'short',
+
+  const time = new Date(item.date).toLocaleTimeString('en-IN', {
+    hour: 'numeric',
+    minute: '2-digit',
+    hour12: true,
   });
 
   const renderRightActions = (
@@ -127,7 +151,6 @@ function SwipeableRow({
         <Animated.View style={{ transform: [{ scale }] }}>
           <Icon name="trash-can-outline" size={22} color="#FFFFFF" />
         </Animated.View>
-        <Text style={styles.deleteActionText}>Delete</Text>
       </TouchableOpacity>
     );
   };
@@ -140,35 +163,37 @@ function SwipeableRow({
       overshootRight={false}
       friction={2}
     >
-      <View
-        style={[styles.row, index % 2 === 1 && styles.rowAlt, { gap: COL_GAP }]}
-      >
-        <View style={{ flex: 1 }}>
-          <Text style={styles.nameCell} numberOfLines={1}>
+      <View style={[styles.txRow, !isLast && styles.txRowBorder]}>
+        {/* Circle icon */}
+        <View style={[styles.txIconCircle, { backgroundColor: meta.bg }]}>
+          <Icon name={meta.icon} size={20} color={meta.color} />
+        </View>
+
+        {/* Info */}
+        <View style={styles.txInfo}>
+          <Text style={styles.txDesc} numberOfLines={1}>
             {item.description}
           </Text>
+          <Text style={styles.txMeta} numberOfLines={1}>
+            {meta.name}
+            {'  ·  '}
+            {time}
+          </Text>
           {item.note ? (
-            <Text style={styles.noteCell} numberOfLines={1}>
+            <Text style={styles.txNote} numberOfLines={1}>
               {item.note}
             </Text>
           ) : null}
         </View>
 
-        <View style={{ width: COL_CAT, alignItems: 'center' }}>
-          <View style={[styles.catIcon, { backgroundColor: meta.bg }]}>
-            <Icon name={meta.icon} size={14} color={meta.color} />
-          </View>
-        </View>
-
-        <Text style={styles.dateCell}>{date}</Text>
-
+        {/* Amount */}
         <Text
           style={[
-            styles.amountCell,
-            { color: isIncome ? colors.income : colors.expense },
+            styles.txAmount,
+            { color: isIncome ? colors.income : colors.text },
           ]}
         >
-          {isIncome ? '+' : '-'}₹{item.amount.toLocaleString('en-IN')}
+          {isIncome ? '+' : ''}₹{item.amount.toLocaleString('en-IN')}
         </Text>
       </View>
     </Swipeable>
@@ -211,6 +236,8 @@ export default function HistoryScreen() {
       ),
     [categories],
   );
+
+  const sections = useMemo(() => groupByDate(transactions), [transactions]);
 
   const getDateParams = useCallback(() => {
     const today = new Date().toISOString().slice(0, 10);
@@ -292,7 +319,6 @@ export default function HistoryScreen() {
   const activeFilterMeta =
     filter !== ALL ? (categoryMap.get(filter) ?? null) : null;
   const dateActive = datePreset !== 'this_month';
-  const activeDateMeta = DATE_PRESETS.find(p => p.key === datePreset)!;
   const dateBtnLabel =
     datePreset === 'this_month'
       ? 'Month'
@@ -306,6 +332,7 @@ export default function HistoryScreen() {
     <View style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor={colors.surface} />
 
+      {/* Header */}
       <View style={styles.header}>
         <Text style={styles.title}>History</Text>
         <View style={styles.headerDateBadge}>
@@ -330,7 +357,7 @@ export default function HistoryScreen() {
           <TextInput
             value={search}
             onChangeText={setSearch}
-            placeholder="Search..."
+            placeholder="Search transactions..."
             placeholderTextColor={colors.textLight}
             style={styles.searchInput}
           />
@@ -410,7 +437,128 @@ export default function HistoryScreen() {
         </TouchableOpacity>
       </View>
 
-      {/* Date preset sheet */}
+      {/* List */}
+      {(loading || catLoading) && !refreshing ? (
+        <ActivityIndicator style={{ marginTop: 64 }} color={colors.primary} />
+      ) : transactions.length === 0 ? (
+        <View style={styles.empty}>
+          <View style={styles.emptyIcon}>
+            <Icon
+              name="receipt-text-outline"
+              size={32}
+              color={colors.textLight}
+            />
+          </View>
+          <Text style={styles.emptyTitle}>
+            {search ? 'No results found' : 'No transactions'}
+          </Text>
+          <Text style={styles.emptySub}>
+            {search ? 'Try a different search' : 'Add one from the home screen'}
+          </Text>
+        </View>
+      ) : (
+        <SectionList
+          sections={sections}
+          keyExtractor={item => item._id}
+          stickySectionHeadersEnabled={false}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={handleRefresh}
+              colors={[colors.primary]}
+              tintColor={colors.primary}
+            />
+          }
+          renderSectionHeader={({ section }) => (
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>{section.title}</Text>
+            </View>
+          )}
+          renderItem={({ item, index, section }) => (
+            <SwipeableRow
+              item={item}
+              onDeleteRequest={setDeleteTarget}
+              categoryMap={categoryMap}
+              isLast={index === section.data.length - 1}
+            />
+          )}
+          SectionSeparatorComponent={() => <View style={styles.sectionGap} />}
+          contentContainerStyle={styles.listContent}
+          ListFooterComponent={
+            pagination && pagination.total_pages > 1 && !search ? (
+              <View style={styles.pagination}>
+                <TouchableOpacity
+                  disabled={page === 1}
+                  onPress={() => setPage(p => p - 1)}
+                  style={[styles.pageBtn, page === 1 && styles.pageBtnOff]}
+                >
+                  <Icon
+                    name="chevron-left"
+                    size={16}
+                    color={page === 1 ? colors.border : colors.primary}
+                  />
+                  <Text
+                    style={[
+                      styles.pageBtnTxt,
+                      { color: page === 1 ? colors.border : colors.primary },
+                    ]}
+                  >
+                    Prev
+                  </Text>
+                </TouchableOpacity>
+                <Text style={styles.pageNum}>
+                  {page} / {pagination.total_pages}
+                </Text>
+                <TouchableOpacity
+                  disabled={page === pagination.total_pages}
+                  onPress={() => setPage(p => p + 1)}
+                  style={[
+                    styles.pageBtn,
+                    page === pagination.total_pages && styles.pageBtnOff,
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.pageBtnTxt,
+                      {
+                        color:
+                          page === pagination.total_pages
+                            ? colors.border
+                            : colors.primary,
+                      },
+                    ]}
+                  >
+                    Next
+                  </Text>
+                  <Icon
+                    name="chevron-right"
+                    size={16}
+                    color={
+                      page === pagination.total_pages
+                        ? colors.border
+                        : colors.primary
+                    }
+                  />
+                </TouchableOpacity>
+              </View>
+            ) : null
+          }
+        />
+      )}
+
+      <ConfirmDialog
+        visible={deleteTarget !== null}
+        title="Delete transaction"
+        message={`Remove "${deleteTarget?.description}"? This can't be undone.`}
+        confirmLabel="Delete"
+        onCancel={() => setDeleteTarget(null)}
+        onConfirm={() => {
+          if (deleteTarget) handleDelete(deleteTarget);
+          setDeleteTarget(null);
+        }}
+      />
+
+      {/* Date preset bottom sheet */}
       <Modal
         visible={dateSheetOpen}
         transparent
@@ -425,7 +573,6 @@ export default function HistoryScreen() {
           <View style={styles.sheet}>
             <View style={styles.sheetHandle} />
             <Text style={styles.sheetTitle}>Date range</Text>
-
             {DATE_PRESETS.map(preset => {
               const active = datePreset === preset.key;
               return (
@@ -477,124 +624,6 @@ export default function HistoryScreen() {
           </View>
         </TouchableOpacity>
       </Modal>
-
-      <View style={styles.tableWrapper}>
-        {/* Table header */}
-        <View style={[styles.tableHead, { gap: COL_GAP }]}>
-          <Text style={[styles.th, { flex: 1 }]}>Name</Text>
-          <Text style={[styles.th, { width: COL_CAT, textAlign: 'center' }]}>
-            Cat.
-          </Text>
-          <Text style={[styles.th, { width: COL_DATE }]}>Date</Text>
-          <Text style={[styles.th, { width: COL_AMOUNT, textAlign: 'right' }]}>
-            Amount
-          </Text>
-        </View>
-
-        {(loading || catLoading) && !refreshing ? (
-          <ActivityIndicator style={{ marginTop: 48 }} color={colors.primary} />
-        ) : transactions.length === 0 ? (
-          <View style={styles.empty}>
-            <Icon name="receipt-text-outline" size={36} color={colors.border} />
-            <Text style={styles.emptyText}>
-              {search ? 'No results found' : 'No transactions'}
-            </Text>
-          </View>
-        ) : (
-          <FlatList
-            data={transactions}
-            keyExtractor={item => item._id}
-            style={styles.table}
-            refreshControl={
-              <RefreshControl
-                refreshing={refreshing}
-                onRefresh={handleRefresh}
-                colors={[colors.primary]}
-                tintColor={colors.primary}
-              />
-            }
-            renderItem={({ item, index }) => (
-              <SwipeableRow
-                item={item}
-                index={index}
-                onDeleteRequest={setDeleteTarget}
-                categoryMap={categoryMap}
-              />
-            )}
-            ListFooterComponent={
-              pagination && pagination.total_pages > 1 && !search ? (
-                <View style={styles.pagination}>
-                  <TouchableOpacity
-                    disabled={page === 1}
-                    onPress={() => setPage(p => p - 1)}
-                    style={[styles.pageBtn, page === 1 && styles.pageBtnOff]}
-                  >
-                    <Icon
-                      name="chevron-left"
-                      size={16}
-                      color={page === 1 ? colors.border : colors.primary}
-                    />
-                    <Text
-                      style={[
-                        styles.pageBtnTxt,
-                        { color: page === 1 ? colors.border : colors.primary },
-                      ]}
-                    >
-                      Prev
-                    </Text>
-                  </TouchableOpacity>
-                  <Text style={styles.pageNum}>
-                    {page} / {pagination.total_pages}
-                  </Text>
-                  <TouchableOpacity
-                    disabled={page === pagination.total_pages}
-                    onPress={() => setPage(p => p + 1)}
-                    style={[
-                      styles.pageBtn,
-                      page === pagination.total_pages && styles.pageBtnOff,
-                    ]}
-                  >
-                    <Text
-                      style={[
-                        styles.pageBtnTxt,
-                        {
-                          color:
-                            page === pagination.total_pages
-                              ? colors.border
-                              : colors.primary,
-                        },
-                      ]}
-                    >
-                      Next
-                    </Text>
-                    <Icon
-                      name="chevron-right"
-                      size={16}
-                      color={
-                        page === pagination.total_pages
-                          ? colors.border
-                          : colors.primary
-                      }
-                    />
-                  </TouchableOpacity>
-                </View>
-              ) : null
-            }
-          />
-        )}
-      </View>
-
-      <ConfirmDialog
-        visible={deleteTarget !== null}
-        title="Delete transaction"
-        message={`Remove "${deleteTarget?.description}"? This can't be undone.`}
-        confirmLabel="Delete"
-        onCancel={() => setDeleteTarget(null)}
-        onConfirm={() => {
-          if (deleteTarget) handleDelete(deleteTarget);
-          setDeleteTarget(null);
-        }}
-      />
 
       {/* Category filter bottom sheet */}
       <Modal
@@ -724,11 +753,7 @@ const styles = StyleSheet.create({
     paddingVertical: 5,
     borderRadius: radius.full,
   },
-  headerDateText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: colors.primary,
-  },
+  headerDateText: { fontSize: 12, fontWeight: '600', color: colors.primary },
 
   toolbar: {
     flexDirection: 'row',
@@ -764,99 +789,80 @@ const styles = StyleSheet.create({
   },
   filterBtnText: { fontSize: 13, fontWeight: '600', color: colors.textSub },
 
-  tableHead: {
-    flexDirection: 'row',
-    alignItems: 'center',
+  listContent: { paddingBottom: 100 },
+
+  sectionHeader: {
     paddingHorizontal: spacing.base,
-    paddingVertical: 10,
-    backgroundColor: colors.inputBg,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
+    paddingTop: spacing.base,
+    paddingBottom: spacing.sm,
+    backgroundColor: colors.surface,
   },
-  th: {
-    fontSize: 10,
+  sectionTitle: {
+    fontSize: 12,
     fontWeight: '700',
     color: colors.textSub,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
+  sectionGap: { height: 4 },
 
-  tableWrapper: {
-    flex: 1,
-    marginHorizontal: spacing.base,
-    marginTop: spacing.sm,
-    marginBottom: spacing.sm,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: radius.lg,
-    overflow: 'hidden',
-    backgroundColor: colors.surface,
-  },
-
-  table: { flex: 1, backgroundColor: colors.surface },
-
-  row: {
+  txRow: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: spacing.base,
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
+    paddingVertical: 13,
+    gap: spacing.md,
     backgroundColor: colors.surface,
   },
-  rowAlt: { backgroundColor: '#FAFBFC' },
-
-  nameCell: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: colors.text,
-  },
-  noteCell: {
-    fontSize: 11,
-    color: colors.textLight,
-    marginTop: 1,
-  },
-  dateCell: {
-    width: COL_DATE,
-    fontSize: 12,
-    color: colors.textSub,
-  },
-  amountCell: {
-    width: COL_AMOUNT,
-    fontSize: 13,
-    fontWeight: '700',
-    textAlign: 'right',
+  txRowBorder: {
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.border,
   },
 
-  catIcon: {
-    width: 30,
-    height: 30,
-    borderRadius: radius.sm,
+  txIconCircle: {
+    width: 46,
+    height: 46,
+    borderRadius: radius.full,
     alignItems: 'center',
     justifyContent: 'center',
+    flexShrink: 0,
+  },
+
+  txInfo: { flex: 1 },
+  txDesc: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: colors.text,
+    marginBottom: 2,
+  },
+  txMeta: { fontSize: 12, color: colors.textSub },
+  txNote: { fontSize: 11, color: colors.textLight, marginTop: 1 },
+
+  txAmount: {
+    fontSize: 15,
+    fontWeight: '700',
+    letterSpacing: -0.3,
   },
 
   deleteAction: {
     backgroundColor: colors.expense,
     justifyContent: 'center',
     alignItems: 'center',
-    width: 80,
-    gap: 4,
-  },
-  deleteActionText: {
-    color: '#FFFFFF',
-    fontSize: 11,
-    fontWeight: '700',
+    width: 72,
   },
 
-  empty: {
+  empty: { alignItems: 'center', paddingTop: 80, gap: spacing.sm },
+  emptyIcon: {
+    width: 64,
+    height: 64,
+    borderRadius: radius.xl,
+    backgroundColor: colors.inputBg,
     alignItems: 'center',
-    paddingTop: 64,
-    gap: spacing.md,
-    backgroundColor: colors.surface,
-    flex: 1,
+    justifyContent: 'center',
+    marginBottom: spacing.sm,
   },
-  emptyText: { fontSize: 14, color: colors.textLight },
+  emptyTitle: { fontSize: 15, fontWeight: '600', color: colors.textMed },
+  emptySub: { fontSize: 13, color: colors.textLight },
 
   pagination: {
     flexDirection: 'row',
@@ -864,8 +870,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: spacing.lg,
     padding: spacing.base,
-    borderTopWidth: 1,
-    borderTopColor: colors.border,
+    marginTop: spacing.sm,
   },
   pageBtn: {
     flexDirection: 'row',
@@ -930,14 +935,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  sheetOptionText: {
-    fontSize: 14,
-    color: colors.textMed,
-    fontWeight: '500',
-  },
-  sheetOptionSub: {
-    fontSize: 11,
-    color: colors.textLight,
-    marginTop: 1,
-  },
+  sheetOptionText: { fontSize: 14, color: colors.textMed, fontWeight: '500' },
+  sheetOptionSub: { fontSize: 11, color: colors.textLight, marginTop: 1 },
 });
