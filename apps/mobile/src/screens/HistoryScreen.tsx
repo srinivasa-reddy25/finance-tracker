@@ -166,7 +166,7 @@ function SwipeableRow({
       <View style={[styles.txRow, !isLast && styles.txRowBorder]}>
         {/* Circle icon */}
         <View style={[styles.txIconCircle, { backgroundColor: meta.bg }]}>
-          <Icon name={meta.icon} size={20} color={meta.color} />
+          <Icon name={meta.icon} size={24} color={meta.color} />
         </View>
 
         {/* Info */}
@@ -201,15 +201,21 @@ function SwipeableRow({
 }
 
 export default function HistoryScreen() {
-  const { transactions, pagination, loading, fetch, remove } =
-    useTransactionStore();
+  const {
+    transactions,
+    pagination,
+    loading,
+    loadingMore,
+    fetch,
+    fetchMore,
+    remove,
+  } = useTransactionStore();
   const {
     categories,
     loading: catLoading,
     fetch: fetchCats,
   } = useCategoryStore();
   const [filter, setFilter] = useState<TFilter>(ALL);
-  const [page, setPage] = useState(1);
   const [search, setSearch] = useState('');
   const [filterOpen, setFilterOpen] = useState(false);
   const [dateSheetOpen, setDateSheetOpen] = useState(false);
@@ -254,8 +260,8 @@ export default function HistoryScreen() {
   }, [datePreset, currentMonth]);
 
   const buildParams = useCallback(
-    (p = 1) => ({
-      page: p,
+    () => ({
+      page: 1,
       category: filter === ALL ? undefined : filter,
       search: search.trim() || undefined,
       ...getDateParams(),
@@ -268,8 +274,8 @@ export default function HistoryScreen() {
   }, []);
 
   useEffect(() => {
-    fetch(buildParams(page));
-  }, [filter, page, datePreset]);
+    fetch(buildParams());
+  }, [filter, datePreset]);
 
   const isMounted = useRef(false);
   useEffect(() => {
@@ -279,8 +285,7 @@ export default function HistoryScreen() {
     }
     if (debounceRef.current) clearTimeout(debounceRef.current);
     debounceRef.current = setTimeout(() => {
-      setPage(1);
-      fetch(buildParams(1));
+      fetch(buildParams());
     }, 400);
     return () => {
       if (debounceRef.current) clearTimeout(debounceRef.current);
@@ -289,21 +294,18 @@ export default function HistoryScreen() {
 
   const handleFilterSelect = useCallback((f: TFilter) => {
     setFilter(f);
-    setPage(1);
     setFilterOpen(false);
   }, []);
 
   const handlePresetSelect = useCallback((preset: TDatePreset) => {
     setDatePreset(preset);
-    setPage(1);
     setDateSheetOpen(false);
   }, []);
 
   const handleRefresh = useCallback(async () => {
     setRefreshing(true);
     try {
-      await fetch(buildParams(1));
-      setPage(1);
+      await fetch(buildParams());
     } finally {
       setRefreshing(false);
     }
@@ -461,6 +463,8 @@ export default function HistoryScreen() {
           sections={sections}
           keyExtractor={item => item._id}
           stickySectionHeadersEnabled={false}
+          onEndReached={() => fetchMore(buildParams())}
+          onEndReachedThreshold={0.3}
           refreshControl={
             <RefreshControl
               refreshing={refreshing}
@@ -485,62 +489,11 @@ export default function HistoryScreen() {
           SectionSeparatorComponent={() => <View style={styles.sectionGap} />}
           contentContainerStyle={styles.listContent}
           ListFooterComponent={
-            pagination && pagination.total_pages > 1 && !search ? (
-              <View style={styles.pagination}>
-                <TouchableOpacity
-                  disabled={page === 1}
-                  onPress={() => setPage(p => p - 1)}
-                  style={[styles.pageBtn, page === 1 && styles.pageBtnOff]}
-                >
-                  <Icon
-                    name="chevron-left"
-                    size={16}
-                    color={page === 1 ? colors.border : colors.primary}
-                  />
-                  <Text
-                    style={[
-                      styles.pageBtnTxt,
-                      { color: page === 1 ? colors.border : colors.primary },
-                    ]}
-                  >
-                    Prev
-                  </Text>
-                </TouchableOpacity>
-                <Text style={styles.pageNum}>
-                  {page} / {pagination.total_pages}
-                </Text>
-                <TouchableOpacity
-                  disabled={page === pagination.total_pages}
-                  onPress={() => setPage(p => p + 1)}
-                  style={[
-                    styles.pageBtn,
-                    page === pagination.total_pages && styles.pageBtnOff,
-                  ]}
-                >
-                  <Text
-                    style={[
-                      styles.pageBtnTxt,
-                      {
-                        color:
-                          page === pagination.total_pages
-                            ? colors.border
-                            : colors.primary,
-                      },
-                    ]}
-                  >
-                    Next
-                  </Text>
-                  <Icon
-                    name="chevron-right"
-                    size={16}
-                    color={
-                      page === pagination.total_pages
-                        ? colors.border
-                        : colors.primary
-                    }
-                  />
-                </TouchableOpacity>
-              </View>
+            loadingMore ? (
+              <ActivityIndicator
+                style={styles.footerSpinner}
+                color={colors.primary}
+              />
             ) : null
           }
         />
@@ -830,7 +783,7 @@ const styles = StyleSheet.create({
 
   txInfo: { flex: 1 },
   txDesc: {
-    fontSize: 15,
+    fontSize: 17,
     fontWeight: '600',
     color: colors.text,
     marginBottom: 2,
@@ -865,26 +818,7 @@ const styles = StyleSheet.create({
   emptyTitle: { fontSize: 15, fontWeight: '600', color: colors.textMed },
   emptySub: { fontSize: 13, color: colors.textLight },
 
-  pagination: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-    gap: spacing.lg,
-    padding: spacing.base,
-    marginTop: spacing.sm,
-  },
-  pageBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    borderRadius: radius.md,
-    backgroundColor: colors.primaryLight,
-  },
-  pageBtnOff: { backgroundColor: colors.inputBg },
-  pageBtnTxt: { fontSize: 13, fontWeight: '600' },
-  pageNum: { fontSize: 13, color: colors.textSub },
+  footerSpinner: { paddingVertical: spacing.xl },
 
   overlay: {
     flex: 1,
