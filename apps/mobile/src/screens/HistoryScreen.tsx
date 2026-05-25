@@ -808,7 +808,7 @@ const styles = StyleSheet.create({
 
   txRow: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     paddingHorizontal: spacing.base,
     paddingVertical: 13,
     gap: spacing.md,
@@ -842,6 +842,7 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '700',
     letterSpacing: -0.3,
+    paddingTop: 2,
   },
 
   deleteAction: {
