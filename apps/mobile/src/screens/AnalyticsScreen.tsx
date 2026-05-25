@@ -12,6 +12,7 @@ import {
 import { LineChart, PieChart } from 'react-native-gifted-charts';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { api } from '../services/api';
+import { useAuthStore } from '../stores/authStore';
 import { useCategoryStore } from '../stores/categoryStore';
 import { colors, radius, spacing } from '../theme';
 
@@ -46,6 +47,7 @@ function fmtK(n: number) {
 
 export default function AnalyticsScreen() {
   const { categories, fetch: fetchCats } = useCategoryStore();
+  const { user } = useAuthStore();
   const [data, setData] = useState<TAnalyticsData | null>(null);
   const [loading, setLoading] = useState(true);
   const [selectedPie, setSelectedPie] = useState<number | null>(null);
@@ -54,8 +56,15 @@ export default function AnalyticsScreen() {
   const [year, setYear] = useState(now.getFullYear());
   const [mon, setMon] = useState(now.getMonth() + 1);
 
+  const joinDate = user?.metadata?.creationTime
+    ? new Date(user.metadata.creationTime)
+    : null;
+  const joinYear = joinDate?.getFullYear() ?? 2000;
+  const joinMon = joinDate ? joinDate.getMonth() + 1 : 1;
+
   const isCurrentMonth =
     year === now.getFullYear() && mon === now.getMonth() + 1;
+  const isJoinMonth = year === joinYear && mon === joinMon;
 
   const categoryMap = useMemo(
     () => new Map(categories.map(c => [c.key, c])),
@@ -179,8 +188,16 @@ export default function AnalyticsScreen() {
 
       {/* Month Picker */}
       <View style={styles.monthPicker}>
-        <TouchableOpacity onPress={goPrev} style={styles.monthBtn}>
-          <Icon name="chevron-left" size={20} color={colors.textSub} />
+        <TouchableOpacity
+          onPress={goPrev}
+          style={styles.monthBtn}
+          disabled={isJoinMonth}
+        >
+          <Icon
+            name="chevron-left"
+            size={20}
+            color={isJoinMonth ? colors.border : colors.textSub}
+          />
         </TouchableOpacity>
         <Text style={styles.monthLabel}>{monthLabel(year, mon)}</Text>
         <TouchableOpacity
