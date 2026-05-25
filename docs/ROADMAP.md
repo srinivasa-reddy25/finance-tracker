@@ -57,9 +57,12 @@ Make it a proper finance app. Everything a good tracker should have.
 
 The things that make this app feel premium and different.
 
-**Home Screen Widget** ← Current focus
-- Quick glance at today's spend / remaining budget
-- Native widget (iOS + Android)
+**Home Screen Widget** ✅ Done (Android)
+- 4 widget types: Glance (2×1), Overview (4×2), Budget Ring (2×2), Quick Add (4×2)
+- All transparent/glass design — wallpaper shows through
+- Real-time data sync from app via SharedPreferences bridge
+- Quick Add: tap Food / Transport / Shopping / Bills → opens app with category pre-filled
+- iOS widget: deferred to later
 
 **Smart Spending Insights**
 - Surface patterns: "You spend most on Fridays", "Food is up 40% vs last month"

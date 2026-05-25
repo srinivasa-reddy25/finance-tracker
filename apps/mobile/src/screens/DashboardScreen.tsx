@@ -1,4 +1,10 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -6,6 +12,7 @@ import {
   Easing,
   KeyboardAvoidingView,
   Modal,
+  NativeModules,
   Platform,
   RefreshControl,
   ScrollView,
@@ -17,8 +24,10 @@ import {
   View,
 } from 'react-native';
 
+import { useFocusEffect } from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { signOut } from '../services/firebase';
+import { updateWidget } from '../services/widgetBridge';
 import { useAuthStore } from '../stores/authStore';
 import { useCategoryStore } from '../stores/categoryStore';
 import { useTransactionStore } from '../stores/transactionStore';
@@ -107,6 +116,25 @@ export default function DashboardScreen() {
     };
   }, [transactions, categoryMap, categories]);
 
+  // Keep Android widget in sync
+  useEffect(() => {
+    const todayStr = new Date().toISOString().slice(0, 10);
+    const todaySpent = transactions
+      .filter(t => {
+        const d = new Date(t.date);
+        return (
+          !categoryMap.get(t.category)?.is_income &&
+          d.toISOString().slice(0, 10) === todayStr
+        );
+      })
+      .reduce((s, t) => s + t.amount, 0);
+    updateWidget({
+      todaySpent,
+      monthlySpent: totalSpent,
+      budget: totalBudget ?? 0,
+    });
+  }, [totalSpent, totalBudget, transactions, categoryMap]);
+
   const handleRefresh = async () => {
     setRefreshing(true);
     try {
@@ -119,6 +147,21 @@ export default function DashboardScreen() {
       setRefreshing(false);
     }
   };
+
+  // Handle Quick Add widget tap — opens modal with pre-selected category
+  useFocusEffect(
+    useCallback(() => {
+      if (Platform.OS !== 'android') return;
+      NativeModules.WidgetModule?.getPendingCategory?.()?.then(
+        (cat: string | null) => {
+          if (!cat) return;
+          if (categories.length === 0) fetchCats();
+          setCategory(cat);
+          setModalOpen(true);
+        },
+      );
+    }, [categories.length, fetchCats]),
+  );
 
   const openModal = () => {
     if (categories.length === 0) fetchCats();
