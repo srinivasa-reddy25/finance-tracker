@@ -33,10 +33,6 @@ export const user_schema = new Schema<TUser>(
     is_active: {
       type: Boolean,
       default: true
-    },
-    budget: {
-      type: Number,
-      default: null
     }
   },
   {

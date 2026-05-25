@@ -11,20 +11,16 @@ import {
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { signInWithGoogle } from '../services/firebase';
 import { api } from '../services/api';
-import { useAuthStore } from '../stores/authStore';
 import { colors, radius, spacing } from '../theme';
 
 export default function LoginScreen() {
   const [loading, setLoading] = useState(false);
-  const { setOverallBudget } = useAuthStore();
 
   const handleGoogleSignIn = async () => {
     setLoading(true);
     try {
       await signInWithGoogle();
-      const res = await api.post('/auth/sync');
-      const budget = res.data?.data?.budget ?? null;
-      setOverallBudget(typeof budget === 'number' ? budget : null);
+      await api.post('/auth/sync');
     } catch (e: any) {
       Alert.alert('Sign in failed', e.message ?? 'Please try again');
     } finally {

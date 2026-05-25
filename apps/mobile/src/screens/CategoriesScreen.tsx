@@ -162,15 +162,23 @@ export default function CategoriesScreen() {
     }
   };
 
-  const handleDeletePress = async (cat: TUserCategory) => {
+  const handleDeletePress = (cat: TUserCategory) => {
     if (!cat.is_deletable) return;
+    setMigrationCount(0);
+    setDeleteTarget(cat);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!deleteTarget) return;
     setDeleting(true);
     try {
-      const result = await remove(cat._id, false);
+      const result = await remove(deleteTarget._id, false);
       if (result.status === 'needs_confirmation') {
         setMigrationCount(result.transaction_count);
-        setDeleteTarget(cat);
+        // already showing the dialog — update message and wait for second confirm
+        return;
       }
+      setDeleteTarget(null);
     } catch {
       // network error
     } finally {
@@ -178,7 +186,7 @@ export default function CategoriesScreen() {
     }
   };
 
-  const handleConfirmDelete = async () => {
+  const handleConfirmDeleteWithMigrate = async () => {
     if (!deleteTarget) return;
     setDeleting(true);
     try {
@@ -194,31 +202,47 @@ export default function CategoriesScreen() {
     const budget = item.budget ?? null;
     const pct = budget != null && budget > 0 ? Math.min(spent / budget, 1) : 0;
     const overBudget = budget != null && spent > budget;
+    const fillColor = overBudget ? colors.expense : item.color;
+
     return (
       <TouchableOpacity
         style={styles.catRow}
         onPress={() => openEdit(item)}
-        activeOpacity={0.7}
+        activeOpacity={0.85}
       >
-        <View style={[styles.catIcon, { backgroundColor: item.bg }]}>
-          <Icon name={item.icon} size={18} color={item.color} />
-        </View>
-
-        <View style={styles.catInfo}>
-          <Text style={styles.catName}>{item.name}</Text>
-          {budget != null ? (
-            <View style={styles.budgetRow}>
-              <View style={styles.budgetBarBg}>
-                <View
-                  style={[
-                    styles.budgetBarFill,
-                    {
+        {/* Fills — direct absolute children so overflow:hidden clips them correctly */}
+        {budget != null && (
+          <>
+            <View
+              style={[
+                StyleSheet.absoluteFill,
+                { backgroundColor: item.color, opacity: 0.08 },
+              ]}
+            />
+            <View
+              style={[
+                styles.rowFill,
+                overBudget
+                  ? { right: 0, backgroundColor: fillColor, opacity: 0.22 }
+                  : {
                       width: `${pct * 100}%` as `${number}%`,
-                      backgroundColor: overBudget ? colors.expense : item.color,
+                      backgroundColor: fillColor,
+                      opacity: 0.18,
                     },
-                  ]}
-                />
-              </View>
+              ]}
+            />
+          </>
+        )}
+
+        {/* Flex content — catRow is NOT a flex container so no gap bleeds onto fills */}
+        <View style={styles.catRowContent}>
+          <View style={[styles.catIcon, { backgroundColor: item.bg }]}>
+            <Icon name={item.icon} size={18} color={item.color} />
+          </View>
+
+          <View style={styles.catInfo}>
+            <Text style={styles.catName}>{item.name}</Text>
+            {budget != null ? (
               <Text
                 style={[
                   styles.budgetText,
@@ -228,29 +252,33 @@ export default function CategoriesScreen() {
                 ₹{spent.toLocaleString('en-IN')} / ₹
                 {budget.toLocaleString('en-IN')}
               </Text>
-            </View>
-          ) : null}
-        </View>
+            ) : spent > 0 ? (
+              <Text style={styles.spentText}>
+                ₹{spent.toLocaleString('en-IN')} spent
+              </Text>
+            ) : null}
+          </View>
 
-        <View style={styles.rowRight}>
-          {!item.is_deletable ? (
-            <View style={styles.lockBadge}>
-              <Icon name="lock-outline" size={13} color={colors.textLight} />
-              <Text style={styles.lockText}>Required</Text>
-            </View>
-          ) : (
-            <TouchableOpacity
-              style={styles.deleteBtn}
-              onPress={() => handleDeletePress(item)}
-              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-            >
-              <Icon
-                name="trash-can-outline"
-                size={18}
-                color={colors.textLight}
-              />
-            </TouchableOpacity>
-          )}
+          <View style={styles.rowRight}>
+            {!item.is_deletable ? (
+              <View style={styles.lockBadge}>
+                <Icon name="lock-outline" size={13} color={colors.textLight} />
+                <Text style={styles.lockText}>Required</Text>
+              </View>
+            ) : (
+              <TouchableOpacity
+                style={styles.deleteBtn}
+                onPress={() => handleDeletePress(item)}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              >
+                <Icon
+                  name="trash-can-outline"
+                  size={18}
+                  color={colors.textLight}
+                />
+              </TouchableOpacity>
+            )}
+          </View>
         </View>
       </TouchableOpacity>
     );
@@ -305,10 +333,21 @@ export default function CategoriesScreen() {
       <ConfirmDialog
         visible={deleteTarget !== null}
         title="Delete category"
-        message={`${migrationCount} transaction${migrationCount === 1 ? '' : 's'} in "${deleteTarget?.name}" will be moved to Others. This cannot be undone.`}
-        confirmLabel="Delete & Move"
-        onCancel={() => setDeleteTarget(null)}
-        onConfirm={handleConfirmDelete}
+        message={
+          migrationCount > 0
+            ? `${migrationCount} transaction${migrationCount === 1 ? '' : 's'} in "${deleteTarget?.name}" will be moved to Others. This cannot be undone.`
+            : `Are you sure you want to delete "${deleteTarget?.name}"? This cannot be undone.`
+        }
+        confirmLabel={migrationCount > 0 ? 'Delete & Move' : 'Delete'}
+        onCancel={() => {
+          setDeleteTarget(null);
+          setMigrationCount(0);
+        }}
+        onConfirm={
+          migrationCount > 0
+            ? handleConfirmDeleteWithMigrate
+            : handleConfirmDelete
+        }
       />
 
       {/* Add / Edit sheet — single shared modal */}
@@ -566,12 +605,21 @@ const styles = StyleSheet.create({
   list: { paddingVertical: spacing.sm, paddingBottom: 60 },
 
   catRow: {
+    backgroundColor: colors.surface,
+    overflow: 'hidden',
+  },
+  catRowContent: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: spacing.base,
-    paddingVertical: 13,
+    paddingVertical: 14,
     gap: spacing.md,
-    backgroundColor: colors.surface,
+  },
+  rowFill: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    bottom: 0,
   },
   catIcon: {
     width: 40,
@@ -582,15 +630,18 @@ const styles = StyleSheet.create({
   },
   catInfo: { flex: 1 },
   catName: { fontSize: 15, fontWeight: '600', color: colors.text },
-  budgetRow: { marginTop: 4, gap: 3 },
-  budgetBarBg: {
-    height: 3,
-    backgroundColor: colors.inputBg,
-    borderRadius: 2,
-    overflow: 'hidden',
+  budgetText: {
+    fontSize: 12,
+    color: colors.textSub,
+    fontWeight: '500',
+    marginTop: 2,
   },
-  budgetBarFill: { height: 3, borderRadius: 2 },
-  budgetText: { fontSize: 11, color: colors.textSub, fontWeight: '500' },
+  spentText: {
+    fontSize: 12,
+    color: colors.textLight,
+    fontWeight: '500',
+    marginTop: 2,
+  },
   editHint: { fontSize: 12, color: colors.textLight, marginTop: 2 },
   rowRight: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
   lockBadge: {

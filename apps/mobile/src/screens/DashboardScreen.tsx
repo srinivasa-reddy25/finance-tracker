@@ -57,19 +57,23 @@ export default function DashboardScreen() {
     [categories],
   );
 
-  const { totalSpent, totalIncome, count } = useMemo(() => {
+  const { totalSpent, totalIncome, count, totalBudget } = useMemo(() => {
     const spent = transactions
       .filter(t => !categoryMap.get(t.category)?.is_income)
       .reduce((s, t) => s + t.amount, 0);
     const income = transactions
       .filter(t => categoryMap.get(t.category)?.is_income)
       .reduce((s, t) => s + t.amount, 0);
+    const budget = categories
+      .filter(c => !c.is_income && c.budget != null)
+      .reduce((s, c) => s + (c.budget ?? 0), 0);
     return {
       totalSpent: spent,
       totalIncome: income,
       count: transactions.length,
+      totalBudget: budget > 0 ? budget : null,
     };
-  }, [transactions, categoryMap]);
+  }, [transactions, categoryMap, categories]);
 
   const handleRefresh = async () => {
     setRefreshing(true);
@@ -161,9 +165,21 @@ export default function DashboardScreen() {
         {/* Spending hero — no card, just text on page */}
         <View style={styles.hero}>
           <Text style={styles.heroLabel}>Total Spent</Text>
-          <Text style={styles.heroAmount}>
-            ₹{totalSpent.toLocaleString('en-IN')}
-          </Text>
+          <View style={styles.heroAmountRow}>
+            {totalBudget != null && (
+              <Text style={[styles.heroBudget, { opacity: 0 }]}>
+                / ₹{totalBudget.toLocaleString('en-IN')}
+              </Text>
+            )}
+            <Text style={styles.heroAmount}>
+              ₹{totalSpent.toLocaleString('en-IN')}
+            </Text>
+            {totalBudget != null && (
+              <Text style={styles.heroBudget}>
+                / ₹{totalBudget.toLocaleString('en-IN')}
+              </Text>
+            )}
+          </View>
           <View style={styles.heroStats}>
             <Text style={styles.heroStat}>{count} transactions</Text>
             <View style={styles.heroDot} />
@@ -438,12 +454,23 @@ const styles = StyleSheet.create({
     letterSpacing: 1,
     marginBottom: spacing.sm,
   },
+  heroAmountRow: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    justifyContent: 'center',
+  },
   heroAmount: {
     fontSize: 62,
     fontWeight: '800',
     color: colors.primary,
     letterSpacing: -2,
-    textAlign: 'center',
+  },
+  heroBudget: {
+    fontSize: 16,
+    fontWeight: '500',
+    color: colors.textLight,
+    marginLeft: 6,
+    marginBottom: 6,
   },
   heroStats: {
     flexDirection: 'row',
