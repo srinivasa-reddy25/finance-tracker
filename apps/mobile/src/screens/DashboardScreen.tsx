@@ -28,6 +28,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import MonthlyReportCard from '../components/MonthlyReportCard';
 import { signOut } from '../services/firebase';
+import { setup_notifications } from '../services/notifications';
 import { updateWidget } from '../services/widgetBridge';
 import { useAuthStore } from '../stores/authStore';
 import { useCategoryStore } from '../stores/categoryStore';
@@ -90,6 +91,7 @@ export default function DashboardScreen() {
   useEffect(() => {
     fetch({ month: currentMonth, limit: 10 });
     fetchCats();
+    setup_notifications().catch(() => {});
   }, []);
 
   const categoryMap = useMemo(
