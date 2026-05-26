@@ -403,12 +403,18 @@ export default function RecurringScreen() {
         <TouchableOpacity
           onPress={() => navigation.goBack()}
           style={styles.backBtn}
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
         >
           <Icon name="arrow-left" size={22} color={colors.text} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Recurring</Text>
-        <TouchableOpacity style={styles.addBtn} onPress={() => setSheet('add')}>
-          <Icon name="plus" size={20} color="#fff" />
+        <TouchableOpacity
+          style={styles.addBtn}
+          onPress={() => setSheet('add')}
+          activeOpacity={0.8}
+        >
+          <Icon name="plus" size={16} color="#fff" />
+          <Text style={styles.addBtnText}>Add</Text>
         </TouchableOpacity>
       </View>
 
@@ -519,20 +525,38 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: colors.surface,
     paddingHorizontal: spacing.base,
-    paddingVertical: spacing.md,
+    paddingTop: 56,
+    paddingBottom: spacing.md,
+    gap: spacing.sm,
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
   },
-  backBtn: { padding: spacing.xs, marginRight: spacing.sm },
-  headerTitle: { flex: 1, fontSize: 18, fontWeight: '700', color: colors.text },
-  addBtn: {
-    backgroundColor: colors.primary,
-    width: 34,
-    height: 34,
-    borderRadius: 17,
+  backBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: colors.border,
     alignItems: 'center',
     justifyContent: 'center',
   },
+  headerTitle: {
+    flex: 1,
+    fontSize: 20,
+    fontWeight: '800',
+    color: colors.text,
+    letterSpacing: -0.4,
+  },
+  addBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: colors.primary,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs + 2,
+    borderRadius: radius.md,
+  },
+  addBtnText: { color: '#fff', fontSize: 13, fontWeight: '700' },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 8 },
   emptyText: {
     fontSize: 16,

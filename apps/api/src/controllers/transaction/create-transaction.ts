@@ -28,7 +28,7 @@ export const create_transaction = async (req: Request, res: Response) => {
   })
 
   // Fire-and-forget budget alert check — never blocks the response
-  check_budget_alert(req.user, body.data!.amount).catch((err) =>
+  check_budget_alert(req.user).catch((err) =>
     log.error({
       app: 'transactions',
       message: 'Budget alert check failed',
@@ -38,10 +38,19 @@ export const create_transaction = async (req: Request, res: Response) => {
 }
 
 async function check_budget_alert(
-  user: Express.Request['user'],
-  new_amount: number
+  user: Express.Request['user']
 ): Promise<void> {
   const user_id = user._id.toString()
+  const now = new Date()
+  const month_key = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
+
+  // Skip if both thresholds for this month already sent
+  if (
+    user.last_budget_alert_80 === month_key &&
+    user.last_budget_alert_100 === month_key
+  ) {
+    return
+  }
 
   const [categories, agg] = await Promise.all([
     mg.UserCategory.find({
@@ -54,12 +63,8 @@ async function check_budget_alert(
         $match: {
           user_id,
           date: {
-            $gte: new Date(new Date().getFullYear(), new Date().getMonth(), 1),
-            $lt: new Date(
-              new Date().getFullYear(),
-              new Date().getMonth() + 1,
-              1
-            )
+            $gte: new Date(now.getFullYear(), now.getMonth(), 1),
+            $lt: new Date(now.getFullYear(), now.getMonth() + 1, 1)
           }
         }
       },
@@ -80,27 +85,50 @@ async function check_budget_alert(
   const total_budget = categories.reduce((s, c) => s + (c.budget ?? 0), 0)
   if (total_budget === 0) return
 
-  const new_total = agg[0]?.total ?? 0
-  const prev_total = new_total - new_amount
+  const total_spent = agg[0]?.total ?? 0
+  const pct = (total_spent / total_budget) * 100
 
-  const t80 = total_budget * 0.8
+  log.info({
+    app: 'transactions',
+    message: `Budget check: ${total_spent}/${total_budget} = ${pct.toFixed(1)}% for ${user.email}`
+  })
 
-  if (prev_total < t80 && new_total >= t80 && new_total < total_budget) {
+  // 100% alert takes priority
+  if (pct >= 100 && user.last_budget_alert_100 !== month_key) {
     const { subject, html } = budget_alert_template(
       user.name,
-      new_total,
-      total_budget,
-      80
-    )
-    await send_email(user.email, subject, html)
-  } else if (prev_total < total_budget && new_total >= total_budget) {
-    const { subject, html } = budget_alert_template(
-      user.name,
-      new_total,
+      total_spent,
       total_budget,
       100
     )
     await send_email(user.email, subject, html)
+    await mg.User.updateOne(
+      { _id: user._id },
+      { last_budget_alert_100: month_key, last_budget_alert_80: month_key }
+    )
+    log.info({
+      app: 'transactions',
+      message: `Budget alert 100% sent to ${user.email}`
+    })
+    return
+  }
+
+  if (pct >= 80 && user.last_budget_alert_80 !== month_key) {
+    const { subject, html } = budget_alert_template(
+      user.name,
+      total_spent,
+      total_budget,
+      80
+    )
+    await send_email(user.email, subject, html)
+    await mg.User.updateOne(
+      { _id: user._id },
+      { last_budget_alert_80: month_key }
+    )
+    log.info({
+      app: 'transactions',
+      message: `Budget alert 80% sent to ${user.email}`
+    })
   }
 }
 
