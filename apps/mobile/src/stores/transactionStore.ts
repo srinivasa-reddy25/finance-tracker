@@ -24,6 +24,7 @@ type TTransactionStore = {
   fetch: (params?: TFetchParams) => Promise<void>;
   fetchMore: (params?: TFetchParams) => Promise<void>;
   add: (data: TCreateTransaction) => Promise<void>;
+  update: (id: string, data: Partial<TCreateTransaction>) => Promise<void>;
   remove: (id: string) => Promise<void>;
   reset: () => void;
 };
@@ -72,6 +73,15 @@ export const useTransactionStore = create<TTransactionStore>((set, get) => ({
   add: async data => {
     await api.post('/transactions', data);
     get().fetch();
+  },
+
+  update: async (id, data) => {
+    await api.patch(`/transactions/${id}`, data);
+    set(state => ({
+      transactions: state.transactions.map(t =>
+        t._id === id ? { ...t, ...data } : t,
+      ),
+    }));
   },
 
   remove: async id => {

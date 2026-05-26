@@ -33,6 +33,7 @@ import { useAuthStore } from '../stores/authStore';
 import { useCategoryStore } from '../stores/categoryStore';
 import { useTransactionStore } from '../stores/transactionStore';
 import { colors, radius, shadow, spacing } from '../theme';
+import type { TTransaction } from '../types/transaction';
 
 function useCountUp(target: number, resetKey: number, duration = 900) {
   const animated = useRef(new Animated.Value(0)).current;
@@ -63,7 +64,8 @@ function useCountUp(target: number, resetKey: number, duration = 900) {
 }
 
 export default function DashboardScreen() {
-  const { transactions, loading, fetch, add, remove } = useTransactionStore();
+  const { transactions, loading, fetch, add, update, remove } =
+    useTransactionStore();
   const { user } = useAuthStore();
   const {
     categories,
@@ -73,8 +75,9 @@ export default function DashboardScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [refreshCount, setRefreshCount] = useState(0);
 
-  // Add modal state
+  // Add / edit modal state
   const [modalOpen, setModalOpen] = useState(false);
+  const [editTarget, setEditTarget] = useState<TTransaction | null>(null);
   const [amount, setAmount] = useState('');
   const [description, setDescription] = useState('');
   const [note, setNote] = useState('');
@@ -160,11 +163,22 @@ export default function DashboardScreen() {
 
   const openModal = () => {
     if (categories.length === 0) fetchCats();
+    setEditTarget(null);
     setCategory(expenseCategories[0]?.key ?? '');
     setModalOpen(true);
   };
 
+  const openEdit = (item: TTransaction) => {
+    setEditTarget(item);
+    setAmount(String(item.amount));
+    setDescription(item.description);
+    setNote(item.note ?? '');
+    setCategory(item.category);
+    setModalOpen(true);
+  };
+
   const resetForm = () => {
+    setEditTarget(null);
     setAmount('');
     setDescription('');
     setNote('');
@@ -199,16 +213,52 @@ export default function DashboardScreen() {
     }
   };
 
+  const handleUpdate = async () => {
+    if (!editTarget) return;
+    const parsed = parseFloat(amount);
+    if (!amount || isNaN(parsed) || parsed <= 0) {
+      Alert.alert('Invalid amount', 'Enter a valid amount greater than 0');
+      return;
+    }
+    if (!description.trim()) {
+      Alert.alert('Missing description', 'Please add a description');
+      return;
+    }
+    setAdding(true);
+    try {
+      await update(editTarget._id, {
+        amount: parsed,
+        description: description.trim(),
+        note: note.trim() || undefined,
+        category,
+      });
+      resetForm();
+      setModalOpen(false);
+    } catch {
+      Alert.alert('Error', 'Failed to update transaction. Try again.');
+    } finally {
+      setAdding(false);
+    }
+  };
+
   const animatedSpent = useCountUp(totalSpent, refreshCount);
+
+  const budgetPct =
+    totalBudget != null ? (totalSpent / totalBudget) * 100 : null;
+  const spentColor =
+    budgetPct == null
+      ? colors.primary
+      : budgetPct >= 100
+        ? colors.expense
+        : budgetPct >= 80
+          ? '#F59E0B'
+          : colors.primary;
 
   const monthLabel = new Date().toLocaleDateString('en-IN', {
     month: 'long',
     year: 'numeric',
   });
   const firstName = user?.displayName?.split(' ')[0] ?? 'there';
-  const hour = new Date().getHours();
-  const greeting =
-    hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
   const recent = transactions.slice(0, 3);
 
   return (
@@ -229,9 +279,34 @@ export default function DashboardScreen() {
       >
         {/* Header */}
         <View style={styles.header}>
-          <View>
-            <Text style={styles.greeting}>{greeting}</Text>
+          <View style={styles.nameRow}>
             <Text style={styles.name}>{firstName}</Text>
+            {budgetPct != null && budgetPct >= 80 && (
+              <View
+                style={[
+                  styles.budgetWarning,
+                  budgetPct >= 100 && styles.budgetDanger,
+                ]}
+              >
+                <Icon
+                  name={
+                    budgetPct >= 100 ? 'alert-circle-outline' : 'alert-outline'
+                  }
+                  size={12}
+                  color={budgetPct >= 100 ? colors.expense : '#F59E0B'}
+                />
+                <Text
+                  style={[
+                    styles.budgetWarningText,
+                    budgetPct >= 100 && styles.budgetDangerText,
+                  ]}
+                >
+                  {budgetPct >= 100
+                    ? `Budget exceeded by ₹${Math.round(totalSpent - totalBudget!).toLocaleString('en-IN')}`
+                    : `${Math.round(budgetPct)}% of budget used`}
+                </Text>
+              </View>
+            )}
           </View>
           <TouchableOpacity onPress={signOut} style={styles.avatar}>
             <Text style={styles.avatarText}>{firstName[0].toUpperCase()}</Text>
@@ -247,7 +322,7 @@ export default function DashboardScreen() {
                 / ₹{totalBudget.toLocaleString('en-IN')}
               </Text>
             )}
-            <Text style={styles.heroAmount}>
+            <Text style={[styles.heroAmount, { color: spentColor }]}>
               ₹{animatedSpent.toLocaleString('en-IN')}
             </Text>
             {totalBudget != null && (
@@ -302,7 +377,12 @@ export default function DashboardScreen() {
                 month: 'short',
               });
               return (
-                <View key={item._id} style={styles.recentCard}>
+                <TouchableOpacity
+                  key={item._id}
+                  style={styles.recentCard}
+                  onPress={() => openEdit(item)}
+                  activeOpacity={0.75}
+                >
                   <View style={styles.recentTop}>
                     <View
                       style={[
@@ -328,7 +408,7 @@ export default function DashboardScreen() {
                     </Text>
                     <Text style={styles.recentDate}>{date}</Text>
                   </View>
-                </View>
+                </TouchableOpacity>
               );
             })}
           </View>
@@ -368,8 +448,15 @@ export default function DashboardScreen() {
             >
               {/* Dialog header */}
               <View style={styles.dialogHeader}>
-                <Text style={styles.dialogTitle}>Add Expense</Text>
-                <TouchableOpacity onPress={() => setModalOpen(false)}>
+                <Text style={styles.dialogTitle}>
+                  {editTarget ? 'Edit Expense' : 'Add Expense'}
+                </Text>
+                <TouchableOpacity
+                  onPress={() => {
+                    resetForm();
+                    setModalOpen(false);
+                  }}
+                >
                   <Icon name="close" size={20} color={colors.textSub} />
                 </TouchableOpacity>
               </View>
@@ -463,7 +550,7 @@ export default function DashboardScreen() {
 
               {/* Submit */}
               <TouchableOpacity
-                onPress={handleAdd}
+                onPress={editTarget ? handleUpdate : handleAdd}
                 disabled={adding || catLoading || !category}
                 style={[
                   styles.submitBtn,
@@ -477,7 +564,9 @@ export default function DashboardScreen() {
                 ) : (
                   <>
                     <Icon name="check" size={17} color="#FFF" />
-                    <Text style={styles.submitText}>Add Expense</Text>
+                    <Text style={styles.submitText}>
+                      {editTarget ? 'Save Changes' : 'Add Expense'}
+                    </Text>
                   </>
                 )}
               </TouchableOpacity>
@@ -502,7 +591,12 @@ const styles = StyleSheet.create({
     paddingTop: 56,
     paddingBottom: spacing.lg,
   },
-  greeting: { fontSize: 13, color: colors.textSub, marginBottom: 2 },
+  nameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    flex: 1,
+  },
   name: {
     fontSize: 22,
     fontWeight: '700',
@@ -567,6 +661,30 @@ const styles = StyleSheet.create({
     height: 3,
     borderRadius: 2,
     backgroundColor: colors.border,
+  },
+  budgetWarning: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginTop: spacing.sm,
+    backgroundColor: '#FFFBEB',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: radius.full,
+    borderWidth: 1,
+    borderColor: '#FDE68A',
+  },
+  budgetDanger: {
+    backgroundColor: '#FEF2F2',
+    borderColor: '#FECACA',
+  },
+  budgetWarningText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#F59E0B',
+  },
+  budgetDangerText: {
+    color: colors.expense,
   },
 
   sectionHeader: {

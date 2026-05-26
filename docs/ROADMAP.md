@@ -19,7 +19,7 @@ The foundation. Everything a user needs to track daily expenses.
 
 ---
 
-## V2 — Complete Finance Tracker ✅ Done (Recurring deferred)
+## V2 — Complete Finance Tracker ✅ Done
 
 Make it a proper finance app. Everything a good tracker should have.
 
@@ -27,6 +27,7 @@ Make it a proper finance app. Everything a good tracker should have.
 - Set an overall monthly spending limit
 - Set limits per category (food, transport, entertainment, etc.)
 - Visual indicator showing how close you are to each limit
+- Budget alert emails at 80% and 100% threshold (fire-and-forget, once per month per threshold)
 
 **Charts & Graphs** ✅
 - Analytics tab with 4 sections:
@@ -47,13 +48,16 @@ Make it a proper finance app. Everything a good tracker should have.
 - Infinite scroll (replaces pagination buttons)
 - "Today" / "Yesterday" / full date section headers
 
-**Recurring Transactions** ⏸ Deferred to later
-- Mark a transaction as recurring
-- Remind or prompt user — not auto-add
+**Recurring Transactions** ✅
+- Full CRUD — create, edit, delete, toggle active/inactive
+- 4 frequencies: daily, weekly, monthly, yearly
+- `apps/cron` job fires at midnight, creates transactions automatically with `source: recurring`
+- Fire-and-forget email to user after each auto-transaction
+- Edge cases handled: short months (Feb 30 → Feb 28), same-day creation fires tonight
 
 ---
 
-## V3 — Stand Out Features 🔄 In Progress
+## V3 — Stand Out Features ✅ Done
 
 The things that make this app feel premium and different.
 
@@ -64,21 +68,32 @@ The things that make this app feel premium and different.
 - Quick Add: tap Food / Transport / Shopping / Bills → opens app with category pre-filled
 - iOS widget: deferred to later
 
-**Smart Spending Insights**
-- Surface patterns: "You spend most on Fridays", "Food is up 40% vs last month"
-- Show this on dashboard — build carefully, data needs to be meaningful not noisy
+**Monthly Report** ✅ Done
+- Cron job sends email on 1st of every month with previous month summary
+- In-app recap card on dashboard, visible 1st–3rd of month, dismissable
+- Shows: total spent, tx count, % change vs previous month, top 3 categories, biggest single spend
 
-**Monthly Report**
-- Auto-generated end-of-month summary
-- Sent to user's email
-- Also shown as a card in the app
-- Top category, biggest single spend, comparison to previous month
+**CSV / PDF Export** ✅ Done
+- Export transactions from Profile screen
+- Format: CSV or PDF, range: this month / last month / last 3 months / all time
+- Emailed directly to user's registered email
+- PDF: professional layout with Roboto font, ₹ symbol, summary cards, transaction table
+
+**Recurring Run History** ✅ Done
+- Every cron run logged to a separate collection, linked to the recurring transaction
+- Stores status (success / failed), fired_at, transaction_id, error message
+- Viewable in-app via history icon on each recurring card
 
 ---
 
 ## V4 — AI Layer
 
 Add intelligence on top of the solid foundation.
+
+**Smart Spending Insights**
+- Surface patterns: "You spend most on Fridays", "Food is up 40% vs last month"
+- Show on dashboard — data must be meaningful, not noisy
+- Plan TBD
 
 **Voice Input**
 - Tap mic, speak a transaction ("Spent 200 on lunch at Swiggy")
@@ -99,8 +114,8 @@ Add intelligence on top of the solid foundation.
 To be planned once V4 is shipped.
 
 - Multi-user support (families, shared tracking — model TBD)
+  - Activity logs required here — track who added/edited/deleted what, so shared users have full visibility into changes
 - Production deployment & hosting
-- Data export (CSV, PDF reports)
 - Anything else that comes up
 
 ---

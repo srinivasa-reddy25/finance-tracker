@@ -16,12 +16,14 @@ import {
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
+import { api } from '../services/api';
 import { useCategoryStore } from '../stores/categoryStore';
 import { useRecurringStore } from '../stores/recurringStore';
 import { colors, radius, spacing } from '../theme';
 import type {
   TCreateRecurring,
   TRecurrenceFrequency,
+  TRecurringRun,
   TRecurringTransaction,
 } from '../types/recurring';
 import { DAY_NAMES, MONTH_NAMES } from '../types/recurring';
@@ -330,15 +332,113 @@ function RecurringForm({ initial, onSave, onClose }: FormProps) {
   );
 }
 
+// ─── Run history modal ────────────────────────────────────────────────────────
+
+function fmt_datetime(s: string): string {
+  return new Date(s).toLocaleString('en-IN', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+}
+
+type RunHistoryProps = {
+  item: TRecurringTransaction;
+  onClose: () => void;
+};
+
+function RunHistoryModal({ item, onClose }: RunHistoryProps) {
+  const [runs, setRuns] = useState<TRecurringRun[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    api
+      .get(`/recurring/${item._id}/runs`)
+      .then(res => setRuns(res.data?.data ?? []))
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, [item._id]);
+
+  return (
+    <View style={styles.sheet}>
+      <View style={styles.formHandle} />
+      <View style={styles.runsHeader}>
+        <View style={{ flex: 1 }}>
+          <Text style={styles.runsTitle}>Run History</Text>
+          <Text style={styles.runsSub} numberOfLines={1}>
+            {item.name}
+          </Text>
+        </View>
+        <TouchableOpacity
+          onPress={onClose}
+          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+        >
+          <Icon name="close" size={20} color={colors.textLight} />
+        </TouchableOpacity>
+      </View>
+
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.runsList}
+      >
+        {loading ? (
+          <ActivityIndicator color={colors.primary} style={{ marginTop: 32 }} />
+        ) : runs.length === 0 ? (
+          <View style={styles.runsEmpty}>
+            <Icon name="history" size={40} color={colors.border} />
+            <Text style={styles.runsEmptyText}>No runs yet</Text>
+            <Text style={styles.runsEmptySub}>
+              Runs will appear here after the cron fires
+            </Text>
+          </View>
+        ) : (
+          runs.map(run => (
+            <View key={run._id} style={styles.runRow}>
+              <View
+                style={[
+                  styles.runStatus,
+                  run.status === 'success'
+                    ? styles.runSuccess
+                    : styles.runFailed,
+                ]}
+              >
+                <Icon
+                  name={run.status === 'success' ? 'check' : 'close'}
+                  size={12}
+                  color={run.status === 'success' ? '#16A34A' : '#DC2626'}
+                />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.runDate}>{fmt_datetime(run.fired_at)}</Text>
+                {run.status === 'failed' && run.error ? (
+                  <Text style={styles.runError} numberOfLines={2}>
+                    {run.error}
+                  </Text>
+                ) : null}
+              </View>
+              <Text style={styles.runAmount}>{fmt_amount(run.amount)}</Text>
+            </View>
+          ))
+        )}
+      </ScrollView>
+    </View>
+  );
+}
+
 // ─── Main screen ──────────────────────────────────────────────────────────────
 
 export default function RecurringScreen() {
   const navigation = useNavigation();
   const { items, loading, fetch, add, update, remove, toggle } =
     useRecurringStore();
-  const { fetch: fetchCats } = useCategoryStore();
+  const { categories, fetch: fetchCats } = useCategoryStore();
 
   const [sheet, setSheet] = useState<null | 'add' | TRecurringTransaction>(
+    null,
+  );
+  const [historyItem, setHistoryItem] = useState<TRecurringTransaction | null>(
     null,
   );
 
@@ -407,60 +507,101 @@ export default function RecurringScreen() {
           contentContainerStyle={styles.list}
         >
           {items.map(item => {
-            const cat_color = '#6B7280';
+            const cat = categories.find(c => c.key === item.category);
             return (
               <View
                 key={item._id}
                 style={[styles.card, !item.is_active && styles.cardInactive]}
               >
-                <View style={styles.cardLeft}>
-                  <View style={styles.cardTop}>
-                    <Text style={styles.cardName}>{item.name}</Text>
-                    <Text style={styles.cardAmount}>
-                      {fmt_amount(item.amount)}
-                    </Text>
-                  </View>
-                  <Text style={styles.cardFreq}>{freq_label(item)}</Text>
-                  <Text style={styles.cardNext}>
-                    Next: {fmt_date(item.next_run)}
-                    {item.last_run
-                      ? `  ·  Last: ${fmt_date(item.last_run)}`
-                      : ''}
+                {/* Top row: name + amount */}
+                <View style={styles.cardTop}>
+                  <Text style={styles.cardName} numberOfLines={1}>
+                    {item.name}
+                  </Text>
+                  <Text style={styles.cardAmount}>
+                    {fmt_amount(item.amount)}
                   </Text>
                 </View>
-                <View style={styles.cardActions}>
-                  <Switch
-                    value={item.is_active}
-                    onValueChange={v => toggle(item._id, v)}
-                    trackColor={{
-                      false: colors.border,
-                      true: colors.primary + '60',
-                    }}
-                    thumbColor={
-                      item.is_active ? colors.primary : colors.textLight
-                    }
-                    style={{ transform: [{ scaleX: 0.8 }, { scaleY: 0.8 }] }}
-                  />
-                  <TouchableOpacity
-                    onPress={() => setSheet(item)}
-                    style={styles.iconBtn}
-                  >
-                    <Icon
-                      name="pencil-outline"
-                      size={18}
-                      color={colors.textSub}
+
+                {/* Category + frequency + next run */}
+                <View style={styles.cardMeta}>
+                  <View style={styles.cardMetaLeft}>
+                    {cat && (
+                      <>
+                        <Icon name={cat.icon} size={13} color={cat.color} />
+                        <Text
+                          style={[styles.cardCatName, { color: cat.color }]}
+                        >
+                          {cat.name}
+                        </Text>
+                        <Text style={styles.cardMetaDot}>·</Text>
+                      </>
+                    )}
+                    <Text style={styles.cardFreq}>{freq_label(item)}</Text>
+                  </View>
+                  <Text style={styles.cardNext}>
+                    Next: {fmt_date(item.next_run)}
+                  </Text>
+                </View>
+                {item.last_run ? (
+                  <Text style={styles.cardLastRun}>
+                    Last run: {fmt_date(item.last_run)}
+                  </Text>
+                ) : null}
+
+                {/* Divider */}
+                <View style={styles.cardDivider} />
+
+                {/* Footer: toggle + action icons */}
+                <View style={styles.cardFooter}>
+                  <View style={styles.toggleRow}>
+                    <Switch
+                      value={item.is_active}
+                      onValueChange={v => toggle(item._id, v)}
+                      trackColor={{
+                        false: colors.border,
+                        true: colors.primary + '60',
+                      }}
+                      thumbColor={
+                        item.is_active ? colors.primary : colors.textLight
+                      }
+                      style={{ transform: [{ scaleX: 0.8 }, { scaleY: 0.8 }] }}
                     />
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    onPress={() => handle_delete(item)}
-                    style={styles.iconBtn}
-                  >
-                    <Icon
-                      name="trash-can-outline"
-                      size={18}
-                      color={colors.expense}
-                    />
-                  </TouchableOpacity>
+                    <Text style={styles.toggleLabel}>
+                      {item.is_active ? 'Active' : 'Paused'}
+                    </Text>
+                  </View>
+                  <View style={styles.cardIcons}>
+                    <TouchableOpacity
+                      onPress={() => setHistoryItem(item)}
+                      style={styles.iconBtn}
+                      hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+                    >
+                      <Icon name="history" size={18} color={colors.textSub} />
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      onPress={() => setSheet(item)}
+                      style={styles.iconBtn}
+                      hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+                    >
+                      <Icon
+                        name="pencil-outline"
+                        size={18}
+                        color={colors.textSub}
+                      />
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      onPress={() => handle_delete(item)}
+                      style={styles.iconBtn}
+                      hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+                    >
+                      <Icon
+                        name="trash-can-outline"
+                        size={18}
+                        color={colors.expense}
+                      />
+                    </TouchableOpacity>
+                  </View>
                 </View>
               </View>
             );
@@ -487,6 +628,26 @@ export default function RecurringScreen() {
             onClose={() => setSheet(null)}
           />
         </View>
+      </Modal>
+
+      {/* Run history modal */}
+      <Modal
+        visible={historyItem !== null}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setHistoryItem(null)}
+      >
+        <TouchableOpacity
+          style={styles.overlayBg}
+          activeOpacity={1}
+          onPress={() => setHistoryItem(null)}
+        />
+        {historyItem && (
+          <RunHistoryModal
+            item={historyItem}
+            onClose={() => setHistoryItem(null)}
+          />
+        )}
       </Modal>
     </View>
   );
@@ -544,27 +705,92 @@ const styles = StyleSheet.create({
   list: { padding: spacing.base, gap: spacing.sm },
   card: {
     backgroundColor: colors.surface,
-    borderRadius: radius.md,
+    borderRadius: radius.lg,
     padding: spacing.base,
-    flexDirection: 'row',
-    alignItems: 'center',
     borderWidth: 1,
     borderColor: colors.border,
-    gap: spacing.sm,
+    gap: 6,
   },
-  cardInactive: { opacity: 0.5 },
-  cardLeft: { flex: 1, gap: 4 },
+  cardInactive: { opacity: 0.45 },
   cardTop: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
+    gap: 8,
   },
-  cardName: { fontSize: 15, fontWeight: '700', color: colors.text },
-  cardAmount: { fontSize: 15, fontWeight: '700', color: colors.expense },
-  cardFreq: { fontSize: 13, color: colors.textSub },
-  cardNext: { fontSize: 12, color: colors.textLight },
-  cardActions: { alignItems: 'center', gap: spacing.xs },
-  iconBtn: { padding: spacing.xs },
+  cardName: {
+    flex: 1,
+    fontSize: 15,
+    fontWeight: '700',
+    color: colors.text,
+  },
+  cardAmount: {
+    fontSize: 16,
+    fontWeight: '800',
+    color: colors.expense,
+    letterSpacing: -0.3,
+  },
+  cardMeta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 8,
+  },
+  cardMetaLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    flex: 1,
+  },
+  cardCatName: {
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  cardMetaDot: {
+    fontSize: 12,
+    color: colors.border,
+  },
+  cardFreq: {
+    fontSize: 13,
+    color: colors.textSub,
+    fontWeight: '500',
+  },
+  cardNext: {
+    fontSize: 12,
+    color: colors.textLight,
+    fontWeight: '500',
+    flexShrink: 0,
+  },
+  cardLastRun: {
+    fontSize: 11,
+    color: colors.textLight,
+  },
+  cardDivider: {
+    height: 1,
+    backgroundColor: colors.border,
+    marginTop: 4,
+    marginBottom: 2,
+  },
+  cardFooter: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  toggleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  toggleLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: colors.textSub,
+  },
+  cardIcons: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 2,
+  },
+  iconBtn: { padding: 6 },
   // form
   overlayBg: {
     flex: 1,
@@ -658,4 +884,75 @@ const styles = StyleSheet.create({
     marginTop: spacing.sm,
   },
   saveBtnText: { color: '#fff', fontSize: 15, fontWeight: '700' },
+  // run history
+  runsHeader: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    paddingHorizontal: spacing.xl,
+    paddingTop: spacing.lg,
+    paddingBottom: spacing.md,
+    gap: spacing.sm,
+  },
+  runsTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: colors.text,
+  },
+  runsSub: {
+    fontSize: 13,
+    color: colors.textSub,
+    marginTop: 2,
+  },
+  runsList: {
+    paddingHorizontal: spacing.xl,
+    paddingBottom: 40,
+    gap: spacing.sm,
+  },
+  runsEmpty: {
+    alignItems: 'center',
+    paddingTop: 48,
+    gap: 8,
+  },
+  runsEmptyText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: colors.textSub,
+  },
+  runsEmptySub: {
+    fontSize: 13,
+    color: colors.textLight,
+    textAlign: 'center',
+  },
+  runRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    paddingVertical: spacing.sm,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  runStatus: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  runSuccess: { backgroundColor: '#DCFCE7' },
+  runFailed: { backgroundColor: '#FEE2E2' },
+  runDate: {
+    fontSize: 13,
+    color: colors.text,
+    fontWeight: '500',
+  },
+  runError: {
+    fontSize: 11,
+    color: colors.expense,
+    marginTop: 2,
+  },
+  runAmount: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: colors.text,
+  },
 });

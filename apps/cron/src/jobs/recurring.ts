@@ -32,7 +32,7 @@ export async function run(): Promise<void> {
 
   for (const item of due) {
     try {
-      await mg.Transaction.create({
+      const tx = await mg.Transaction.create({
         user_id: item.user_id,
         amount: item.amount,
         description: item.name,
@@ -55,10 +55,21 @@ export async function run(): Promise<void> {
         tomorrow
       )
 
-      await mg.RecurringTransaction.updateOne(
-        { _id: item._id },
-        { last_run: now, next_run }
-      )
+      await Promise.all([
+        mg.RecurringTransaction.updateOne(
+          { _id: item._id },
+          { last_run: now, next_run }
+        ),
+        mg.RecurringRun.create({
+          recurring_id: item._id.toString(),
+          user_id: item.user_id,
+          status: 'success',
+          fired_at: now,
+          transaction_id: tx._id.toString(),
+          amount: item.amount,
+          name: item.name
+        })
+      ])
 
       // Notify user via email — fire-and-forget
       const user = await mg.User.findById(item.user_id).lean()
@@ -98,6 +109,17 @@ export async function run(): Promise<void> {
         message: `Recurring: failed for "${item.name}" (${item._id})`,
         meta: { err }
       })
+
+      // Record the failure — fire-and-forget so one bad write doesn't cascade
+      mg.RecurringRun.create({
+        recurring_id: item._id.toString(),
+        user_id: item.user_id,
+        status: 'failed',
+        fired_at: now,
+        error: err instanceof Error ? err.message : String(err),
+        amount: item.amount,
+        name: item.name
+      }).catch(() => {})
     }
   }
 }

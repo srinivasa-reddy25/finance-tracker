@@ -28,6 +28,18 @@ export type TCreateRecurring = {
   description?: string;
 };
 
+export type TRecurringRun = {
+  _id: string;
+  recurring_id: string;
+  user_id: string;
+  status: 'success' | 'failed';
+  fired_at: string;
+  transaction_id?: string;
+  error?: string;
+  amount: number;
+  name: string;
+};
+
 export const DAY_NAMES = [
   'Sun',
   'Mon',

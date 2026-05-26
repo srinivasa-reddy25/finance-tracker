@@ -1,10 +1,12 @@
 import type { Request, Response } from 'express'
 
 import { mg } from 'db'
+import { log } from 'logging'
 import { z } from 'zod'
 
 import { CATEGORIES, TRANSACTION_SOURCES } from '@tejadev/shared'
 
+import { check_budget_alert } from '../../services/budget-alert.ts'
 import { throw_error } from '../../utils/throw-error.ts'
 
 export const update_transaction_by_id = async (req: Request, res: Response) => {
@@ -27,6 +29,15 @@ export const update_transaction_by_id = async (req: Request, res: Response) => {
   }
 
   res.json({ message: 'Transaction updated' })
+
+  // Re-check budget thresholds — editing amount up can cross 80%/100%
+  check_budget_alert(req.user).catch((err) =>
+    log.error({
+      app: 'transactions',
+      message: 'Budget alert check failed after update',
+      meta: { err }
+    })
+  )
 }
 
 const body_schema = z.object({

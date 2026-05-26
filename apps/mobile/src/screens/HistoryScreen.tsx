@@ -10,6 +10,9 @@ import {
   Text,
   SectionList,
   ActivityIndicator,
+  Alert,
+  KeyboardAvoidingView,
+  Platform,
   TouchableOpacity,
   TextInput,
   Modal,
@@ -107,11 +110,13 @@ function groupByDate(transactions: TTransaction[]): TSection[] {
 function SwipeableRow({
   item,
   onDeleteRequest,
+  onEditRequest,
   categoryMap,
   isLast,
 }: {
   item: TTransaction;
   onDeleteRequest: (item: TTransaction) => void;
+  onEditRequest: (item: TTransaction) => void;
   categoryMap: Map<string, TCategoryMeta>;
   isLast: boolean;
 }) {
@@ -163,7 +168,11 @@ function SwipeableRow({
       overshootRight={false}
       friction={2}
     >
-      <View style={[styles.txRow, !isLast && styles.txRowBorder]}>
+      <TouchableOpacity
+        style={[styles.txRow, !isLast && styles.txRowBorder]}
+        onPress={() => onEditRequest(item)}
+        activeOpacity={0.7}
+      >
         {/* Circle icon */}
         <View style={[styles.txIconCircle, { backgroundColor: meta.bg }]}>
           <Icon name={meta.icon} size={24} color={meta.color} />
@@ -195,7 +204,7 @@ function SwipeableRow({
         >
           {isIncome ? '+' : ''}₹{item.amount.toLocaleString('en-IN')}
         </Text>
-      </View>
+      </TouchableOpacity>
     </Swipeable>
   );
 }
@@ -208,6 +217,7 @@ export default function HistoryScreen() {
     loadingMore,
     fetch,
     fetchMore,
+    update,
     remove,
   } = useTransactionStore();
   const {
@@ -222,6 +232,13 @@ export default function HistoryScreen() {
   const [datePreset, setDatePreset] = useState<TDatePreset>('this_month');
   const [refreshing, setRefreshing] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<TTransaction | null>(null);
+  const [editTarget, setEditTarget] = useState<TTransaction | null>(null);
+  const [editAmount, setEditAmount] = useState('');
+  const [editDescription, setEditDescription] = useState('');
+  const [editNote, setEditNote] = useState('');
+  const [editCategory, setEditCategory] = useState('');
+  const [saving, setSaving] = useState(false);
+  const editAmountRef = useRef<TextInput>(null);
 
   const currentMonth = new Date().toISOString().slice(0, 7);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -317,6 +334,57 @@ export default function HistoryScreen() {
     },
     [remove],
   );
+
+  const openEdit = useCallback((item: TTransaction) => {
+    setEditTarget(item);
+    setEditAmount(String(item.amount));
+    setEditDescription(item.description);
+    setEditNote(item.note ?? '');
+    setEditCategory(item.category);
+  }, []);
+
+  const closeEdit = useCallback(() => {
+    setEditTarget(null);
+    setEditAmount('');
+    setEditDescription('');
+    setEditNote('');
+    setEditCategory('');
+  }, []);
+
+  const handleUpdate = useCallback(async () => {
+    if (!editTarget) return;
+    const parsed = parseFloat(editAmount);
+    if (!editAmount || isNaN(parsed) || parsed <= 0) {
+      Alert.alert('Invalid amount', 'Enter a valid amount greater than 0');
+      return;
+    }
+    if (!editDescription.trim()) {
+      Alert.alert('Missing description', 'Please add a description');
+      return;
+    }
+    setSaving(true);
+    try {
+      await update(editTarget._id, {
+        amount: parsed,
+        description: editDescription.trim(),
+        note: editNote.trim() || undefined,
+        category: editCategory,
+      });
+      closeEdit();
+    } catch {
+      Alert.alert('Error', 'Failed to update transaction. Try again.');
+    } finally {
+      setSaving(false);
+    }
+  }, [
+    editTarget,
+    editAmount,
+    editDescription,
+    editNote,
+    editCategory,
+    update,
+    closeEdit,
+  ]);
 
   const activeFilterMeta =
     filter !== ALL ? (categoryMap.get(filter) ?? null) : null;
@@ -482,6 +550,7 @@ export default function HistoryScreen() {
             <SwipeableRow
               item={item}
               onDeleteRequest={setDeleteTarget}
+              onEditRequest={openEdit}
               categoryMap={categoryMap}
               isLast={index === section.data.length - 1}
             />
@@ -510,6 +579,136 @@ export default function HistoryScreen() {
           setDeleteTarget(null);
         }}
       />
+
+      {/* Edit transaction modal */}
+      <Modal
+        visible={editTarget !== null}
+        transparent
+        animationType="fade"
+        onRequestClose={closeEdit}
+        onShow={() => setTimeout(() => editAmountRef.current?.focus(), 150)}
+      >
+        <KeyboardAvoidingView
+          style={{ flex: 1 }}
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        >
+          <TouchableOpacity
+            style={styles.editOverlay}
+            activeOpacity={1}
+            onPress={closeEdit}
+          >
+            <TouchableOpacity
+              activeOpacity={1}
+              style={styles.editDialog}
+              onPress={() => {}}
+            >
+              <View style={styles.editHeader}>
+                <Text style={styles.editTitle}>Edit Expense</Text>
+                <TouchableOpacity onPress={closeEdit}>
+                  <Icon name="close" size={20} color={colors.textSub} />
+                </TouchableOpacity>
+              </View>
+
+              <View style={styles.editAmountRow}>
+                <Text style={styles.editCurrency}>₹</Text>
+                <TextInput
+                  ref={editAmountRef}
+                  value={editAmount}
+                  onChangeText={setEditAmount}
+                  keyboardType="numeric"
+                  placeholder="0"
+                  placeholderTextColor={colors.border}
+                  style={styles.editAmountInput}
+                />
+              </View>
+
+              <TextInput
+                value={editDescription}
+                onChangeText={setEditDescription}
+                placeholder="Description"
+                placeholderTextColor={colors.textLight}
+                style={styles.editTextInput}
+                returnKeyType="next"
+              />
+
+              <TextInput
+                value={editNote}
+                onChangeText={setEditNote}
+                placeholder="Add a note (optional)"
+                placeholderTextColor={colors.textLight}
+                style={styles.editTextInput}
+                returnKeyType="done"
+              />
+
+              <View style={styles.editCategoryGrid}>
+                {categories
+                  .filter(c => !c.is_income)
+                  .map(cat => {
+                    const selected = editCategory === cat.key;
+                    return (
+                      <TouchableOpacity
+                        key={cat.key}
+                        onPress={() => setEditCategory(cat.key)}
+                        style={[
+                          styles.editCatChip,
+                          selected && {
+                            backgroundColor: cat.bg,
+                            borderColor: cat.color,
+                          },
+                        ]}
+                        activeOpacity={0.75}
+                      >
+                        <View
+                          style={[
+                            styles.editCatIcon,
+                            {
+                              backgroundColor: selected
+                                ? cat.color
+                                : colors.inputBg,
+                            },
+                          ]}
+                        >
+                          <Icon
+                            name={cat.icon}
+                            size={13}
+                            color={selected ? '#FFF' : cat.color}
+                          />
+                        </View>
+                        <Text
+                          style={[
+                            styles.editCatLabel,
+                            { color: selected ? cat.color : colors.textSub },
+                          ]}
+                        >
+                          {cat.name}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+              </View>
+
+              <TouchableOpacity
+                onPress={handleUpdate}
+                disabled={saving || !editCategory}
+                style={[
+                  styles.editSubmitBtn,
+                  (!editCategory || saving) && { opacity: 0.5 },
+                ]}
+                activeOpacity={0.85}
+              >
+                {saving ? (
+                  <ActivityIndicator color="#FFF" />
+                ) : (
+                  <>
+                    <Icon name="check" size={17} color="#FFF" />
+                    <Text style={styles.editSubmitText}>Save Changes</Text>
+                  </>
+                )}
+              </TouchableOpacity>
+            </TouchableOpacity>
+          </TouchableOpacity>
+        </KeyboardAvoidingView>
+      </Modal>
 
       {/* Date preset bottom sheet */}
       <Modal
@@ -819,6 +1018,83 @@ const styles = StyleSheet.create({
   emptySub: { fontSize: 13, color: colors.textLight },
 
   footerSpinner: { paddingVertical: spacing.xl },
+
+  editOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: spacing.base,
+  },
+  editDialog: {
+    backgroundColor: colors.surface,
+    borderRadius: radius.xl,
+    padding: spacing.lg,
+    gap: spacing.md,
+    width: '100%',
+  },
+  editHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  editTitle: { fontSize: 18, fontWeight: '800', color: colors.text },
+  editAmountRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.inputBg,
+    borderRadius: radius.lg,
+    paddingHorizontal: spacing.base,
+    paddingVertical: spacing.sm,
+    gap: 6,
+  },
+  editCurrency: { fontSize: 28, fontWeight: '700', color: colors.expense },
+  editAmountInput: {
+    flex: 1,
+    fontSize: 36,
+    fontWeight: '800',
+    color: colors.expense,
+    padding: 0,
+  },
+  editTextInput: {
+    backgroundColor: colors.inputBg,
+    borderRadius: radius.lg,
+    paddingHorizontal: spacing.base,
+    paddingVertical: 12,
+    fontSize: 14,
+    color: colors.text,
+  },
+  editCategoryGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
+  editCatChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: radius.lg,
+    borderWidth: 1.5,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+  },
+  editCatIcon: {
+    width: 22,
+    height: 22,
+    borderRadius: radius.sm,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  editCatLabel: { fontSize: 12, fontWeight: '600' },
+  editSubmitBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.sm,
+    backgroundColor: colors.expense,
+    borderRadius: radius.lg,
+    paddingVertical: 14,
+    marginTop: spacing.xs,
+  },
+  editSubmitText: { color: '#FFF', fontSize: 15, fontWeight: '700' },
 
   overlay: {
     flex: 1,
