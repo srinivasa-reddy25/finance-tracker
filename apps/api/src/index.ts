@@ -3,7 +3,6 @@ import { log } from 'logging'
 
 import { httpServer } from './app.ts'
 import { env } from './constants/env.ts'
-import { start_monthly_report_job } from './jobs/monthly-report.job.ts'
 
 const APP = 'tejadev-api'
 
@@ -17,8 +16,6 @@ const start_server = async (): Promise<void> => {
         message: `listening on http://localhost:${env.API_PORT}`
       })
     })
-
-    start_monthly_report_job()
   } catch (error) {
     log.error({
       app: APP,

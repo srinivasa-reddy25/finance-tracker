@@ -7,12 +7,25 @@ function get_resend(api_key: string): Resend {
   return _resend
 }
 
+export type EmailAttachment = {
+  filename: string
+  content: Buffer | string
+  contentType?: string
+}
+
 export async function send_email(
   api_key: string,
   from: string,
   to: string,
   subject: string,
-  html: string
+  html: string,
+  attachments?: EmailAttachment[]
 ): Promise<void> {
-  await get_resend(api_key).emails.send({ from, to, subject, html })
+  await get_resend(api_key).emails.send({
+    from,
+    to,
+    subject,
+    html,
+    attachments
+  })
 }

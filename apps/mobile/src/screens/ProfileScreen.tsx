@@ -1,5 +1,6 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
+  ActivityIndicator,
   Alert,
   ScrollView,
   StatusBar,
@@ -8,6 +9,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import { api } from '../services/api';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
@@ -50,6 +52,42 @@ export default function ProfileScreen() {
   };
 
   const catCount = categories.length;
+
+  const [exportOpen, setExportOpen] = useState(false);
+  const [exportFormat, setExportFormat] = useState<'csv' | 'pdf'>('csv');
+  const [exportRange, setExportRange] = useState<
+    'this_month' | 'last_month' | 'last_3_months' | 'all'
+  >('this_month');
+  const [exporting, setExporting] = useState(false);
+
+  const send_export = async () => {
+    setExporting(true);
+    try {
+      const res = await api.post('/export/transactions', {
+        format: exportFormat,
+        range: exportRange,
+      });
+      const count = res.data?.data?.transaction_count ?? 0;
+      setExportOpen(false);
+      Alert.alert(
+        'Sent',
+        `Your ${exportFormat.toUpperCase()} export (${count} transactions) was sent to ${email}.`,
+      );
+    } catch (err: any) {
+      const msg =
+        err?.response?.data?.message ?? 'Failed to send export. Try again.';
+      Alert.alert('Error', msg);
+    } finally {
+      setExporting(false);
+    }
+  };
+
+  const range_options: { key: typeof exportRange; label: string }[] = [
+    { key: 'this_month', label: 'This month' },
+    { key: 'last_month', label: 'Last month' },
+    { key: 'last_3_months', label: 'Last 3 months' },
+    { key: 'all', label: 'All time' },
+  ];
 
   return (
     <View style={styles.container}>
@@ -164,6 +202,33 @@ export default function ProfileScreen() {
           </View>
         </View>
 
+        {/* Data section */}
+        <View style={styles.section}>
+          <Text style={styles.sectionLabel}>Data</Text>
+          <View style={styles.card}>
+            <TouchableOpacity
+              style={styles.row}
+              onPress={() => setExportOpen(true)}
+              activeOpacity={0.7}
+            >
+              <View style={styles.rowIconWrap}>
+                <Icon
+                  name="download-outline"
+                  size={17}
+                  color={colors.primary}
+                />
+              </View>
+              <View style={styles.rowContent}>
+                <Text style={styles.rowLabel}>Export to email</Text>
+                <Text style={styles.rowValue}>
+                  Get your transactions as CSV or PDF
+                </Text>
+              </View>
+              <Icon name="chevron-right" size={18} color={colors.textLight} />
+            </TouchableOpacity>
+          </View>
+        </View>
+
         {/* Preferences section */}
         <View style={styles.section}>
           <Text style={styles.sectionLabel}>Preferences</Text>
@@ -206,6 +271,85 @@ export default function ProfileScreen() {
           <Text style={styles.signOutText}>Sign out</Text>
         </TouchableOpacity>
       </ScrollView>
+
+      {/* Export sheet */}
+      {exportOpen && (
+        <View style={styles.overlay}>
+          <TouchableOpacity
+            style={styles.overlayBg}
+            onPress={() => !exporting && setExportOpen(false)}
+            activeOpacity={1}
+          />
+          <View style={styles.sheet}>
+            <View style={styles.sheetHandle} />
+            <Text style={styles.sheetTitle}>Export transactions</Text>
+            <Text style={styles.sheetSub}>
+              We&apos;ll email the file to{'\n'}
+              <Text style={{ color: colors.text, fontWeight: '600' }}>
+                {email}
+              </Text>
+            </Text>
+
+            <Text style={styles.sheetLabel}>Format</Text>
+            <View style={styles.chipRow}>
+              {(['csv', 'pdf'] as const).map(f => (
+                <TouchableOpacity
+                  key={f}
+                  style={[styles.chip, exportFormat === f && styles.chipActive]}
+                  onPress={() => setExportFormat(f)}
+                >
+                  <Text
+                    style={[
+                      styles.chipText,
+                      exportFormat === f && styles.chipTextActive,
+                    ]}
+                  >
+                    {f.toUpperCase()}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+
+            <Text style={styles.sheetLabel}>Date range</Text>
+            <View style={styles.chipRow}>
+              {range_options.map(o => (
+                <TouchableOpacity
+                  key={o.key}
+                  style={[
+                    styles.chip,
+                    exportRange === o.key && styles.chipActive,
+                  ]}
+                  onPress={() => setExportRange(o.key)}
+                >
+                  <Text
+                    style={[
+                      styles.chipText,
+                      exportRange === o.key && styles.chipTextActive,
+                    ]}
+                  >
+                    {o.label}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+
+            <TouchableOpacity
+              style={[styles.sendBtn, exporting && { opacity: 0.6 }]}
+              onPress={send_export}
+              disabled={exporting}
+            >
+              {exporting ? (
+                <ActivityIndicator color="#fff" />
+              ) : (
+                <>
+                  <Icon name="email-send-outline" size={16} color="#fff" />
+                  <Text style={styles.sendBtnText}>Send to email</Text>
+                </>
+              )}
+            </TouchableOpacity>
+          </View>
+        </View>
+      )}
     </View>
   );
 }
@@ -357,4 +501,77 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
   },
   signOutText: { fontSize: 14, fontWeight: '700', color: colors.expense },
+  // Export sheet
+  overlay: { ...StyleSheet.absoluteFillObject, zIndex: 100 },
+  overlayBg: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0,0,0,0.4)',
+  },
+  sheet: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: colors.surface,
+    borderTopLeftRadius: radius.xl,
+    borderTopRightRadius: radius.xl,
+    padding: spacing.xl,
+    paddingBottom: 32,
+  },
+  sheetHandle: {
+    width: 36,
+    height: 4,
+    backgroundColor: colors.border,
+    borderRadius: 2,
+    alignSelf: 'center',
+    marginBottom: spacing.lg,
+  },
+  sheetTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: colors.text,
+    marginBottom: 6,
+  },
+  sheetSub: {
+    fontSize: 13,
+    color: colors.textSub,
+    marginBottom: spacing.lg,
+    lineHeight: 18,
+  },
+  sheetLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: colors.textSub,
+    marginBottom: spacing.sm,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  chipRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.xs,
+    marginBottom: spacing.lg,
+  },
+  chip: {
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs + 2,
+    borderRadius: radius.sm,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+  },
+  chipActive: { backgroundColor: colors.primary, borderColor: colors.primary },
+  chipText: { fontSize: 13, fontWeight: '500', color: colors.textSub },
+  chipTextActive: { color: '#fff' },
+  sendBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: colors.primary,
+    borderRadius: radius.md,
+    paddingVertical: spacing.md,
+    marginTop: spacing.sm,
+  },
+  sendBtnText: { color: '#fff', fontSize: 15, fontWeight: '700' },
 });
