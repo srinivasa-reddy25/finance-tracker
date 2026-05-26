@@ -69,6 +69,7 @@
       "version": "0.0.0",
       "dependencies": {
         "@tejadev/email": "workspace:*",
+        "@tejadev/shared": "workspace:*",
         "db": "workspace:*",
         "logging": "workspace:*",
         "node-cron": "^4.2.1",

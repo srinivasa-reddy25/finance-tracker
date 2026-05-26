@@ -1,4 +1,6 @@
 export { send_email } from './client'
+export { recurring_fired_template } from './templates/recurring-fired'
+export type { RecurringFiredData } from './templates/recurring-fired'
 export { welcome_template } from './templates/welcome'
 export { budget_alert_template } from './templates/budget-alert'
 export { monthly_report_template } from './templates/monthly-report'

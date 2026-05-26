@@ -4,6 +4,7 @@ import { log } from 'logging'
 import { env } from './constants/env.ts'
 import { start_low_activity_job } from './jobs/low-activity.ts'
 import { start_monthly_report_job } from './jobs/monthly-report.ts'
+import { start_recurring_job } from './jobs/recurring.ts'
 import { start_weekly_summary_job } from './jobs/weekly-summary.ts'
 
 async function main() {
@@ -12,6 +13,7 @@ async function main() {
   await connect_db()
   log.info({ app: 'cron', message: 'DB connected' })
 
+  start_recurring_job()
   start_monthly_report_job()
   start_weekly_summary_job()
   start_low_activity_job()

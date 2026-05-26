@@ -144,6 +144,23 @@ export default function ProfileScreen() {
               </View>
               <Icon name="chevron-right" size={18} color={colors.textLight} />
             </TouchableOpacity>
+            <View style={styles.divider} />
+            <TouchableOpacity
+              style={styles.row}
+              onPress={() => navigation.navigate('Recurring')}
+              activeOpacity={0.7}
+            >
+              <View style={styles.rowIconWrap}>
+                <Icon name="repeat" size={17} color={colors.primary} />
+              </View>
+              <View style={styles.rowContent}>
+                <Text style={styles.rowLabel}>Recurring</Text>
+                <Text style={styles.rowValue}>
+                  Auto-transactions on a schedule
+                </Text>
+              </View>
+              <Icon name="chevron-right" size={18} color={colors.textLight} />
+            </TouchableOpacity>
           </View>
         </View>
 

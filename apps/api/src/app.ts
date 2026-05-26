@@ -21,6 +21,7 @@ import { ai_router } from './routes/ai.ts'
 import { analytics_router } from './routes/analytics.ts'
 import { auth_router } from './routes/auth.ts'
 import { categories_router } from './routes/categories.ts'
+import { recurring_router } from './routes/recurring.ts'
 import { reports_router } from './routes/reports.ts'
 import { transactions_router } from './routes/transactions.ts'
 import CustomError from './utils/CustomError.ts'
@@ -71,6 +72,7 @@ app.use('/api/v1/categories', categories_router)
 app.use('/api/v1/analytics', analytics_router)
 app.use('/api/v1/ai', ai_router)
 app.use('/api/v1/reports', reports_router)
+app.use('/api/v1/recurring', recurring_router)
 
 app.all('*', (req: Request, _res: Response, next: NextFunction) => {
   next(new CustomError(`Route '${req.originalUrl}' not found`, 404))

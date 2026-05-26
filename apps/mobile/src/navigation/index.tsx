@@ -12,12 +12,14 @@ import DashboardScreen from '../screens/DashboardScreen';
 import HistoryScreen from '../screens/HistoryScreen';
 import LoginScreen from '../screens/LoginScreen';
 import ProfileScreen from '../screens/ProfileScreen';
+import RecurringScreen from '../screens/RecurringScreen';
 import { colors, radius, spacing } from '../theme';
 
 export type RootStackParams = {
   Login: undefined;
   Main: undefined;
   Categories: undefined;
+  Recurring: undefined;
 };
 export type BottomTabParams = {
   Dashboard: undefined;
@@ -88,6 +90,7 @@ export default function Navigation() {
               options={{ animation: 'fade' }}
             />
             <Stack.Screen name="Categories" component={CategoriesScreen} />
+            <Stack.Screen name="Recurring" component={RecurringScreen} />
           </>
         ) : (
           <Stack.Screen name="Login" component={LoginScreen} />

@@ -1,5 +1,9 @@
 export { AUTH_PROVIDERS } from './constants/auth.js'
-export { CATEGORIES, TRANSACTION_SOURCES } from './constants/categories.js'
+export {
+  CATEGORIES,
+  RECURRENCE_FREQUENCIES,
+  TRANSACTION_SOURCES
+} from './constants/categories.js'
 
 export type { TApiError, TApiResponse } from './types/api.js'
 export type { TAuthProvider } from './types/auth.js'
@@ -9,5 +13,11 @@ export type {
   TTransaction,
   TTransactionSource
 } from './types/transaction.js'
+export type {
+  TRecurrenceFrequency,
+  TRecurringTransaction
+} from './types/recurring-transaction.js'
 
 export type { TUserCategory } from './types/user-category.js'
+
+export { compute_next_run } from './utils/next-run.js'

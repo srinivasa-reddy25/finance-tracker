@@ -9,4 +9,16 @@ export const CATEGORIES = [
   'others'
 ] as const
 
-export const TRANSACTION_SOURCES = ['manual', 'voice', 'image'] as const
+export const TRANSACTION_SOURCES = [
+  'manual',
+  'voice',
+  'image',
+  'recurring'
+] as const
+
+export const RECURRENCE_FREQUENCIES = [
+  'daily',
+  'weekly',
+  'monthly',
+  'yearly'
+] as const
