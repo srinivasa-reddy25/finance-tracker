@@ -71,8 +71,19 @@ async function check_budget_alert(
       {
         $lookup: {
           from: 'usercategories',
-          localField: 'category',
-          foreignField: 'key',
+          let: { cat_key: '$category', uid: '$user_id' },
+          pipeline: [
+            {
+              $match: {
+                $expr: {
+                  $and: [
+                    { $eq: ['$key', '$$cat_key'] },
+                    { $eq: ['$user_id', '$$uid'] }
+                  ]
+                }
+              }
+            }
+          ],
           as: 'cat'
         }
       },

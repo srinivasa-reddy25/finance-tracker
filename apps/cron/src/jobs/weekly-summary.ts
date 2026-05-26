@@ -56,8 +56,19 @@ export async function run(
             {
               $lookup: {
                 from: 'usercategories',
-                localField: 'category',
-                foreignField: 'key',
+                let: { cat_key: '$category', uid: '$user_id' },
+                pipeline: [
+                  {
+                    $match: {
+                      $expr: {
+                        $and: [
+                          { $eq: ['$key', '$$cat_key'] },
+                          { $eq: ['$user_id', '$$uid'] }
+                        ]
+                      }
+                    }
+                  }
+                ],
                 as: 'cat'
               }
             },
@@ -75,8 +86,19 @@ export async function run(
             {
               $lookup: {
                 from: 'usercategories',
-                localField: 'category',
-                foreignField: 'key',
+                let: { cat_key: '$category', uid: '$user_id' },
+                pipeline: [
+                  {
+                    $match: {
+                      $expr: {
+                        $and: [
+                          { $eq: ['$key', '$$cat_key'] },
+                          { $eq: ['$user_id', '$$uid'] }
+                        ]
+                      }
+                    }
+                  }
+                ],
                 as: 'cat'
               }
             },
@@ -94,8 +116,19 @@ export async function run(
             {
               $lookup: {
                 from: 'usercategories',
-                localField: 'category',
-                foreignField: 'key',
+                let: { cat_key: '$category', uid: '$user_id' },
+                pipeline: [
+                  {
+                    $match: {
+                      $expr: {
+                        $and: [
+                          { $eq: ['$key', '$$cat_key'] },
+                          { $eq: ['$user_id', '$$uid'] }
+                        ]
+                      }
+                    }
+                  }
+                ],
                 as: 'cat'
               }
             },
@@ -113,8 +146,19 @@ export async function run(
             {
               $lookup: {
                 from: 'usercategories',
-                localField: 'category',
-                foreignField: 'key',
+                let: { cat_key: '$category', uid: '$user_id' },
+                pipeline: [
+                  {
+                    $match: {
+                      $expr: {
+                        $and: [
+                          { $eq: ['$key', '$$cat_key'] },
+                          { $eq: ['$user_id', '$$uid'] }
+                        ]
+                      }
+                    }
+                  }
+                ],
                 as: 'cat'
               }
             },
@@ -137,8 +181,19 @@ export async function run(
             {
               $lookup: {
                 from: 'usercategories',
-                localField: 'category',
-                foreignField: 'key',
+                let: { cat_key: '$category', uid: '$user_id' },
+                pipeline: [
+                  {
+                    $match: {
+                      $expr: {
+                        $and: [
+                          { $eq: ['$key', '$$cat_key'] },
+                          { $eq: ['$user_id', '$$uid'] }
+                        ]
+                      }
+                    }
+                  }
+                ],
                 as: 'cat'
               }
             },
