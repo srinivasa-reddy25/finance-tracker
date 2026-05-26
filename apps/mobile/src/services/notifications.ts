@@ -1,8 +1,8 @@
-import { Platform } from 'react-native';
 import {
   AuthorizationStatus,
   getMessaging,
   getToken,
+  onMessage,
   onTokenRefresh,
   requestPermission,
 } from '@react-native-firebase/messaging';
@@ -34,13 +34,7 @@ export async function setup_notifications(): Promise<void> {
     register_token(new_token).catch(() => {});
   });
 
-  if (Platform.OS === 'android') {
-    await getMessaging().android.createChannel({
-      id: 'finance_tracker_default',
-      name: 'Finance Tracker',
-      importance: 4,
-    });
-  }
+  onMessage(getMessaging(), _remoteMessage => {});
 }
 
 export async function cleanup_notifications(): Promise<void> {
