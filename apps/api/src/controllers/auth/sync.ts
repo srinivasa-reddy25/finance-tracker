@@ -71,16 +71,6 @@ const DEFAULT_CATEGORIES = [
     sort_order: 6
   },
   {
-    key: 'salary',
-    name: 'Salary',
-    icon: 'cash-multiple',
-    color: '#059669',
-    bg: '#ECFDF5',
-    is_deletable: true,
-    is_income: true,
-    sort_order: 7
-  },
-  {
     key: 'others',
     name: 'Others',
     icon: 'shape-outline',
