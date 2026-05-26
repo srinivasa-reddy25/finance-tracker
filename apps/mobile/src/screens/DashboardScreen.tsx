@@ -26,6 +26,7 @@ import {
 
 import { useFocusEffect } from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
+import MonthlyReportCard from '../components/MonthlyReportCard';
 import { signOut } from '../services/firebase';
 import { updateWidget } from '../services/widgetBridge';
 import { useAuthStore } from '../stores/authStore';
@@ -261,6 +262,9 @@ export default function DashboardScreen() {
             <Text style={styles.heroStat}>{monthLabel}</Text>
           </View>
         </View>
+
+        {/* Monthly recap card — visible 1st–3rd of month */}
+        <MonthlyReportCard />
 
         {/* Section header */}
         <View style={styles.sectionHeader}>
