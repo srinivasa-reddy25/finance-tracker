@@ -6,6 +6,10 @@ import { getAuth, onAuthStateChanged } from '@react-native-firebase/auth';
 import { useAuthStore } from './src/stores/authStore';
 import { useTransactionStore } from './src/stores/transactionStore';
 import Navigation from './src/navigation';
+import {
+  cleanup_notifications,
+  setup_notifications,
+} from './src/services/notifications';
 import './global.css';
 
 export default function App() {
@@ -16,7 +20,10 @@ export default function App() {
     const unsubscribe = onAuthStateChanged(getAuth(), firebaseUser => {
       setUser(firebaseUser);
       setLoading(false);
-      if (!firebaseUser) {
+      if (firebaseUser) {
+        setup_notifications().catch(() => {});
+      } else {
+        cleanup_notifications().catch(() => {});
         reset();
       }
     });

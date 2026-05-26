@@ -14,6 +14,7 @@
     "@tejadev/email": "workspace:*",
     "@tejadev/shared": "workspace:*",
     "db": "workspace:*",
+    "firebase-admin": "^13.6.0",
     "logging": "workspace:*",
     "node-cron": "^4.2.1"
   },

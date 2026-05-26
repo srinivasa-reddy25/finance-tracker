@@ -5,6 +5,7 @@ import cron from 'node-cron'
 import { monthly_report_template } from '@tejadev/email'
 
 import { send_email } from '../mailer.ts'
+import { send_push } from '../services/push.ts'
 
 export function start_monthly_report_job(): void {
   cron.schedule('0 9 1 * *', async () => {
@@ -214,6 +215,13 @@ export async function run(year: number, month: number): Promise<void> {
       })
 
       await send_email(user.email, subject, html)
+      if (user.fcm_token) {
+        send_push(
+          user.fcm_token,
+          `Your ${month_label} report is ready`,
+          `You spent ₹${total_spent.toLocaleString('en-IN')} last month. Tap to see the full breakdown.`
+        ).catch(() => {})
+      }
       log.info({ app: 'cron', message: `Monthly report sent to ${user.email}` })
     } catch (err) {
       log.error({

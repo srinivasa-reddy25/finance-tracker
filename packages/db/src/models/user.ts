@@ -35,7 +35,8 @@ export const user_schema = new Schema<TUser>(
       default: true
     },
     last_budget_alert_80: { type: String, default: null },
-    last_budget_alert_100: { type: String, default: null }
+    last_budget_alert_100: { type: String, default: null },
+    fcm_token: { type: String, default: null }
   },
   {
     timestamps: true,

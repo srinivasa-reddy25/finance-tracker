@@ -4,6 +4,7 @@ import { log } from 'logging'
 import { budget_alert_template } from '@tejadev/email'
 
 import { send_email } from './email.ts'
+import { send_push } from './push.ts'
 
 export async function check_budget_alert(
   user: Express.Request['user']
@@ -79,6 +80,13 @@ export async function check_budget_alert(
       100
     )
     await send_email(user.email, subject, html)
+    if (user.fcm_token) {
+      send_push(
+        user.fcm_token,
+        'Budget limit reached!',
+        `You've spent ₹${total_spent.toLocaleString('en-IN')} — 100% of your monthly budget.`
+      ).catch(() => {})
+    }
     await mg.User.updateOne(
       { _id: user._id },
       { last_budget_alert_100: month_key, last_budget_alert_80: month_key }
@@ -98,6 +106,13 @@ export async function check_budget_alert(
       80
     )
     await send_email(user.email, subject, html)
+    if (user.fcm_token) {
+      send_push(
+        user.fcm_token,
+        'Approaching budget limit',
+        `You've used ${Math.round(pct)}% of your monthly budget. Spent ₹${total_spent.toLocaleString('en-IN')}.`
+      ).catch(() => {})
+    }
     await mg.User.updateOne(
       { _id: user._id },
       { last_budget_alert_80: month_key }

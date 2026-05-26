@@ -6,6 +6,7 @@ import { recurring_fired_template } from '@tejadev/email'
 import { compute_next_run } from '@tejadev/shared'
 
 import { send_email } from '../mailer.ts'
+import { send_push } from '../services/push.ts'
 
 // Daily at midnight — fire all recurring transactions that are due
 export function start_recurring_job(): void {
@@ -97,6 +98,13 @@ export async function run(): Promise<void> {
             meta: { err }
           })
         )
+        if (user.fcm_token) {
+          send_push(
+            user.fcm_token,
+            item.name,
+            `₹${item.amount.toLocaleString('en-IN')} auto-debited · Next: ${next_run_label}`
+          ).catch(() => {})
+        }
       }
 
       log.info({

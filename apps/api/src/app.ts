@@ -25,6 +25,7 @@ import { export_router } from './routes/export.ts'
 import { recurring_router } from './routes/recurring.ts'
 import { reports_router } from './routes/reports.ts'
 import { transactions_router } from './routes/transactions.ts'
+import { users_router } from './routes/users.ts'
 import CustomError from './utils/CustomError.ts'
 
 const app = express()
@@ -75,6 +76,7 @@ app.use('/api/v1/ai', ai_router)
 app.use('/api/v1/recurring', recurring_router)
 app.use('/api/v1/export', export_router)
 app.use('/api/v1/reports', reports_router)
+app.use('/api/v1/users', users_router)
 
 app.all('*', (req: Request, _res: Response, next: NextFunction) => {
   next(new CustomError(`Route '${req.originalUrl}' not found`, 404))
