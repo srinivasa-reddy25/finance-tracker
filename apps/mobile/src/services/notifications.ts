@@ -34,10 +34,25 @@ export async function has_asked_permission(): Promise<boolean> {
 
 export async function request_and_register(): Promise<boolean> {
   await AsyncStorage.setItem(NOTIF_ASKED_KEY, 'true');
-  const status = await requestPermission(getMessaging());
-  const granted =
-    status === AuthorizationStatus.AUTHORIZED ||
-    status === AuthorizationStatus.PROVISIONAL;
+
+  let granted = false;
+
+  if (Platform.OS === 'android') {
+    if (Platform.Version >= 33) {
+      const result = await PermissionsAndroid.request(
+        PermissionsAndroid.PERMISSIONS.POST_NOTIFICATIONS,
+      );
+      granted = result === PermissionsAndroid.RESULTS.GRANTED;
+    } else {
+      granted = true;
+    }
+  } else {
+    const status = await requestPermission(getMessaging());
+    granted =
+      status === AuthorizationStatus.AUTHORIZED ||
+      status === AuthorizationStatus.PROVISIONAL;
+  }
+
   if (granted) await register_notifications();
   return granted;
 }
