@@ -26,8 +26,9 @@ const PIE_R = 110;
 const INNER_R = 72;
 const FOCUS_EXTRA = 8;
 const CONN_HORIZ = 22;
-const PIE_LABEL_PAD = 60;
+const PIE_LABEL_PAD = 72;
 const PIE_SVG_H = (PIE_R + FOCUS_EXTRA + PIE_LABEL_PAD) * 2;
+const LABEL_MIN_GAP = 20; // min vertical px between labels on same side
 const PIE_CX = CHART_W / 2;
 const PIE_CY = PIE_LABEL_PAD + PIE_R + FOCUS_EXTRA;
 
@@ -214,7 +215,7 @@ export default function AnalyticsScreen() {
     if (total === 0) return [];
     const GAP = 2;
     let deg = 0;
-    return categoryRows.map((row, i) => {
+    const raw = categoryRows.map((row, i) => {
       const angleDeg = (row.amount / total) * 360;
       const startDeg = deg;
       const endDeg = deg + angleDeg;
@@ -231,7 +232,6 @@ export default function AnalyticsScreen() {
         endDeg,
         GAP,
       );
-      // Connector line: from outer edge → elbow → horizontal end
       const cs = polar(PIE_CX, PIE_CY, outerR + 8, midDeg);
       const ce = polar(PIE_CX, PIE_CY, outerR + 30, midDeg);
       const isLeft = ce.x < PIE_CX;
@@ -249,8 +249,36 @@ export default function AnalyticsScreen() {
         pct,
         meta: row.meta!,
         amount: row.amount,
+        labelY: ce.y, // will be adjusted below
       };
     });
+
+    // Collision avoidance — spread labels that are too close on the same side
+    const spread = (indices: number[]) => {
+      // sort by raw y
+      const sorted = [...indices].sort((a, b) => raw[a].ce.y - raw[b].ce.y);
+      // forward pass: push down
+      for (let k = 1; k < sorted.length; k++) {
+        const prev = raw[sorted[k - 1]].labelY;
+        if (raw[sorted[k]].labelY - prev < LABEL_MIN_GAP) {
+          raw[sorted[k]].labelY = prev + LABEL_MIN_GAP;
+        }
+      }
+      // backward pass: pull up (keeps cluster centred)
+      for (let k = sorted.length - 2; k >= 0; k--) {
+        const next = raw[sorted[k + 1]].labelY;
+        if (next - raw[sorted[k]].labelY < LABEL_MIN_GAP) {
+          raw[sorted[k]].labelY = next - LABEL_MIN_GAP;
+        }
+      }
+    };
+
+    const leftIdx = raw.map((_, i) => i).filter(i => raw[i].isLeft);
+    const rightIdx = raw.map((_, i) => i).filter(i => !raw[i].isLeft);
+    spread(leftIdx);
+    spread(rightIdx);
+
+    return raw;
   }, [categoryRows, selectedPie]);
 
   // Comparison rows
@@ -496,48 +524,54 @@ export default function AnalyticsScreen() {
                     </G>
                   ))}
                   {/* Connector lines + labels (drawn on top) */}
-                  {sliceConfigs.map((s, i) => (
-                    <G key={`lbl-${i}`}>
-                      <Line
-                        x1={s.cs.x}
-                        y1={s.cs.y}
-                        x2={s.ce.x}
-                        y2={s.ce.y}
-                        stroke={s.color}
-                        strokeWidth={1}
-                        opacity={0.55}
-                      />
-                      <Line
-                        x1={s.ce.x}
-                        y1={s.ce.y}
-                        x2={s.ct.x}
-                        y2={s.ct.y}
-                        stroke={s.color}
-                        strokeWidth={1}
-                        opacity={0.55}
-                      />
-                      <SvgText
-                        x={s.ct.x + (s.isLeft ? -3 : 3)}
-                        y={s.ce.y - 2}
-                        fontSize={10}
-                        fontWeight="600"
-                        fill={colors.text}
-                        textAnchor={s.isLeft ? 'end' : 'start'}
-                      >
-                        {s.name}
-                      </SvgText>
-                      <SvgText
-                        x={s.ct.x + (s.isLeft ? -3 : 3)}
-                        y={s.ce.y + 11}
-                        fontSize={9}
-                        fontWeight="500"
-                        fill={s.color}
-                        textAnchor={s.isLeft ? 'end' : 'start'}
-                      >
-                        {s.amountStr}
-                      </SvgText>
-                    </G>
-                  ))}
+                  {sliceConfigs.map((s, i) => {
+                    const lx = s.ct.x;
+                    const ly = s.labelY;
+                    return (
+                      <G key={`lbl-${i}`}>
+                        {/* Radial segment: slice edge → elbow */}
+                        <Line
+                          x1={s.cs.x}
+                          y1={s.cs.y}
+                          x2={s.ce.x}
+                          y2={s.ce.y}
+                          stroke={s.color}
+                          strokeWidth={1}
+                          opacity={0.5}
+                        />
+                        {/* Diagonal/horizontal segment: elbow → label anchor */}
+                        <Line
+                          x1={s.ce.x}
+                          y1={s.ce.y}
+                          x2={lx}
+                          y2={ly}
+                          stroke={s.color}
+                          strokeWidth={1}
+                          opacity={0.5}
+                        />
+                        <SvgText
+                          x={lx + (s.isLeft ? -4 : 4)}
+                          y={ly - 2}
+                          fontSize={10}
+                          fontWeight="600"
+                          fill={colors.text}
+                          textAnchor={s.isLeft ? 'end' : 'start'}
+                        >
+                          {s.name}
+                        </SvgText>
+                        <SvgText
+                          x={lx + (s.isLeft ? -4 : 4)}
+                          y={ly + 11}
+                          fontSize={9}
+                          fontWeight="500"
+                          fill={s.color}
+                          textAnchor={s.isLeft ? 'end' : 'start'}
+                        >
+                          {s.amountStr}
+                        </SvgText>
+                      </G>
+                    );
+                  })}
                 </Svg>
                 {/* Center tooltip — absolute overlay over the donut hole */}
                 <View style={styles.pieCenterOverlay}>
