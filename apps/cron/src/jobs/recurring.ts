@@ -42,6 +42,9 @@ export async function run(): Promise<void> {
         source: 'recurring'
       })
 
+      // Pass tomorrow as `from` so today (already fired) is excluded
+      const tomorrow = new Date(now)
+      tomorrow.setDate(tomorrow.getDate() + 1)
       const next_run = compute_next_run(
         item.frequency,
         {
@@ -49,7 +52,7 @@ export async function run(): Promise<void> {
           day_of_week: item.day_of_week,
           month_of_year: item.month_of_year
         },
-        now
+        tomorrow
       )
 
       await mg.RecurringTransaction.updateOne(
