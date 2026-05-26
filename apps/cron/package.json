@@ -1,0 +1,25 @@
+{
+  "name": "@tejadev/cron",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "dotenv -e ../../.env -- bun --watch src/index.ts",
+    "start": "dotenv -e ../../.env -- bun src/index.ts",
+    "clean": "rm -rf dist tsconfig.tsbuildinfo",
+    "lint": "eslint .",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@tejadev/email": "workspace:*",
+    "db": "workspace:*",
+    "logging": "workspace:*",
+    "node-cron": "^4.2.1"
+  },
+  "devDependencies": {
+    "@tejadev/eslint-config": "workspace:*",
+    "@tejadev/typescript-config": "workspace:*",
+    "@types/node": "^22.10.2",
+    "@types/node-cron": "^3.0.11"
+  }
+}

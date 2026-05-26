@@ -24,6 +24,7 @@
   },
   "workspaces": [
     "apps/api",
+    "apps/cron",
     "apps/web",
     "packages/*"
   ],

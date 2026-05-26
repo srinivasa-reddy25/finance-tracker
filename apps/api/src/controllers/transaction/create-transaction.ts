@@ -4,10 +4,10 @@ import { mg } from 'db'
 import { log } from 'logging'
 import { z } from 'zod'
 
+import { budget_alert_template } from '@tejadev/email'
 import { TRANSACTION_SOURCES } from '@tejadev/shared'
 
 import { send_email } from '../../services/email.ts'
-import { budget_alert_template } from '../../templates/budget-alert.ts'
 import { throw_error } from '../../utils/throw-error.ts'
 
 export const create_transaction = async (req: Request, res: Response) => {

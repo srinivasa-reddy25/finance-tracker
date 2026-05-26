@@ -3,9 +3,10 @@ import type { Request, Response } from 'express'
 import { mg } from 'db'
 import { log } from 'logging'
 
+import { welcome_template } from '@tejadev/email'
+
 import { send_email } from '../../services/email.ts'
 import firebase_auth from '../../services/firebase.ts'
-import { welcome_template } from '../../templates/welcome.ts'
 import { throw_error } from '../../utils/throw-error.ts'
 
 const DEFAULT_CATEGORIES = [

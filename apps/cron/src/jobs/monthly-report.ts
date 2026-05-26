@@ -4,54 +4,46 @@ import cron from 'node-cron'
 
 import { monthly_report_template } from '@tejadev/email'
 
-import { send_email } from '../services/email.ts'
+import { send_email } from '../mailer.ts'
 
-// Runs at 9 AM on the 1st of every month — sends report for the month just ended
 export function start_monthly_report_job(): void {
   cron.schedule('0 9 1 * *', async () => {
     const now = new Date()
-    const prevMonth = now.getMonth() === 0 ? 12 : now.getMonth()
-    const prevYear =
+    const month = now.getMonth() === 0 ? 12 : now.getMonth()
+    const year =
       now.getMonth() === 0 ? now.getFullYear() - 1 : now.getFullYear()
-    await send_monthly_reports(prevYear, prevMonth)
+    await run(year, month)
   })
-
-  log.info({
-    app: 'jobs',
-    message: 'Monthly report cron scheduled (0 9 1 * *)'
-  })
+  log.info({ app: 'cron', message: 'Monthly report job scheduled (0 9 1 * *)' })
 }
 
-export async function send_monthly_reports(
-  year: number,
-  month: number
-): Promise<void> {
+export async function run(year: number, month: number): Promise<void> {
   const month_start = new Date(year, month - 1, 1)
   const month_end = new Date(year, month, 1)
   const prev_start = new Date(year, month - 2, 1)
   const prev_end = new Date(year, month - 1, 1)
-
   const month_label = month_start.toLocaleString('en-IN', {
     month: 'long',
     year: 'numeric'
   })
 
   const users = await mg.User.find({ is_active: true }).lean()
-
   log.info({
-    app: 'jobs',
-    message: `Sending monthly reports for ${month_label} to ${users.length} users`
+    app: 'cron',
+    message: `Monthly reports: ${users.length} users for ${month_label}`
   })
 
   for (const user of users) {
     try {
-      const user_id = user._id.toString()
-
-      const [expense_agg, income_agg, prev_agg, biggest, categories] =
+      const uid = user._id.toString()
+      const [expense_agg, income_agg, prev_agg, biggest, budgets] =
         await Promise.all([
           mg.Transaction.aggregate([
             {
-              $match: { user_id, date: { $gte: month_start, $lt: month_end } }
+              $match: {
+                user_id: uid,
+                date: { $gte: month_start, $lt: month_end }
+              }
             },
             {
               $lookup: {
@@ -75,7 +67,10 @@ export async function send_monthly_reports(
           ]),
           mg.Transaction.aggregate([
             {
-              $match: { user_id, date: { $gte: month_start, $lt: month_end } }
+              $match: {
+                user_id: uid,
+                date: { $gte: month_start, $lt: month_end }
+              }
             },
             {
               $lookup: {
@@ -90,7 +85,12 @@ export async function send_monthly_reports(
             { $group: { _id: null, total: { $sum: '$amount' } } }
           ]),
           mg.Transaction.aggregate([
-            { $match: { user_id, date: { $gte: prev_start, $lt: prev_end } } },
+            {
+              $match: {
+                user_id: uid,
+                date: { $gte: prev_start, $lt: prev_end }
+              }
+            },
             {
               $lookup: {
                 from: 'usercategories',
@@ -105,7 +105,10 @@ export async function send_monthly_reports(
           ]),
           mg.Transaction.aggregate([
             {
-              $match: { user_id, date: { $gte: month_start, $lt: month_end } }
+              $match: {
+                user_id: uid,
+                date: { $gte: month_start, $lt: month_end }
+              }
             },
             {
               $lookup: {
@@ -121,7 +124,7 @@ export async function send_monthly_reports(
             { $limit: 1 }
           ]),
           mg.UserCategory.find({
-            user_id,
+            user_id: uid,
             is_income: false,
             budget: { $gt: 0 }
           }).lean()
@@ -133,7 +136,7 @@ export async function send_monthly_reports(
       )
       const total_income = income_agg[0]?.total ?? 0
       const prev_spent = prev_agg[0]?.total ?? 0
-      const total_budget = categories.reduce((s, c) => s + (c.budget ?? 0), 0)
+      const budget = budgets.reduce((s, c) => s + (c.budget ?? 0), 0)
 
       const { subject, html } = monthly_report_template({
         name: user.name,
@@ -141,7 +144,7 @@ export async function send_monthly_reports(
         total_spent,
         total_income,
         net_savings: total_income - total_spent,
-        budget: total_budget,
+        budget,
         top_categories: expense_agg
           .slice(0, 3)
           .map(
@@ -167,11 +170,11 @@ export async function send_monthly_reports(
       })
 
       await send_email(user.email, subject, html)
-      log.info({ app: 'jobs', message: `Monthly report sent to ${user.email}` })
+      log.info({ app: 'cron', message: `Monthly report sent to ${user.email}` })
     } catch (err) {
       log.error({
-        app: 'jobs',
-        message: `Failed to send monthly report to ${user.email}`,
+        app: 'cron',
+        message: `Monthly report failed for ${user.email}`,
         meta: { err }
       })
     }

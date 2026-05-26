@@ -20,6 +20,7 @@
     "test:coverage": "vitest run --coverage"
   },
   "dependencies": {
+    "@tejadev/email": "workspace:*",
     "@tejadev/shared": "0.0.0",
     "cors": "^2.8.5",
     "db": "workspace:*",
@@ -31,7 +32,6 @@
     "mongoose": "^8.6.0",
     "morgan": "^1.10.0",
     "node-cron": "^4.2.1",
-    "resend": "^6.12.4",
     "zod": "^3.23.8",
     "zod-error": "^1.5.0"
   },

@@ -1,6 +1,6 @@
 import { send_email as _send_email } from '@tejadev/email'
 
-import { env } from '../constants/env.ts'
+import { env } from './constants/env.ts'
 
 export async function send_email(
   to: string,
