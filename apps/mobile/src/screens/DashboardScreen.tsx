@@ -31,8 +31,10 @@ import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import MonthlyReportCard from '../components/MonthlyReportCard';
 import { signOut } from '../services/firebase';
 import {
+  has_asked_permission,
   is_notification_granted,
   register_notifications,
+  request_and_register,
 } from '../services/notifications';
 import { updateWidget } from '../services/widgetBridge';
 import { useAuthStore } from '../stores/authStore';
@@ -81,6 +83,7 @@ export default function DashboardScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [refreshCount, setRefreshCount] = useState(0);
   const [notifBanner, setNotifBanner] = useState(false);
+  const [notifSheet, setNotifSheet] = useState(false);
 
   // Add / edit modal state
   const [modalOpen, setModalOpen] = useState(false);
@@ -100,8 +103,17 @@ export default function DashboardScreen() {
 
     const check_notif = async () => {
       const granted = await is_notification_granted();
-      setNotifBanner(!granted);
-      if (granted) register_notifications().catch(() => {});
+      if (granted) {
+        setNotifBanner(false);
+        register_notifications().catch(() => {});
+        return;
+      }
+      const asked = await has_asked_permission();
+      if (!asked) {
+        setNotifSheet(true);
+      } else {
+        setNotifBanner(true);
+      }
     };
 
     check_notif();
@@ -610,12 +622,143 @@ export default function DashboardScreen() {
           </TouchableOpacity>
         </KeyboardAvoidingView>
       </Modal>
+
+      {/* Notification permission sheet */}
+      <Modal
+        visible={notifSheet}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setNotifSheet(false)}
+      >
+        <View style={styles.notifSheetOverlay}>
+          <View style={styles.notifSheet}>
+            <View style={styles.notifSheetIcon}>
+              <Icon name="bell-ring-outline" size={32} color={colors.primary} />
+            </View>
+            <Text style={styles.notifSheetTitle}>
+              Stay on top of your finances
+            </Text>
+            <Text style={styles.notifSheetSub}>
+              Get notified when it matters most
+            </Text>
+            <View style={styles.notifSheetItems}>
+              {[
+                {
+                  icon: 'alert-circle-outline',
+                  text: 'Budget alerts at 80% and 100%',
+                },
+                { icon: 'repeat', text: 'Recurring transactions auto-fired' },
+                {
+                  icon: 'file-chart-outline',
+                  text: 'Monthly spending report ready',
+                },
+              ].map(item => (
+                <View key={item.icon} style={styles.notifSheetItem}>
+                  <Icon name={item.icon} size={18} color={colors.primary} />
+                  <Text style={styles.notifSheetItemText}>{item.text}</Text>
+                </View>
+              ))}
+            </View>
+            <TouchableOpacity
+              style={styles.notifSheetBtn}
+              onPress={async () => {
+                setNotifSheet(false);
+                const granted = await request_and_register();
+                if (!granted) setNotifBanner(true);
+              }}
+            >
+              <Text style={styles.notifSheetBtnText}>Allow Notifications</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.notifSheetSkip}
+              onPress={async () => {
+                setNotifSheet(false);
+                const { default: AsyncStorage } =
+                  await import('@react-native-async-storage/async-storage');
+                await AsyncStorage.setItem('notif_permission_asked', 'true');
+              }}
+            >
+              <Text style={styles.notifSheetSkipText}>Maybe later</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.surface },
+  notifSheetOverlay: {
+    flex: 1,
+    justifyContent: 'flex-end',
+    backgroundColor: 'rgba(0,0,0,0.4)',
+  },
+  notifSheet: {
+    backgroundColor: colors.surface,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    paddingHorizontal: spacing.xl,
+    paddingTop: spacing.xl,
+    paddingBottom: 40,
+    alignItems: 'center',
+  },
+  notifSheetIcon: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: colors.primary + '15',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: spacing.lg,
+  },
+  notifSheetTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: colors.text,
+    textAlign: 'center',
+    marginBottom: 8,
+  },
+  notifSheetSub: {
+    fontSize: 14,
+    color: colors.textSecondary,
+    textAlign: 'center',
+    marginBottom: spacing.xl,
+  },
+  notifSheetItems: {
+    width: '100%',
+    gap: 14,
+    marginBottom: spacing.xl,
+  },
+  notifSheetItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  notifSheetItemText: {
+    fontSize: 14,
+    color: colors.text,
+  },
+  notifSheetBtn: {
+    width: '100%',
+    backgroundColor: colors.primary,
+    borderRadius: radius.md,
+    paddingVertical: 14,
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  notifSheetBtnText: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#fff',
+  },
+  notifSheetSkip: {
+    paddingVertical: 8,
+  },
+  notifSheetSkipText: {
+    fontSize: 14,
+    color: colors.textSecondary,
+  },
   notifBanner: {
     flexDirection: 'row',
     alignItems: 'center',
