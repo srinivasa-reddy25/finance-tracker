@@ -286,21 +286,6 @@ export default function DashboardScreen() {
     <View style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor={colors.surface} />
 
-      {notifBanner && (
-        <View style={styles.notifBanner}>
-          <Icon name="bell-off-outline" size={16} color="#92400E" />
-          <Text style={styles.notifBannerText}>
-            Notifications are off — you'll miss budget alerts
-          </Text>
-          <TouchableOpacity onPress={() => Linking.openSettings()}>
-            <Text style={styles.notifBannerAction}>Enable</Text>
-          </TouchableOpacity>
-          <TouchableOpacity onPress={() => setNotifBanner(false)}>
-            <Icon name="close" size={16} color="#92400E" />
-          </TouchableOpacity>
-        </View>
-      )}
-
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scroll}
@@ -348,6 +333,21 @@ export default function DashboardScreen() {
             <Text style={styles.avatarText}>{firstName[0].toUpperCase()}</Text>
           </TouchableOpacity>
         </View>
+
+        {notifBanner && (
+          <View style={styles.notifBanner}>
+            <Icon name="bell-off-outline" size={14} color="#92400E" />
+            <Text style={styles.notifBannerText}>
+              Notifications off — you'll miss budget alerts
+            </Text>
+            <TouchableOpacity onPress={() => Linking.openSettings()}>
+              <Text style={styles.notifBannerAction}>Enable</Text>
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => setNotifBanner(false)}>
+              <Icon name="close" size={14} color="#92400E" />
+            </TouchableOpacity>
+          </View>
+        )}
 
         {/* Spending hero — no card, just text on page */}
         <View style={styles.hero}>
@@ -621,9 +621,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 8,
     backgroundColor: '#FFFBEB',
-    borderBottomWidth: 1,
-    borderBottomColor: '#FDE68A',
-    paddingHorizontal: 16,
+    borderWidth: 1,
+    borderColor: '#FDE68A',
+    borderRadius: radius.md,
+    marginHorizontal: spacing.lg,
+    marginBottom: spacing.md,
+    paddingHorizontal: 12,
     paddingVertical: 10,
   },
   notifBannerText: {
