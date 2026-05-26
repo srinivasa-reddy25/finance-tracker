@@ -86,6 +86,31 @@ The things that make this app feel premium and different.
 
 ---
 
+## V3.5 — Core Polish ✅ Done
+
+The things that should have always been there. Stability before AI.
+
+**Edit Transaction** ✅
+- Tap any transaction row (dashboard or history) → pre-filled modal
+- Budget alert re-checked after edit — crossing 80%/100% on an edit fires the email
+- Same modal as add, no duplicate UI
+
+**Budget Color Feedback** ✅
+- Hero amount on dashboard changes color: primary → amber at 80% → red at 100%
+- Budget badge next to name shows exact overage ("Budget exceeded by ₹24") or percentage
+- Badge only visible at 80%+, no noise below that
+
+**Push Notifications (FCM)** ✅
+- Production Firebase Cloud Messaging — free, no limits
+- In-app permission sheet on first login (pre-prompt before system dialog)
+- Amber banner on dashboard if notifications are disabled, taps to Settings
+- Budget alerts at 80% and 100% — push fires alongside email (same month-key guard)
+- Recurring transaction fired at midnight — push to device
+- Monthly report ready — push notification
+- Token refresh handled automatically, token cleared on logout
+
+---
+
 ## V4 — AI Layer
 
 Add intelligence on top of the solid foundation.
