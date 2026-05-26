@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { api } from '../services/api';
 import { colors, radius, spacing } from '../theme';
@@ -26,54 +25,15 @@ function fmt(n: number): string {
   return `₹${Math.round(n).toLocaleString('en-IN')}`;
 }
 
-const DISMISS_KEY = 'monthly_report_dismissed';
-
-// Set true to preview the card with dummy data regardless of date
-const PREVIEW_MODE = true;
-
-const DUMMY: Summary = {
-  month_label: 'April 2026',
-  total_spent: 24850,
-  tx_count: 38,
-  pct_change: 12,
-  top_categories: [
-    {
-      key: 'food',
-      name: 'Food',
-      amount: 8400,
-      color: '#F97316',
-      icon: 'food-fork-drink',
-    },
-    {
-      key: 'transport',
-      name: 'Transport',
-      amount: 5200,
-      color: '#3B82F6',
-      icon: 'car-outline',
-    },
-    {
-      key: 'entertainment',
-      name: 'Entertainment',
-      amount: 3100,
-      color: '#A855F7',
-      icon: 'television-play',
-    },
-  ],
-  biggest: {
-    description: 'Swiggy — weekend order',
-    amount: 1850,
-    category: 'Food',
-  },
-};
+// Tracks which month was dismissed — resets when app restarts
+let dismissed_month: string | null = null;
 
 export default function MonthlyReportCard() {
-  const [summary, setSummary] = useState<Summary | null>(
-    PREVIEW_MODE ? DUMMY : null,
-  );
-  const [visible, setVisible] = useState(PREVIEW_MODE);
+  const [summary, setSummary] = useState<Summary | null>(null);
+  const [visible, setVisible] = useState(false);
 
   useEffect(() => {
-    if (!PREVIEW_MODE) check_and_load();
+    check_and_load();
   }, []);
 
   const check_and_load = async () => {
@@ -84,8 +44,7 @@ export default function MonthlyReportCard() {
     if (day > 3) return;
 
     const month_key = today.toISOString().slice(0, 7); // YYYY-MM
-    const dismissed = await AsyncStorage.getItem(DISMISS_KEY);
-    if (dismissed === month_key) return;
+    if (dismissed_month === month_key) return;
 
     try {
       const res = await api.get('/reports/monthly-summary');
@@ -98,9 +57,8 @@ export default function MonthlyReportCard() {
     }
   };
 
-  const dismiss = async () => {
-    const month_key = new Date().toISOString().slice(0, 7);
-    await AsyncStorage.setItem(DISMISS_KEY, month_key);
+  const dismiss = () => {
+    dismissed_month = new Date().toISOString().slice(0, 7);
     setVisible(false);
   };
 
