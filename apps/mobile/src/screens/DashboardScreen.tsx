@@ -9,8 +9,10 @@ import {
   ActivityIndicator,
   Alert,
   Animated,
+  AppState,
   Easing,
   KeyboardAvoidingView,
+  Linking,
   Modal,
   NativeModules,
   Platform,
@@ -28,7 +30,10 @@ import { useFocusEffect } from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import MonthlyReportCard from '../components/MonthlyReportCard';
 import { signOut } from '../services/firebase';
-import { setup_notifications } from '../services/notifications';
+import {
+  is_notification_granted,
+  register_notifications,
+} from '../services/notifications';
 import { updateWidget } from '../services/widgetBridge';
 import { useAuthStore } from '../stores/authStore';
 import { useCategoryStore } from '../stores/categoryStore';
@@ -75,6 +80,7 @@ export default function DashboardScreen() {
   } = useCategoryStore();
   const [refreshing, setRefreshing] = useState(false);
   const [refreshCount, setRefreshCount] = useState(0);
+  const [notifBanner, setNotifBanner] = useState(false);
 
   // Add / edit modal state
   const [modalOpen, setModalOpen] = useState(false);
@@ -91,7 +97,20 @@ export default function DashboardScreen() {
   useEffect(() => {
     fetch({ month: currentMonth, limit: 10 });
     fetchCats();
-    setup_notifications().catch(() => {});
+
+    const check_notif = async () => {
+      const granted = await is_notification_granted();
+      setNotifBanner(!granted);
+      if (granted) register_notifications().catch(() => {});
+    };
+
+    check_notif();
+
+    const sub = AppState.addEventListener('change', state => {
+      if (state === 'active') check_notif();
+    });
+
+    return () => sub.remove();
   }, []);
 
   const categoryMap = useMemo(
@@ -266,6 +285,21 @@ export default function DashboardScreen() {
   return (
     <View style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor={colors.surface} />
+
+      {notifBanner && (
+        <View style={styles.notifBanner}>
+          <Icon name="bell-off-outline" size={16} color="#92400E" />
+          <Text style={styles.notifBannerText}>
+            Notifications are off — you'll miss budget alerts
+          </Text>
+          <TouchableOpacity onPress={() => Linking.openSettings()}>
+            <Text style={styles.notifBannerAction}>Enable</Text>
+          </TouchableOpacity>
+          <TouchableOpacity onPress={() => setNotifBanner(false)}>
+            <Icon name="close" size={16} color="#92400E" />
+          </TouchableOpacity>
+        </View>
+      )}
 
       <ScrollView
         showsVerticalScrollIndicator={false}
@@ -582,6 +616,26 @@ export default function DashboardScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.surface },
+  notifBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: '#FFFBEB',
+    borderBottomWidth: 1,
+    borderBottomColor: '#FDE68A',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+  },
+  notifBannerText: {
+    flex: 1,
+    fontSize: 12,
+    color: '#92400E',
+  },
+  notifBannerAction: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#D97706',
+  },
   scroll: { paddingBottom: 100 },
 
   header: {

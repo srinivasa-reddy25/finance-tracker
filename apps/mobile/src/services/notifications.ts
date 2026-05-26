@@ -1,10 +1,9 @@
+import { PermissionsAndroid, Platform } from 'react-native';
 import {
-  AuthorizationStatus,
   getMessaging,
   getToken,
   onMessage,
   onTokenRefresh,
-  requestPermission,
 } from '@react-native-firebase/messaging';
 
 import { api } from './api';
@@ -13,18 +12,17 @@ async function register_token(token: string): Promise<void> {
   await api.patch('/users/fcm-token', { token });
 }
 
-export async function request_notification_permission(): Promise<boolean> {
-  const status = await requestPermission(getMessaging());
-  return (
-    status === AuthorizationStatus.AUTHORIZED ||
-    status === AuthorizationStatus.PROVISIONAL
-  );
+export async function is_notification_granted(): Promise<boolean> {
+  if (Platform.OS === 'android') {
+    if (Platform.Version < 33) return true;
+    return PermissionsAndroid.check(
+      PermissionsAndroid.PERMISSIONS.POST_NOTIFICATIONS,
+    );
+  }
+  return true;
 }
 
-export async function setup_notifications(): Promise<void> {
-  const granted = await request_notification_permission();
-  if (!granted) return;
-
+export async function register_notifications(): Promise<void> {
   const token = await getToken(getMessaging());
   if (token) {
     await register_token(token).catch(() => {});
