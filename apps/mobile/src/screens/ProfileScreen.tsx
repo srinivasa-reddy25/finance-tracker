@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
+  Modal,
   ScrollView,
   StatusBar,
   StyleSheet,
@@ -272,19 +273,35 @@ export default function ProfileScreen() {
         </TouchableOpacity>
       </ScrollView>
 
-      {/* Export sheet */}
-      {exportOpen && (
-        <View style={styles.overlay}>
+      {/* Export modal */}
+      <Modal
+        visible={exportOpen}
+        transparent
+        animationType="fade"
+        onRequestClose={() => !exporting && setExportOpen(false)}
+      >
+        <TouchableOpacity
+          style={styles.modalOverlay}
+          activeOpacity={1}
+          onPress={() => !exporting && setExportOpen(false)}
+        >
           <TouchableOpacity
-            style={styles.overlayBg}
-            onPress={() => !exporting && setExportOpen(false)}
             activeOpacity={1}
-          />
-          <View style={styles.sheet}>
-            <View style={styles.sheetHandle} />
-            <Text style={styles.sheetTitle}>Export transactions</Text>
+            style={styles.dialog}
+            onPress={() => {}}
+          >
+            <View style={styles.dialogHeader}>
+              <Text style={styles.sheetTitle}>Export transactions</Text>
+              <TouchableOpacity
+                onPress={() => !exporting && setExportOpen(false)}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              >
+                <Icon name="close" size={20} color={colors.textSub} />
+              </TouchableOpacity>
+            </View>
+
             <Text style={styles.sheetSub}>
-              We&apos;ll email the file to{'\n'}
+              We'll email the file to{'\n'}
               <Text style={{ color: colors.text, fontWeight: '600' }}>
                 {email}
               </Text>
@@ -347,9 +364,9 @@ export default function ProfileScreen() {
                 </>
               )}
             </TouchableOpacity>
-          </View>
-        </View>
-      )}
+          </TouchableOpacity>
+        </TouchableOpacity>
+      </Modal>
     </View>
   );
 }
@@ -501,30 +518,25 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
   },
   signOutText: { fontSize: 14, fontWeight: '700', color: colors.expense },
-  // Export sheet
-  overlay: { ...StyleSheet.absoluteFillObject, zIndex: 100 },
-  overlayBg: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0,0,0,0.4)',
+  // Export modal
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: spacing.base,
   },
-  sheet: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
+  dialog: {
     backgroundColor: colors.surface,
-    borderTopLeftRadius: radius.xl,
-    borderTopRightRadius: radius.xl,
-    padding: spacing.xl,
-    paddingBottom: 32,
+    borderRadius: radius.xl,
+    padding: spacing.lg,
+    gap: spacing.md,
+    width: '100%',
   },
-  sheetHandle: {
-    width: 36,
-    height: 4,
-    backgroundColor: colors.border,
-    borderRadius: 2,
-    alignSelf: 'center',
-    marginBottom: spacing.lg,
+  dialogHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
   },
   sheetTitle: {
     fontSize: 18,

@@ -15,31 +15,19 @@ import {
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useTransactionStore } from '../stores/transactionStore';
 import {
-  INCOME_CATEGORIES,
   EXPENSE_CATEGORIES,
   CATEGORY_META,
   type TCategory,
 } from '../constants/categories';
 import { colors, spacing, radius, shadow } from '../theme';
 
-type TType = 'expense' | 'income';
-
 export default function AddTransactionScreen() {
   const { add } = useTransactionStore();
 
-  const [type, setType] = useState<TType>('expense');
   const [amount, setAmount] = useState('');
   const [description, setDescription] = useState('');
   const [category, setCategory] = useState<TCategory>('food');
   const [loading, setLoading] = useState(false);
-
-  const categories = type === 'income' ? INCOME_CATEGORIES : EXPENSE_CATEGORIES;
-  const typeColor = type === 'income' ? colors.income : colors.expense;
-
-  const handleTypeChange = (t: TType) => {
-    setType(t);
-    setCategory(t === 'income' ? 'salary' : 'food');
-  };
 
   const handleSubmit = async () => {
     const parsedAmount = parseFloat(amount);
@@ -62,7 +50,7 @@ export default function AddTransactionScreen() {
       });
       setAmount('');
       setDescription('');
-      setCategory(type === 'income' ? 'salary' : 'food');
+      setCategory('food');
     } catch {
       Alert.alert('Error', 'Failed to add transaction. Try again.');
     } finally {
@@ -84,62 +72,20 @@ export default function AddTransactionScreen() {
       >
         {/* Header */}
         <View style={styles.header}>
-          <Text style={styles.title}>Add Transaction</Text>
+          <Text style={styles.title}>Add Expense</Text>
         </View>
 
         <View style={styles.body}>
-          {/* Type toggle */}
-          <View style={styles.typeToggle}>
-            {(['expense', 'income'] as TType[]).map(t => (
-              <TouchableOpacity
-                key={t}
-                onPress={() => handleTypeChange(t)}
-                style={[
-                  styles.typeBtn,
-                  type === t && {
-                    backgroundColor:
-                      t === 'income' ? colors.income : colors.expense,
-                  },
-                ]}
-                activeOpacity={0.8}
-              >
-                <Icon
-                  name={
-                    t === 'income'
-                      ? 'arrow-down-circle-outline'
-                      : 'arrow-up-circle-outline'
-                  }
-                  size={16}
-                  color={
-                    type === t
-                      ? '#FFFFFF'
-                      : t === 'income'
-                        ? colors.income
-                        : colors.expense
-                  }
-                />
-                <Text
-                  style={[
-                    styles.typeBtnText,
-                    { color: type === t ? '#FFFFFF' : colors.textSub },
-                  ]}
-                >
-                  {t.charAt(0).toUpperCase() + t.slice(1)}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-
           {/* Amount */}
           <View style={styles.amountSection}>
-            <Text style={[styles.amountCurrency, { color: typeColor }]}>₹</Text>
+            <Text style={styles.amountCurrency}>₹</Text>
             <TextInput
               value={amount}
               onChangeText={setAmount}
               keyboardType="numeric"
               placeholder="0"
               placeholderTextColor={colors.border}
-              style={[styles.amountInput, { color: typeColor }]}
+              style={styles.amountInput}
               autoFocus
             />
           </View>
@@ -161,7 +107,7 @@ export default function AddTransactionScreen() {
           <View style={styles.field}>
             <Text style={styles.fieldLabel}>Category</Text>
             <View style={styles.categoryGrid}>
-              {categories.map(cat => {
+              {EXPENSE_CATEGORIES.map(cat => {
                 const meta = CATEGORY_META[cat];
                 const selected = category === cat;
                 return (
@@ -211,11 +157,7 @@ export default function AddTransactionScreen() {
           <TouchableOpacity
             onPress={handleSubmit}
             disabled={loading}
-            style={[
-              styles.submitBtn,
-              { backgroundColor: typeColor },
-              shadow.card,
-            ]}
+            style={[styles.submitBtn, shadow.card]}
             activeOpacity={0.85}
           >
             {loading ? (
@@ -223,9 +165,7 @@ export default function AddTransactionScreen() {
             ) : (
               <>
                 <Icon name="check" size={18} color="#FFFFFF" />
-                <Text style={styles.submitText}>
-                  Add {type === 'income' ? 'Income' : 'Expense'}
-                </Text>
+                <Text style={styles.submitText}>Add Expense</Text>
               </>
             )}
           </TouchableOpacity>
@@ -259,33 +199,6 @@ const styles = StyleSheet.create({
     padding: spacing.base,
     gap: spacing.base,
   },
-  typeToggle: {
-    flexDirection: 'row',
-    backgroundColor: colors.surface,
-    borderRadius: radius.xl,
-    padding: 4,
-    gap: 4,
-    ...{
-      shadowColor: '#000',
-      shadowOffset: { width: 0, height: 1 },
-      shadowOpacity: 0.06,
-      shadowRadius: 4,
-      elevation: 2,
-    },
-  },
-  typeBtn: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    paddingVertical: 10,
-    borderRadius: radius.lg,
-  },
-  typeBtnText: {
-    fontSize: 14,
-    fontWeight: '600',
-  },
   amountSection: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -305,6 +218,7 @@ const styles = StyleSheet.create({
   amountCurrency: {
     fontSize: 36,
     fontWeight: '700',
+    color: colors.expense,
   },
   amountInput: {
     flex: 1,
@@ -312,6 +226,7 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     letterSpacing: -1,
     padding: 0,
+    color: colors.expense,
   },
   field: {
     gap: spacing.sm,
@@ -374,6 +289,7 @@ const styles = StyleSheet.create({
     borderRadius: radius.xl,
     paddingVertical: 16,
     marginTop: spacing.sm,
+    backgroundColor: colors.expense,
   },
   submitText: {
     color: '#FFFFFF',

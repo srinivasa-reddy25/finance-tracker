@@ -5,7 +5,6 @@ export const CATEGORIES = [
   'health',
   'shopping',
   'bills',
-  'salary',
   'others',
 ] as const;
 
@@ -21,11 +20,9 @@ export const CATEGORY_META: Record<
   health: { icon: 'heart-pulse', color: '#EF4444', bg: '#FEF2F2' },
   shopping: { icon: 'shopping-outline', color: '#EC4899', bg: '#FDF2F8' },
   bills: { icon: 'receipt', color: '#EAB308', bg: '#FEFCE8' },
-  salary: { icon: 'cash-multiple', color: '#059669', bg: '#ECFDF5' },
   others: { icon: 'shape-outline', color: '#6B7280', bg: '#F9FAFB' },
 };
 
-export const INCOME_CATEGORIES: TCategory[] = ['salary'];
 export const EXPENSE_CATEGORIES: TCategory[] = [
   'food',
   'transport',

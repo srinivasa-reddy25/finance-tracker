@@ -6,6 +6,11 @@ type Options = {
   month_of_year?: number
 }
 
+function clamp_day(year: number, month: number, day: number): Date {
+  const last_day = new Date(year, month + 1, 0).getDate()
+  return new Date(year, month, Math.min(day, last_day))
+}
+
 export function compute_next_run(
   frequency: TRecurrenceFrequency,
   opts: Options,
@@ -29,21 +34,23 @@ export function compute_next_run(
     }
     case 'monthly': {
       const target = opts.day_of_month ?? 1
-      const today = d.getDate()
-      if (today < target) {
-        d.setDate(target)
-      } else {
-        d.setMonth(d.getMonth() + 1)
-        d.setDate(target)
-      }
-      return d
+      const y = d.getFullYear()
+      const m = d.getMonth()
+      // Try this month — clamping handles short months (e.g. target=31 in April → Apr 30)
+      // Must be strictly future; if clamp lands on today or earlier, go to next month
+      const this_month = clamp_day(y, m, target)
+      if (this_month > d) return this_month
+      const ny = m === 11 ? y + 1 : y
+      const nm = m === 11 ? 0 : m + 1
+      return clamp_day(ny, nm, target)
     }
     case 'yearly': {
       const m = (opts.month_of_year ?? 1) - 1
       const day = opts.day_of_month ?? 1
-      const candidate = new Date(d.getFullYear(), m, day)
-      if (candidate > d) return candidate
-      return new Date(d.getFullYear() + 1, m, day)
+      // Try this year — must be strictly future
+      const this_year = clamp_day(d.getFullYear(), m, day)
+      if (this_year > d) return this_year
+      return clamp_day(d.getFullYear() + 1, m, day)
     }
   }
 }

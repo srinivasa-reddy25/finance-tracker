@@ -1,8 +1,9 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
   KeyboardAvoidingView,
+  Modal,
   Platform,
   ScrollView,
   StatusBar,
@@ -96,7 +97,6 @@ function RecurringForm({ initial, onSave, onClose }: FormProps) {
   const [saving, setSaving] = useState(false);
 
   const expenseCats = categories.filter(c => !c.is_income);
-  const incomeCats = categories.filter(c => c.is_income);
 
   const handle_save = async () => {
     if (!name.trim()) return Alert.alert('Missing', 'Enter a name');
@@ -303,34 +303,6 @@ function RecurringForm({ initial, onSave, onClose }: FormProps) {
             </View>
           </>
         )}
-        {incomeCats.length > 0 && (
-          <>
-            <Text style={styles.subLabel}>Income</Text>
-            <View style={styles.catGrid}>
-              {incomeCats.map(c => (
-                <TouchableOpacity
-                  key={c.key}
-                  style={[
-                    styles.catChip,
-                    { borderColor: c.color },
-                    category === c.key && { backgroundColor: c.bg },
-                  ]}
-                  onPress={() => setCategory(c.key)}
-                >
-                  <Icon name={c.icon} size={14} color={c.color} />
-                  <Text
-                    style={[
-                      styles.catChipText,
-                      { color: category === c.key ? c.color : colors.textSub },
-                    ]}
-                  >
-                    {c.name}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          </>
-        )}
 
         {/* Note */}
         <Text style={styles.label}>Note (optional)</Text>
@@ -496,22 +468,26 @@ export default function RecurringScreen() {
         </ScrollView>
       )}
 
-      {/* Bottom sheet */}
-      {sheet !== null && (
-        <View style={styles.overlay}>
-          <TouchableOpacity
-            style={styles.overlayBg}
-            onPress={() => setSheet(null)}
+      {/* Form modal */}
+      <Modal
+        visible={sheet !== null}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setSheet(null)}
+      >
+        <TouchableOpacity
+          style={styles.overlayBg}
+          activeOpacity={1}
+          onPress={() => setSheet(null)}
+        />
+        <View style={styles.sheet}>
+          <RecurringForm
+            initial={sheet === 'add' ? null : (sheet as any)}
+            onSave={handle_save}
+            onClose={() => setSheet(null)}
           />
-          <View style={styles.sheet}>
-            <RecurringForm
-              initial={sheet === 'add' ? null : sheet}
-              onSave={handle_save}
-              onClose={() => setSheet(null)}
-            />
-          </View>
         </View>
-      )}
+      </Modal>
     </View>
   );
 }
@@ -590,16 +566,11 @@ const styles = StyleSheet.create({
   cardActions: { alignItems: 'center', gap: spacing.xs },
   iconBtn: { padding: spacing.xs },
   // form
-  overlay: { ...StyleSheet.absoluteFillObject, zIndex: 100 },
   overlayBg: {
-    ...StyleSheet.absoluteFillObject,
+    flex: 1,
     backgroundColor: 'rgba(0,0,0,0.4)',
   },
   sheet: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
     backgroundColor: colors.surface,
     borderTopLeftRadius: radius.xl,
     borderTopRightRadius: radius.xl,

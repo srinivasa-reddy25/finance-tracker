@@ -98,23 +98,17 @@ export default function DashboardScreen() {
     [categories],
   );
 
-  const { totalSpent, totalIncome, count, totalBudget } = useMemo(() => {
-    const spent = transactions
-      .filter(t => !categoryMap.get(t.category)?.is_income)
-      .reduce((s, t) => s + t.amount, 0);
-    const income = transactions
-      .filter(t => categoryMap.get(t.category)?.is_income)
-      .reduce((s, t) => s + t.amount, 0);
+  const { totalSpent, count, totalBudget } = useMemo(() => {
+    const spent = transactions.reduce((s, t) => s + t.amount, 0);
     const budget = categories
       .filter(c => !c.is_income && c.budget != null)
       .reduce((s, c) => s + (c.budget ?? 0), 0);
     return {
       totalSpent: spent,
-      totalIncome: income,
       count: transactions.length,
       totalBudget: budget > 0 ? budget : null,
     };
-  }, [transactions, categoryMap, categories]);
+  }, [transactions, categories]);
 
   // Keep Android widget in sync
   useEffect(() => {

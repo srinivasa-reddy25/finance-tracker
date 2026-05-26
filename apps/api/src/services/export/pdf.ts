@@ -9,14 +9,12 @@ type Row = {
   category_name: string
   category_color: string
   amount: number
-  is_income: boolean
 }
 
 type BuildArgs = {
   user_name: string
   range_label: string
   total_spent: number
-  total_income: number
   rows: Row[]
 }
 
@@ -24,7 +22,6 @@ type BuildArgs = {
 const BRAND = '#2563EB'
 const BRAND_DARK = '#1E40AF'
 const EXPENSE = '#DC2626'
-const INCOME = '#059669'
 const TEXT = '#0F172A'
 const TEXT_MUTED = '#64748B'
 const TEXT_LIGHT = '#94A3B8'
@@ -69,7 +66,6 @@ export function build_pdf(args: BuildArgs): Promise<Buffer> {
       const W = doc.page.width
       const H = doc.page.height
       const PAD = 48
-      const net = args.total_income - args.total_spent
 
       // ─── Header band ──────────────────────────────────────────────
       doc.rect(0, 0, W, 140).fill(BRAND)
@@ -121,13 +117,12 @@ export function build_pdf(args: BuildArgs): Promise<Buffer> {
       const cards_y = 180
       const card_h = 90
       const gap = 14
-      const card_w = (W - PAD * 2 - gap * 2) / 3
-
+      const card_w2 = (W - PAD * 2 - gap) / 2
       draw_card(
         doc,
         PAD,
         cards_y,
-        card_w,
+        card_w2,
         card_h,
         'TOTAL SPENT',
         format_inr(args.total_spent),
@@ -135,23 +130,13 @@ export function build_pdf(args: BuildArgs): Promise<Buffer> {
       )
       draw_card(
         doc,
-        PAD + card_w + gap,
+        PAD + card_w2 + gap,
         cards_y,
-        card_w,
+        card_w2,
         card_h,
-        'TOTAL INCOME',
-        format_inr(args.total_income),
-        INCOME
-      )
-      draw_card(
-        doc,
-        PAD + (card_w + gap) * 2,
-        cards_y,
-        card_w,
-        card_h,
-        net >= 0 ? 'NET SAVINGS' : 'NET DEFICIT',
-        format_inr(Math.abs(net)),
-        net >= 0 ? INCOME : EXPENSE
+        'TRANSACTIONS',
+        String(args.rows.length),
+        BRAND
       )
 
       // ─── Transactions header ──────────────────────────────────────
@@ -250,12 +235,11 @@ export function build_pdf(args: BuildArgs): Promise<Buffer> {
             width: 130
           })
 
-        const sign = r.is_income ? '+' : '-'
         doc
           .font('Bold')
           .fontSize(11)
-          .fillColor(r.is_income ? INCOME : EXPENSE)
-          .text(`${sign} ${format_inr(r.amount)}`, COL.amount - 130, y + 4, {
+          .fillColor(EXPENSE)
+          .text(`- ${format_inr(r.amount)}`, COL.amount - 130, y + 4, {
             width: 125,
             align: 'right'
           })
@@ -278,17 +262,15 @@ export function build_pdf(args: BuildArgs): Promise<Buffer> {
         .font('Med')
         .fontSize(11)
         .fillColor('#FFFFFF')
-        .text('Net total', PAD + 8, y + 12)
+        .text('Total spent', PAD + 8, y + 12)
       doc
         .font('Bold')
         .fontSize(13)
         .fillColor('#FFFFFF')
-        .text(
-          `${net >= 0 ? '+' : '-'} ${format_inr(Math.abs(net))}`,
-          COL.amount - 200,
-          y + 11,
-          { width: 195, align: 'right' }
-        )
+        .text(format_inr(args.total_spent), COL.amount - 200, y + 11, {
+          width: 195,
+          align: 'right'
+        })
 
       draw_footer(doc, args.rows.length)
 
