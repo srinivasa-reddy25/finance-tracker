@@ -1,8 +1,11 @@
 import type { Request, Response } from 'express'
 
 import { mg } from 'db'
+import { log } from 'logging'
 
+import { send_email } from '../../services/email.ts'
 import firebase_auth from '../../services/firebase.ts'
+import { welcome_template } from '../../templates/welcome.ts'
 import { throw_error } from '../../utils/throw-error.ts'
 
 const DEFAULT_CATEGORIES = [
@@ -143,6 +146,18 @@ export const sync = async (req: Request, res: Response) => {
     } catch {
       // ignore duplicate key errors
     }
+
+    // Fire-and-forget welcome email — don't block the response
+    const { subject, html } = welcome_template(
+      user.name || (decoded.email as string)
+    )
+    send_email(user.email, subject, html).catch((err) =>
+      log.error({
+        app: 'auth',
+        message: 'Failed to send welcome email',
+        meta: { err }
+      })
+    )
   }
 
   res.json({
