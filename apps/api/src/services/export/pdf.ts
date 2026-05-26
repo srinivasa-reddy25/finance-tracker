@@ -312,8 +312,6 @@ function draw_card(
   accent: string
 ) {
   doc.roundedRect(x, y, w, h, 10).fillAndStroke(CARD_BG, BORDER)
-  // Left accent bar
-  doc.rect(x, y, 3, h).fill(accent)
 
   doc
     .font('Body')
