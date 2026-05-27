@@ -14,9 +14,17 @@ type TUpdateData = {
   budget?: number | null;
 };
 
+type TApiErrorShape = {
+  response?: {
+    status?: number;
+    data?: { data?: { transaction_count?: number } };
+  };
+};
+
 type TCategoryStore = {
   categories: TUserCategory[];
   loading: boolean;
+  error: string | null;
   fetch: () => Promise<void>;
   add: (data: {
     name: string;
@@ -26,17 +34,19 @@ type TCategoryStore = {
   }) => Promise<string>;
   update: (id: string, data: TUpdateData) => Promise<void>;
   remove: (id: string, migrate?: boolean) => Promise<TDeleteResult>;
+  clearError: () => void;
 };
 
 export const useCategoryStore = create<TCategoryStore>((set, get) => ({
   categories: [],
   loading: false,
+  error: null,
 
   fetch: async () => {
-    set({ loading: true });
+    set({ loading: true, error: null });
     try {
       const res = await api.get('/categories');
-      // deduplicate by key in case of any DB inconsistency
+      // Deduplicate by key in case of any DB inconsistency
       const raw: TUserCategory[] = res.data.data.categories;
       const seen = new Set<string>();
       const unique = raw.filter(c => {
@@ -45,8 +55,10 @@ export const useCategoryStore = create<TCategoryStore>((set, get) => ({
         return true;
       });
       set({ categories: unique });
-    } catch {
-      // keep existing data on network error
+    } catch (err: unknown) {
+      const message =
+        err instanceof Error ? err.message : 'Failed to load categories';
+      set({ error: message });
     } finally {
       set({ loading: false });
     }
@@ -71,23 +83,15 @@ export const useCategoryStore = create<TCategoryStore>((set, get) => ({
       }));
       return { status: 'deleted' };
     } catch (err: unknown) {
-      const status = (
-        err as {
-          response?: {
-            status?: number;
-            data?: { data?: { transaction_count?: number } };
-          };
-        }
-      )?.response?.status;
-      const count = (
-        err as {
-          response?: { data?: { data?: { transaction_count?: number } } };
-        }
-      )?.response?.data?.data?.transaction_count;
+      const apiErr = err as TApiErrorShape;
+      const status = apiErr?.response?.status;
+      const count = apiErr?.response?.data?.data?.transaction_count;
       if (status === 409 && count !== undefined) {
         return { status: 'needs_confirmation', transaction_count: count };
       }
       throw err;
     }
   },
+
+  clearError: () => set({ error: null }),
 }));

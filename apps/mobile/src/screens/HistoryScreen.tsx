@@ -28,6 +28,12 @@ import { useCategoryStore } from '../stores/categoryStore';
 import { colors, spacing, radius, shadow } from '../theme';
 import type { TTransaction } from '../types/transaction';
 import ConfirmDialog from '../components/ConfirmDialog';
+import EmptyState from '../components/EmptyState';
+import {
+  DESCRIPTION_MAX_LENGTH,
+  NOTE_MAX_LENGTH,
+  TRANSACTION_MAX_AMOUNT,
+} from '../constants/config';
 
 const ALL = 'all' as const;
 type TFilter = string | typeof ALL;
@@ -358,6 +364,13 @@ export default function HistoryScreen() {
       Alert.alert('Invalid amount', 'Enter a valid amount greater than 0');
       return;
     }
+    if (parsed > TRANSACTION_MAX_AMOUNT) {
+      Alert.alert(
+        'Amount too large',
+        `Maximum allowed amount is ₹${TRANSACTION_MAX_AMOUNT.toLocaleString('en-IN')}`,
+      );
+      return;
+    }
     if (!editDescription.trim()) {
       Alert.alert('Missing description', 'Please add a description');
       return;
@@ -511,21 +524,12 @@ export default function HistoryScreen() {
       {(loading || catLoading) && !refreshing ? (
         <ActivityIndicator style={{ marginTop: 64 }} color={colors.primary} />
       ) : transactions.length === 0 ? (
-        <View style={styles.empty}>
-          <View style={styles.emptyIcon}>
-            <Icon
-              name="receipt-text-outline"
-              size={32}
-              color={colors.textLight}
-            />
-          </View>
-          <Text style={styles.emptyTitle}>
-            {search ? 'No results found' : 'No transactions'}
-          </Text>
-          <Text style={styles.emptySub}>
-            {search ? 'Try a different search' : 'Add one from the home screen'}
-          </Text>
-        </View>
+        <EmptyState
+          title={search ? 'No results found' : 'No transactions'}
+          subtitle={
+            search ? 'Try a different search' : 'Add one from the home screen'
+          }
+        />
       ) : (
         <SectionList
           sections={sections}
@@ -629,6 +633,7 @@ export default function HistoryScreen() {
                 placeholderTextColor={colors.textLight}
                 style={styles.editTextInput}
                 returnKeyType="next"
+                maxLength={DESCRIPTION_MAX_LENGTH}
               />
 
               <TextInput
@@ -638,6 +643,7 @@ export default function HistoryScreen() {
                 placeholderTextColor={colors.textLight}
                 style={styles.editTextInput}
                 returnKeyType="done"
+                maxLength={NOTE_MAX_LENGTH}
               />
 
               <View style={styles.editCategoryGrid}>
@@ -1003,19 +1009,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     width: 72,
   },
-
-  empty: { alignItems: 'center', paddingTop: 80, gap: spacing.sm },
-  emptyIcon: {
-    width: 64,
-    height: 64,
-    borderRadius: radius.xl,
-    backgroundColor: colors.inputBg,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: spacing.sm,
-  },
-  emptyTitle: { fontSize: 15, fontWeight: '600', color: colors.textMed },
-  emptySub: { fontSize: 13, color: colors.textLight },
 
   footerSpinner: { paddingVertical: spacing.xl },
 

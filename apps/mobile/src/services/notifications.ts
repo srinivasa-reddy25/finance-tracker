@@ -13,26 +13,31 @@ import { api } from './api';
 
 const NOTIF_ASKED_KEY = 'notif_permission_asked';
 
-async function register_token(token: string): Promise<void> {
+async function registerToken(token: string): Promise<void> {
   await api.patch('/users/fcm-token', { token });
 }
 
-export async function is_notification_granted(): Promise<boolean> {
+export async function isNotificationGranted(): Promise<boolean> {
   if (Platform.OS === 'android') {
     if (Platform.Version < 33) return true;
     return PermissionsAndroid.check(
       PermissionsAndroid.PERMISSIONS.POST_NOTIFICATIONS,
     );
   }
-  return true;
+  // iOS: check actual authorization status
+  const status = await requestPermission(getMessaging());
+  return (
+    status === AuthorizationStatus.AUTHORIZED ||
+    status === AuthorizationStatus.PROVISIONAL
+  );
 }
 
-export async function has_asked_permission(): Promise<boolean> {
+export async function hasAskedPermission(): Promise<boolean> {
   const val = await AsyncStorage.getItem(NOTIF_ASKED_KEY);
   return val === 'true';
 }
 
-export async function request_and_register(): Promise<boolean> {
+export async function requestAndRegister(): Promise<boolean> {
   await AsyncStorage.setItem(NOTIF_ASKED_KEY, 'true');
 
   let granted = false;
@@ -53,23 +58,26 @@ export async function request_and_register(): Promise<boolean> {
       status === AuthorizationStatus.PROVISIONAL;
   }
 
-  if (granted) await register_notifications();
+  if (granted) await registerNotifications();
   return granted;
 }
 
-export async function register_notifications(): Promise<void> {
+export async function registerNotifications(): Promise<void> {
   const token = await getToken(getMessaging());
   if (token) {
-    await register_token(token).catch(() => {});
+    await registerToken(token).catch(() => {});
   }
-  onTokenRefresh(getMessaging(), new_token => {
-    register_token(new_token).catch(() => {});
+  onTokenRefresh(getMessaging(), newToken => {
+    registerToken(newToken).catch(() => {});
   });
+  // Listen for foreground messages (can be extended to show in-app banners)
   onMessage(getMessaging(), _remoteMessage => {});
 }
 
-export async function cleanup_notifications(): Promise<void> {
+export async function cleanupNotifications(): Promise<void> {
   try {
     await api.patch('/users/fcm-token', { token: '' });
-  } catch {}
+  } catch {
+    // Best-effort cleanup — ignore errors on sign-out
+  }
 }

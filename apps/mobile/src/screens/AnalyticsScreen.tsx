@@ -17,6 +17,8 @@ import { api } from '../services/api';
 import { useAuthStore } from '../stores/authStore';
 import { useCategoryStore } from '../stores/categoryStore';
 import { colors, radius, spacing } from '../theme';
+import { formatAmount } from '../utils/format';
+import { ANALYTICS_LINE_CHART_DAYS } from '../constants/config';
 
 const SCREEN_W = Dimensions.get('window').width;
 const CHART_W = SCREEN_W - spacing.base * 2 - 32;
@@ -76,12 +78,6 @@ function monthLabel(year: number, mon: number) {
 function prevMonth(year: number, mon: number): [number, number] {
   if (mon === 1) return [year - 1, 12];
   return [year, mon - 1];
-}
-
-function fmtK(n: number) {
-  if (n >= 100000) return `₹${(n / 100000).toFixed(1)}L`;
-  if (n >= 1000) return `₹${(n / 1000).toFixed(1)}k`;
-  return `₹${n}`;
 }
 
 export default function AnalyticsScreen() {
@@ -180,10 +176,10 @@ export default function AnalyticsScreen() {
     ];
   }, [totalSpent, totalBudget]);
 
-  // Area line chart — last 10 days only
+  // Area line chart — last N days only
   const daysInMonth = new Date(year, mon, 0).getDate();
   const lastDay = isCurrentMonth ? now.getDate() : daysInMonth;
-  const firstDay = Math.max(1, lastDay - 9);
+  const firstDay = Math.max(1, lastDay - (ANALYTICS_LINE_CHART_DAYS - 1));
   const lineData = useMemo(() => {
     const map = new Map((data?.daily ?? []).map(d => [d.day, d.amount]));
     return Array.from({ length: lastDay - firstDay + 1 }, (_, i) => {
@@ -245,7 +241,7 @@ export default function AnalyticsScreen() {
         ct,
         isLeft,
         name: row.meta!.name,
-        amountStr: fmtK(row.amount),
+        amountStr: formatAmount(row.amount),
         pct,
         meta: row.meta!,
         amount: row.amount,
@@ -478,7 +474,7 @@ export default function AnalyticsScreen() {
                       return (
                         <View style={styles.chartTooltip}>
                           <Text style={styles.chartTooltipAmt}>
-                            {fmtK(item.value)}
+                            {formatAmount(item.value)}
                           </Text>
                           <Text style={styles.chartTooltipDay}>
                             {new Date(year, mon - 1, 1).toLocaleString(
@@ -495,10 +491,10 @@ export default function AnalyticsScreen() {
                 {/* Max spend label */}
                 <View style={styles.dailyHint}>
                   <Text style={styles.dailyHintText}>
-                    Peak: {fmtK(maxDaily)}
+                    Peak: {formatAmount(maxDaily)}
                   </Text>
                   <Text style={styles.dailyHintText}>
-                    Total: {fmtK(totalSpent)}
+                    Total: {formatAmount(totalSpent)}
                   </Text>
                 </View>
               </View>
@@ -646,11 +642,13 @@ export default function AnalyticsScreen() {
                     <View style={styles.compInfo}>
                       <Text style={styles.compName}>{row.meta!.name}</Text>
                       <Text style={styles.compPrev}>
-                        Last: {row.prev > 0 ? fmtK(row.prev) : '—'}
+                        Last: {row.prev > 0 ? formatAmount(row.prev) : '—'}
                       </Text>
                     </View>
                     <View style={styles.compRight}>
-                      <Text style={styles.compCurrent}>{fmtK(row.amount)}</Text>
+                      <Text style={styles.compCurrent}>
+                        {formatAmount(row.amount)}
+                      </Text>
                       {diffPct != null && (
                         <View
                           style={[

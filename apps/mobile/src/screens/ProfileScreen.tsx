@@ -74,9 +74,11 @@ export default function ProfileScreen() {
         'Sent',
         `Your ${exportFormat.toUpperCase()} export (${count} transactions) was sent to ${email}.`,
       );
-    } catch (err: any) {
+    } catch (err: unknown) {
       const msg =
-        err?.response?.data?.message ?? 'Failed to send export. Try again.';
+        err instanceof Error
+          ? err.message
+          : 'Failed to send export. Try again.';
       Alert.alert('Error', msg);
     } finally {
       setExporting(false);

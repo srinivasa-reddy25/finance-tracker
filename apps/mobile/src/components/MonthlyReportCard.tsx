@@ -3,6 +3,8 @@ import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { api } from '../services/api';
 import { colors, radius, spacing } from '../theme';
+import { formatAmount } from '../utils/format';
+import { MONTHLY_RECAP_MAX_DAY } from '../constants/config';
 
 type Summary = {
   month_label: string;
@@ -19,14 +21,8 @@ type Summary = {
   biggest: { description: string; amount: number; category: string } | null;
 };
 
-function fmt(n: number): string {
-  if (n >= 100000) return `₹${(n / 100000).toFixed(1)}L`;
-  if (n >= 1000) return `₹${(n / 1000).toFixed(1)}k`;
-  return `₹${Math.round(n).toLocaleString('en-IN')}`;
-}
-
 // Tracks which month was dismissed — resets when app restarts
-let dismissed_month: string | null = null;
+let dismissedMonth: string | null = null;
 
 export default function MonthlyReportCard() {
   const [summary, setSummary] = useState<Summary | null>(null);
@@ -40,11 +36,11 @@ export default function MonthlyReportCard() {
     const today = new Date();
     const day = today.getDate();
 
-    // Only show on 1st–3rd of the month
-    if (day > 3) return;
+    // Only show on 1st–Nth of the month
+    if (day > MONTHLY_RECAP_MAX_DAY) return;
 
     const month_key = today.toISOString().slice(0, 7); // YYYY-MM
-    if (dismissed_month === month_key) return;
+    if (dismissedMonth === month_key) return;
 
     try {
       const res = await api.get('/reports/monthly-summary');
@@ -58,7 +54,7 @@ export default function MonthlyReportCard() {
   };
 
   const dismiss = () => {
-    dismissed_month = new Date().toISOString().slice(0, 7);
+    dismissedMonth = new Date().toISOString().slice(0, 7);
     setVisible(false);
   };
 
@@ -92,7 +88,9 @@ export default function MonthlyReportCard() {
       <View style={styles.totalRow}>
         <Text style={styles.totalLabel}>Total spent</Text>
         <View style={styles.totalRight}>
-          <Text style={styles.totalAmount}>{fmt(summary.total_spent)}</Text>
+          <Text style={styles.totalAmount}>
+            {formatAmount(summary.total_spent)}
+          </Text>
           {pct !== null && (
             <View
               style={[
@@ -150,7 +148,7 @@ export default function MonthlyReportCard() {
                 <Text style={styles.catName} numberOfLines={1}>
                   {c.name}
                 </Text>
-                <Text style={styles.catAmount}>{fmt(c.amount)}</Text>
+                <Text style={styles.catAmount}>{formatAmount(c.amount)}</Text>
               </View>
             ))}
           </View>
@@ -178,7 +176,7 @@ export default function MonthlyReportCard() {
                 </Text>
               </View>
               <Text style={styles.biggestAmount}>
-                {fmt(summary.biggest.amount)}
+                {formatAmount(summary.biggest.amount)}
               </Text>
             </View>
           </View>

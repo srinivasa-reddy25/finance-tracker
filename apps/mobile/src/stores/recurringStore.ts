@@ -10,24 +10,31 @@ type TUpdateRecurring = Partial<TCreateRecurring> & { is_active?: boolean };
 type TRecurringStore = {
   items: TRecurringTransaction[];
   loading: boolean;
+  error: string | null;
   fetch: () => Promise<void>;
   add: (data: TCreateRecurring) => Promise<void>;
   update: (id: string, data: TUpdateRecurring) => Promise<void>;
   remove: (id: string) => Promise<void>;
   toggle: (id: string, is_active: boolean) => Promise<void>;
+  clearError: () => void;
 };
 
 export const useRecurringStore = create<TRecurringStore>((set, get) => ({
   items: [],
   loading: false,
+  error: null,
 
   fetch: async () => {
-    set({ loading: true });
+    set({ loading: true, error: null });
     try {
       const res = await api.get('/recurring');
       set({ items: res.data.data.recurring });
-    } catch {
-      // keep existing
+    } catch (err: unknown) {
+      const message =
+        err instanceof Error
+          ? err.message
+          : 'Failed to load recurring transactions';
+      set({ error: message });
     } finally {
       set({ loading: false });
     }
@@ -54,4 +61,6 @@ export const useRecurringStore = create<TRecurringStore>((set, get) => ({
       items: s.items.map(i => (i._id === id ? { ...i, is_active } : i)),
     }));
   },
+
+  clearError: () => set({ error: null }),
 }));

@@ -29,12 +29,14 @@ import {
 import { useFocusEffect } from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import MonthlyReportCard from '../components/MonthlyReportCard';
+import EmptyState from '../components/EmptyState';
+import BudgetWarning from '../components/BudgetWarning';
 import { signOut } from '../services/firebase';
 import {
-  has_asked_permission,
-  is_notification_granted,
-  register_notifications,
-  request_and_register,
+  hasAskedPermission,
+  isNotificationGranted,
+  registerNotifications,
+  requestAndRegister,
 } from '../services/notifications';
 import { updateWidget } from '../services/widgetBridge';
 import { useAuthStore } from '../stores/authStore';
@@ -42,6 +44,13 @@ import { useCategoryStore } from '../stores/categoryStore';
 import { useTransactionStore } from '../stores/transactionStore';
 import { colors, radius, shadow, spacing } from '../theme';
 import type { TTransaction } from '../types/transaction';
+import {
+  BUDGET_WARNING_THRESHOLD_PCT,
+  DASHBOARD_RECENT_LIMIT,
+  DESCRIPTION_MAX_LENGTH,
+  NOTE_MAX_LENGTH,
+  TRANSACTION_MAX_AMOUNT,
+} from '../constants/config';
 
 function useCountUp(target: number, resetKey: number, duration = 900) {
   const animated = useRef(new Animated.Value(0)).current;
@@ -98,17 +107,17 @@ export default function DashboardScreen() {
   const currentMonth = new Date().toISOString().slice(0, 7);
 
   useEffect(() => {
-    fetch({ month: currentMonth, limit: 10 });
+    fetch({ month: currentMonth, limit: DASHBOARD_RECENT_LIMIT });
     fetchCats();
 
-    const check_notif = async () => {
-      const granted = await is_notification_granted();
+    const checkNotif = async () => {
+      const granted = await isNotificationGranted();
       if (granted) {
         setNotifBanner(false);
-        register_notifications().catch(() => {});
+        registerNotifications().catch(() => {});
         return;
       }
-      const asked = await has_asked_permission();
+      const asked = await hasAskedPermission();
       if (!asked) {
         setNotifSheet(true);
       } else {
@@ -116,10 +125,10 @@ export default function DashboardScreen() {
       }
     };
 
-    check_notif();
+    checkNotif();
 
     const sub = AppState.addEventListener('change', state => {
-      if (state === 'active') check_notif();
+      if (state === 'active') checkNotif();
     });
 
     return () => sub.remove();
@@ -170,7 +179,7 @@ export default function DashboardScreen() {
     setRefreshing(true);
     try {
       await Promise.all([
-        fetch({ month: currentMonth, limit: 10 }),
+        fetch({ month: currentMonth, limit: DASHBOARD_RECENT_LIMIT }),
         fetchCats(),
       ]);
       setRefreshCount(c => c + 1);
@@ -224,6 +233,13 @@ export default function DashboardScreen() {
       Alert.alert('Invalid amount', 'Enter a valid amount greater than 0');
       return;
     }
+    if (parsed > TRANSACTION_MAX_AMOUNT) {
+      Alert.alert(
+        'Amount too large',
+        `Maximum allowed amount is ₹${TRANSACTION_MAX_AMOUNT.toLocaleString('en-IN')}`,
+      );
+      return;
+    }
     if (!description.trim()) {
       Alert.alert('Missing description', 'Please add a description');
       return;
@@ -251,6 +267,13 @@ export default function DashboardScreen() {
     const parsed = parseFloat(amount);
     if (!amount || isNaN(parsed) || parsed <= 0) {
       Alert.alert('Invalid amount', 'Enter a valid amount greater than 0');
+      return;
+    }
+    if (parsed > TRANSACTION_MAX_AMOUNT) {
+      Alert.alert(
+        'Amount too large',
+        `Maximum allowed amount is ₹${TRANSACTION_MAX_AMOUNT.toLocaleString('en-IN')}`,
+      );
       return;
     }
     if (!description.trim()) {
@@ -283,7 +306,7 @@ export default function DashboardScreen() {
       ? colors.primary
       : budgetPct >= 100
         ? colors.expense
-        : budgetPct >= 80
+        : budgetPct >= BUDGET_WARNING_THRESHOLD_PCT
           ? '#F59E0B'
           : colors.primary;
 
@@ -314,31 +337,12 @@ export default function DashboardScreen() {
         <View style={styles.header}>
           <View style={styles.nameRow}>
             <Text style={styles.name}>{firstName}</Text>
-            {budgetPct != null && budgetPct >= 80 && (
-              <View
-                style={[
-                  styles.budgetWarning,
-                  budgetPct >= 100 && styles.budgetDanger,
-                ]}
-              >
-                <Icon
-                  name={
-                    budgetPct >= 100 ? 'alert-circle-outline' : 'alert-outline'
-                  }
-                  size={12}
-                  color={budgetPct >= 100 ? colors.expense : '#F59E0B'}
-                />
-                <Text
-                  style={[
-                    styles.budgetWarningText,
-                    budgetPct >= 100 && styles.budgetDangerText,
-                  ]}
-                >
-                  {budgetPct >= 100
-                    ? `Budget exceeded by ₹${Math.round(totalSpent - totalBudget!).toLocaleString('en-IN')}`
-                    : `${Math.round(budgetPct)}% of budget used`}
-                </Text>
-              </View>
+            {budgetPct != null && totalBudget != null && (
+              <BudgetWarning
+                totalSpent={totalSpent}
+                totalBudget={totalBudget}
+                budgetPct={budgetPct}
+              />
             )}
           </View>
           <TouchableOpacity onPress={signOut} style={styles.avatar}>
@@ -398,17 +402,10 @@ export default function DashboardScreen() {
         {(loading || catLoading) && !refreshing ? (
           <ActivityIndicator style={{ marginTop: 40 }} color={colors.primary} />
         ) : recent.length === 0 ? (
-          <View style={styles.empty}>
-            <View style={styles.emptyIcon}>
-              <Icon
-                name="receipt-text-outline"
-                size={32}
-                color={colors.textLight}
-              />
-            </View>
-            <Text style={styles.emptyTitle}>No transactions yet</Text>
-            <Text style={styles.emptySub}>Tap + to record one</Text>
-          </View>
+          <EmptyState
+            title="No transactions yet"
+            subtitle="Tap + to record one"
+          />
         ) : (
           <View style={styles.recentRow}>
             {recent.map(item => {
@@ -531,6 +528,7 @@ export default function DashboardScreen() {
                 placeholderTextColor={colors.textLight}
                 style={styles.descInput}
                 returnKeyType="next"
+                maxLength={DESCRIPTION_MAX_LENGTH}
               />
 
               {/* Note (optional) */}
@@ -541,6 +539,7 @@ export default function DashboardScreen() {
                 placeholderTextColor={colors.textLight}
                 style={styles.descInput}
                 returnKeyType="done"
+                maxLength={NOTE_MAX_LENGTH}
               />
 
               {/* Categories from store */}
@@ -663,7 +662,7 @@ export default function DashboardScreen() {
               style={styles.notifSheetBtn}
               onPress={async () => {
                 setNotifSheet(false);
-                const granted = await request_and_register();
+                const granted = await requestAndRegister();
                 if (!granted) setNotifBanner(true);
               }}
             >
@@ -864,31 +863,6 @@ const styles = StyleSheet.create({
     borderRadius: 2,
     backgroundColor: colors.border,
   },
-  budgetWarning: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    marginTop: spacing.sm,
-    backgroundColor: '#FFFBEB',
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: radius.full,
-    borderWidth: 1,
-    borderColor: '#FDE68A',
-  },
-  budgetDanger: {
-    backgroundColor: '#FEF2F2',
-    borderColor: '#FECACA',
-  },
-  budgetWarningText: {
-    fontSize: 11,
-    fontWeight: '600',
-    color: '#F59E0B',
-  },
-  budgetDangerText: {
-    color: colors.expense,
-  },
-
   sectionHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -950,24 +924,6 @@ const styles = StyleSheet.create({
     fontSize: 9,
     color: colors.textLight,
   },
-
-  empty: { alignItems: 'center', paddingTop: 48, paddingBottom: 80 },
-  emptyIcon: {
-    width: 64,
-    height: 64,
-    borderRadius: radius.xl,
-    backgroundColor: colors.inputBg,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: spacing.base,
-  },
-  emptyTitle: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: colors.textMed,
-    marginBottom: 4,
-  },
-  emptySub: { fontSize: 13, color: colors.textLight },
 
   fab: {
     position: 'absolute',
