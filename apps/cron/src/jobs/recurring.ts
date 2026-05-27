@@ -6,6 +6,7 @@ import { recurring_fired_template } from '@tejadev/email'
 import { compute_next_run } from '@tejadev/shared'
 
 import { send_email } from '../mailer.ts'
+import { send_push } from '../services/push.ts'
 
 // Daily at midnight — fire all recurring transactions that are due
 export function start_recurring_job(): void {
@@ -32,7 +33,7 @@ export async function run(): Promise<void> {
 
   for (const item of due) {
     try {
-      await mg.Transaction.create({
+      const tx = await mg.Transaction.create({
         user_id: item.user_id,
         amount: item.amount,
         description: item.name,
@@ -42,6 +43,9 @@ export async function run(): Promise<void> {
         source: 'recurring'
       })
 
+      // Pass tomorrow as `from` so today (already fired) is excluded
+      const tomorrow = new Date(now)
+      tomorrow.setDate(tomorrow.getDate() + 1)
       const next_run = compute_next_run(
         item.frequency,
         {
@@ -49,13 +53,24 @@ export async function run(): Promise<void> {
           day_of_week: item.day_of_week,
           month_of_year: item.month_of_year
         },
-        now
+        tomorrow
       )
 
-      await mg.RecurringTransaction.updateOne(
-        { _id: item._id },
-        { last_run: now, next_run }
-      )
+      await Promise.all([
+        mg.RecurringTransaction.updateOne(
+          { _id: item._id },
+          { last_run: now, next_run }
+        ),
+        mg.RecurringRun.create({
+          recurring_id: item._id.toString(),
+          user_id: item.user_id,
+          status: 'success',
+          fired_at: now,
+          transaction_id: tx._id.toString(),
+          amount: item.amount,
+          name: item.name
+        })
+      ])
 
       // Notify user via email — fire-and-forget
       const user = await mg.User.findById(item.user_id).lean()
@@ -83,6 +98,13 @@ export async function run(): Promise<void> {
             meta: { err }
           })
         )
+        if (user.fcm_token) {
+          send_push(
+            user.fcm_token,
+            item.name,
+            `₹${item.amount.toLocaleString('en-IN')} auto-debited · Next: ${next_run_label}`
+          ).catch(() => {})
+        }
       }
 
       log.info({
@@ -95,6 +117,17 @@ export async function run(): Promise<void> {
         message: `Recurring: failed for "${item.name}" (${item._id})`,
         meta: { err }
       })
+
+      // Record the failure — fire-and-forget so one bad write doesn't cascade
+      mg.RecurringRun.create({
+        recurring_id: item._id.toString(),
+        user_id: item.user_id,
+        status: 'failed',
+        fired_at: now,
+        error: err instanceof Error ? err.message : String(err),
+        amount: item.amount,
+        name: item.name
+      }).catch(() => {})
     }
   }
 }

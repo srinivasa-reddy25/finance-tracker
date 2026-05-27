@@ -21,11 +21,14 @@ type TTransactionStore = {
   pagination: TPagination | null;
   loading: boolean;
   loadingMore: boolean;
+  error: string | null;
   fetch: (params?: TFetchParams) => Promise<void>;
   fetchMore: (params?: TFetchParams) => Promise<void>;
   add: (data: TCreateTransaction) => Promise<void>;
+  update: (id: string, data: Partial<TCreateTransaction>) => Promise<void>;
   remove: (id: string) => Promise<void>;
   reset: () => void;
+  clearError: () => void;
 };
 
 export const useTransactionStore = create<TTransactionStore>((set, get) => ({
@@ -33,17 +36,20 @@ export const useTransactionStore = create<TTransactionStore>((set, get) => ({
   pagination: null,
   loading: false,
   loadingMore: false,
+  error: null,
 
   fetch: async params => {
-    set({ loading: true });
+    set({ loading: true, error: null });
     try {
       const res = await api.get('/transactions', { params });
       set({
         transactions: res.data.data.transactions,
         pagination: res.data.data.pagination,
       });
-    } catch {
-      // network unavailable — keep existing data, don't crash
+    } catch (err: unknown) {
+      const message =
+        err instanceof Error ? err.message : 'Failed to load transactions';
+      set({ error: message });
     } finally {
       set({ loading: false });
     }
@@ -63,7 +69,7 @@ export const useTransactionStore = create<TTransactionStore>((set, get) => ({
         pagination: res.data.data.pagination,
       }));
     } catch {
-      // silently ignore — user can scroll up and back to retry
+      // Silently ignore load-more failures — user can scroll up and back to retry
     } finally {
       set({ loadingMore: false });
     }
@@ -71,7 +77,16 @@ export const useTransactionStore = create<TTransactionStore>((set, get) => ({
 
   add: async data => {
     await api.post('/transactions', data);
-    get().fetch();
+    await get().fetch();
+  },
+
+  update: async (id, data) => {
+    await api.patch(`/transactions/${id}`, data);
+    set(state => ({
+      transactions: state.transactions.map(t =>
+        t._id === id ? { ...t, ...data } : t,
+      ),
+    }));
   },
 
   remove: async id => {
@@ -81,5 +96,7 @@ export const useTransactionStore = create<TTransactionStore>((set, get) => ({
     }));
   },
 
-  reset: () => set({ transactions: [], pagination: null }),
+  reset: () => set({ transactions: [], pagination: null, error: null }),
+
+  clearError: () => set({ error: null }),
 }));

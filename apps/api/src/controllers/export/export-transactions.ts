@@ -84,18 +84,14 @@ export const export_transactions = async (req: Request, res: Response) => {
     attachment_type = 'text/csv'
   } else {
     let total_spent = 0
-    let total_income = 0
     const rows = txs.map((t) => {
-      const is_income = t.cat?.is_income === true
-      if (is_income) total_income += t.amount
-      else total_spent += t.amount
+      total_spent += t.amount
       return {
         date: t.date,
         description: t.description,
         category_name: t.cat?.name ?? t.category,
         category_color: t.cat?.color ?? '#6B7280',
-        amount: t.amount,
-        is_income
+        amount: t.amount
       }
     })
 
@@ -103,7 +99,6 @@ export const export_transactions = async (req: Request, res: Response) => {
       user_name: user.name,
       range_label,
       total_spent,
-      total_income,
       rows
     })
     attachment_filename = `finance-tracker-${range}.pdf`

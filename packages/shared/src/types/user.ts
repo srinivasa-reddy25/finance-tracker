@@ -9,6 +9,7 @@ export type TUser = {
   is_active: boolean
   last_budget_alert_80?: string | null
   last_budget_alert_100?: string | null
+  fcm_token?: string | null
   createdAt?: Date
   updatedAt?: Date
 }

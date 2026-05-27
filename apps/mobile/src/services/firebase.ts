@@ -6,11 +6,9 @@ import {
   GoogleAuthProvider,
 } from '@react-native-firebase/auth';
 import { GoogleSignin } from '@react-native-google-signin/google-signin';
+import { ENV } from '../constants/env';
 
-const WEB_CLIENT_ID =
-  '550628604251-f79vkdv0rn7tpningve37rbm2lo7lmg2.apps.googleusercontent.com';
-
-GoogleSignin.configure({ webClientId: WEB_CLIENT_ID });
+GoogleSignin.configure({ webClientId: ENV.GOOGLE_WEB_CLIENT_ID });
 
 export const signInWithGoogle = async () => {
   await GoogleSignin.hasPlayServices();

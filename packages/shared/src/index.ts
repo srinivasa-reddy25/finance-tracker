@@ -18,6 +18,11 @@ export type {
   TRecurringTransaction
 } from './types/recurring-transaction.js'
 
+export type {
+  TRecurringRun,
+  TRecurringRunStatus
+} from './types/recurring-run.js'
+
 export type { TUserCategory } from './types/user-category.js'
 
 export { compute_next_run } from './utils/next-run.js'

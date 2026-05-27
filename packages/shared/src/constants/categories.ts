@@ -5,7 +5,6 @@ export const CATEGORIES = [
   'health',
   'shopping',
   'bills',
-  'salary',
   'others'
 ] as const
 

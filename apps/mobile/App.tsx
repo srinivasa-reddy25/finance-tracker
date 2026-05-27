@@ -6,6 +6,8 @@ import { getAuth, onAuthStateChanged } from '@react-native-firebase/auth';
 import { useAuthStore } from './src/stores/authStore';
 import { useTransactionStore } from './src/stores/transactionStore';
 import Navigation from './src/navigation';
+import { cleanupNotifications } from './src/services/notifications';
+import ErrorBoundary from './src/components/ErrorBoundary';
 import './global.css';
 
 export default function App() {
@@ -17,6 +19,7 @@ export default function App() {
       setUser(firebaseUser);
       setLoading(false);
       if (!firebaseUser) {
+        cleanupNotifications().catch(() => {});
         reset();
       }
     });
@@ -27,7 +30,9 @@ export default function App() {
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
         <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
-        <Navigation />
+        <ErrorBoundary>
+          <Navigation />
+        </ErrorBoundary>
       </SafeAreaProvider>
     </GestureHandlerRootView>
   );

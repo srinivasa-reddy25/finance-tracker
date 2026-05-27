@@ -9,8 +9,10 @@ import {
   ActivityIndicator,
   Alert,
   Animated,
+  AppState,
   Easing,
   KeyboardAvoidingView,
+  Linking,
   Modal,
   NativeModules,
   Platform,
@@ -26,12 +28,29 @@ import {
 
 import { useFocusEffect } from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
+import MonthlyReportCard from '../components/MonthlyReportCard';
+import EmptyState from '../components/EmptyState';
+import BudgetWarning from '../components/BudgetWarning';
 import { signOut } from '../services/firebase';
+import {
+  hasAskedPermission,
+  isNotificationGranted,
+  registerNotifications,
+  requestAndRegister,
+} from '../services/notifications';
 import { updateWidget } from '../services/widgetBridge';
 import { useAuthStore } from '../stores/authStore';
 import { useCategoryStore } from '../stores/categoryStore';
 import { useTransactionStore } from '../stores/transactionStore';
 import { colors, radius, shadow, spacing } from '../theme';
+import type { TTransaction } from '../types/transaction';
+import {
+  BUDGET_WARNING_THRESHOLD_PCT,
+  DASHBOARD_RECENT_LIMIT,
+  DESCRIPTION_MAX_LENGTH,
+  NOTE_MAX_LENGTH,
+  TRANSACTION_MAX_AMOUNT,
+} from '../constants/config';
 
 function useCountUp(target: number, resetKey: number, duration = 900) {
   const animated = useRef(new Animated.Value(0)).current;
@@ -62,7 +81,8 @@ function useCountUp(target: number, resetKey: number, duration = 900) {
 }
 
 export default function DashboardScreen() {
-  const { transactions, loading, fetch, add, remove } = useTransactionStore();
+  const { transactions, loading, fetch, add, update, remove } =
+    useTransactionStore();
   const { user } = useAuthStore();
   const {
     categories,
@@ -71,9 +91,12 @@ export default function DashboardScreen() {
   } = useCategoryStore();
   const [refreshing, setRefreshing] = useState(false);
   const [refreshCount, setRefreshCount] = useState(0);
+  const [notifBanner, setNotifBanner] = useState(false);
+  const [notifSheet, setNotifSheet] = useState(false);
 
-  // Add modal state
+  // Add / edit modal state
   const [modalOpen, setModalOpen] = useState(false);
+  const [editTarget, setEditTarget] = useState<TTransaction | null>(null);
   const [amount, setAmount] = useState('');
   const [description, setDescription] = useState('');
   const [note, setNote] = useState('');
@@ -84,8 +107,31 @@ export default function DashboardScreen() {
   const currentMonth = new Date().toISOString().slice(0, 7);
 
   useEffect(() => {
-    fetch({ month: currentMonth, limit: 10 });
+    fetch({ month: currentMonth, limit: DASHBOARD_RECENT_LIMIT });
     fetchCats();
+
+    const checkNotif = async () => {
+      const granted = await isNotificationGranted();
+      if (granted) {
+        setNotifBanner(false);
+        registerNotifications().catch(() => {});
+        return;
+      }
+      const asked = await hasAskedPermission();
+      if (!asked) {
+        setNotifSheet(true);
+      } else {
+        setNotifBanner(true);
+      }
+    };
+
+    checkNotif();
+
+    const sub = AppState.addEventListener('change', state => {
+      if (state === 'active') checkNotif();
+    });
+
+    return () => sub.remove();
   }, []);
 
   const categoryMap = useMemo(
@@ -98,23 +144,17 @@ export default function DashboardScreen() {
     [categories],
   );
 
-  const { totalSpent, totalIncome, count, totalBudget } = useMemo(() => {
-    const spent = transactions
-      .filter(t => !categoryMap.get(t.category)?.is_income)
-      .reduce((s, t) => s + t.amount, 0);
-    const income = transactions
-      .filter(t => categoryMap.get(t.category)?.is_income)
-      .reduce((s, t) => s + t.amount, 0);
+  const { totalSpent, count, totalBudget } = useMemo(() => {
+    const spent = transactions.reduce((s, t) => s + t.amount, 0);
     const budget = categories
       .filter(c => !c.is_income && c.budget != null)
       .reduce((s, c) => s + (c.budget ?? 0), 0);
     return {
       totalSpent: spent,
-      totalIncome: income,
       count: transactions.length,
       totalBudget: budget > 0 ? budget : null,
     };
-  }, [transactions, categoryMap, categories]);
+  }, [transactions, categories]);
 
   // Keep Android widget in sync
   useEffect(() => {
@@ -139,7 +179,7 @@ export default function DashboardScreen() {
     setRefreshing(true);
     try {
       await Promise.all([
-        fetch({ month: currentMonth, limit: 10 }),
+        fetch({ month: currentMonth, limit: DASHBOARD_RECENT_LIMIT }),
         fetchCats(),
       ]);
       setRefreshCount(c => c + 1);
@@ -165,11 +205,22 @@ export default function DashboardScreen() {
 
   const openModal = () => {
     if (categories.length === 0) fetchCats();
+    setEditTarget(null);
     setCategory(expenseCategories[0]?.key ?? '');
     setModalOpen(true);
   };
 
+  const openEdit = (item: TTransaction) => {
+    setEditTarget(item);
+    setAmount(String(item.amount));
+    setDescription(item.description);
+    setNote(item.note ?? '');
+    setCategory(item.category);
+    setModalOpen(true);
+  };
+
   const resetForm = () => {
+    setEditTarget(null);
     setAmount('');
     setDescription('');
     setNote('');
@@ -180,6 +231,13 @@ export default function DashboardScreen() {
     const parsed = parseFloat(amount);
     if (!amount || isNaN(parsed) || parsed <= 0) {
       Alert.alert('Invalid amount', 'Enter a valid amount greater than 0');
+      return;
+    }
+    if (parsed > TRANSACTION_MAX_AMOUNT) {
+      Alert.alert(
+        'Amount too large',
+        `Maximum allowed amount is ₹${TRANSACTION_MAX_AMOUNT.toLocaleString('en-IN')}`,
+      );
       return;
     }
     if (!description.trim()) {
@@ -204,16 +262,59 @@ export default function DashboardScreen() {
     }
   };
 
+  const handleUpdate = async () => {
+    if (!editTarget) return;
+    const parsed = parseFloat(amount);
+    if (!amount || isNaN(parsed) || parsed <= 0) {
+      Alert.alert('Invalid amount', 'Enter a valid amount greater than 0');
+      return;
+    }
+    if (parsed > TRANSACTION_MAX_AMOUNT) {
+      Alert.alert(
+        'Amount too large',
+        `Maximum allowed amount is ₹${TRANSACTION_MAX_AMOUNT.toLocaleString('en-IN')}`,
+      );
+      return;
+    }
+    if (!description.trim()) {
+      Alert.alert('Missing description', 'Please add a description');
+      return;
+    }
+    setAdding(true);
+    try {
+      await update(editTarget._id, {
+        amount: parsed,
+        description: description.trim(),
+        note: note.trim() || undefined,
+        category,
+      });
+      resetForm();
+      setModalOpen(false);
+    } catch {
+      Alert.alert('Error', 'Failed to update transaction. Try again.');
+    } finally {
+      setAdding(false);
+    }
+  };
+
   const animatedSpent = useCountUp(totalSpent, refreshCount);
+
+  const budgetPct =
+    totalBudget != null ? (totalSpent / totalBudget) * 100 : null;
+  const spentColor =
+    budgetPct == null
+      ? colors.primary
+      : budgetPct >= 100
+        ? colors.expense
+        : budgetPct >= BUDGET_WARNING_THRESHOLD_PCT
+          ? '#F59E0B'
+          : colors.primary;
 
   const monthLabel = new Date().toLocaleDateString('en-IN', {
     month: 'long',
     year: 'numeric',
   });
   const firstName = user?.displayName?.split(' ')[0] ?? 'there';
-  const hour = new Date().getHours();
-  const greeting =
-    hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
   const recent = transactions.slice(0, 3);
 
   return (
@@ -234,14 +335,35 @@ export default function DashboardScreen() {
       >
         {/* Header */}
         <View style={styles.header}>
-          <View>
-            <Text style={styles.greeting}>{greeting}</Text>
+          <View style={styles.nameRow}>
             <Text style={styles.name}>{firstName}</Text>
+            {budgetPct != null && totalBudget != null && (
+              <BudgetWarning
+                totalSpent={totalSpent}
+                totalBudget={totalBudget}
+                budgetPct={budgetPct}
+              />
+            )}
           </View>
           <TouchableOpacity onPress={signOut} style={styles.avatar}>
             <Text style={styles.avatarText}>{firstName[0].toUpperCase()}</Text>
           </TouchableOpacity>
         </View>
+
+        {notifBanner && (
+          <View style={styles.notifBanner}>
+            <Icon name="bell-off-outline" size={14} color="#92400E" />
+            <Text style={styles.notifBannerText}>
+              Notifications off — you'll miss budget alerts
+            </Text>
+            <TouchableOpacity onPress={() => Linking.openSettings()}>
+              <Text style={styles.notifBannerAction}>Enable</Text>
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => setNotifBanner(false)}>
+              <Icon name="close" size={14} color="#92400E" />
+            </TouchableOpacity>
+          </View>
+        )}
 
         {/* Spending hero — no card, just text on page */}
         <View style={styles.hero}>
@@ -252,7 +374,7 @@ export default function DashboardScreen() {
                 / ₹{totalBudget.toLocaleString('en-IN')}
               </Text>
             )}
-            <Text style={styles.heroAmount}>
+            <Text style={[styles.heroAmount, { color: spentColor }]}>
               ₹{animatedSpent.toLocaleString('en-IN')}
             </Text>
             {totalBudget != null && (
@@ -268,6 +390,9 @@ export default function DashboardScreen() {
           </View>
         </View>
 
+        {/* Monthly recap card — visible 1st–3rd of month */}
+        <MonthlyReportCard />
+
         {/* Section header */}
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>Recent transactions</Text>
@@ -277,17 +402,10 @@ export default function DashboardScreen() {
         {(loading || catLoading) && !refreshing ? (
           <ActivityIndicator style={{ marginTop: 40 }} color={colors.primary} />
         ) : recent.length === 0 ? (
-          <View style={styles.empty}>
-            <View style={styles.emptyIcon}>
-              <Icon
-                name="receipt-text-outline"
-                size={32}
-                color={colors.textLight}
-              />
-            </View>
-            <Text style={styles.emptyTitle}>No transactions yet</Text>
-            <Text style={styles.emptySub}>Tap + to record one</Text>
-          </View>
+          <EmptyState
+            title="No transactions yet"
+            subtitle="Tap + to record one"
+          />
         ) : (
           <View style={styles.recentRow}>
             {recent.map(item => {
@@ -304,7 +422,12 @@ export default function DashboardScreen() {
                 month: 'short',
               });
               return (
-                <View key={item._id} style={styles.recentCard}>
+                <TouchableOpacity
+                  key={item._id}
+                  style={styles.recentCard}
+                  onPress={() => openEdit(item)}
+                  activeOpacity={0.75}
+                >
                   <View style={styles.recentTop}>
                     <View
                       style={[
@@ -330,7 +453,7 @@ export default function DashboardScreen() {
                     </Text>
                     <Text style={styles.recentDate}>{date}</Text>
                   </View>
-                </View>
+                </TouchableOpacity>
               );
             })}
           </View>
@@ -370,8 +493,15 @@ export default function DashboardScreen() {
             >
               {/* Dialog header */}
               <View style={styles.dialogHeader}>
-                <Text style={styles.dialogTitle}>Add Expense</Text>
-                <TouchableOpacity onPress={() => setModalOpen(false)}>
+                <Text style={styles.dialogTitle}>
+                  {editTarget ? 'Edit Expense' : 'Add Expense'}
+                </Text>
+                <TouchableOpacity
+                  onPress={() => {
+                    resetForm();
+                    setModalOpen(false);
+                  }}
+                >
                   <Icon name="close" size={20} color={colors.textSub} />
                 </TouchableOpacity>
               </View>
@@ -398,6 +528,7 @@ export default function DashboardScreen() {
                 placeholderTextColor={colors.textLight}
                 style={styles.descInput}
                 returnKeyType="next"
+                maxLength={DESCRIPTION_MAX_LENGTH}
               />
 
               {/* Note (optional) */}
@@ -408,6 +539,7 @@ export default function DashboardScreen() {
                 placeholderTextColor={colors.textLight}
                 style={styles.descInput}
                 returnKeyType="done"
+                maxLength={NOTE_MAX_LENGTH}
               />
 
               {/* Categories from store */}
@@ -465,7 +597,7 @@ export default function DashboardScreen() {
 
               {/* Submit */}
               <TouchableOpacity
-                onPress={handleAdd}
+                onPress={editTarget ? handleUpdate : handleAdd}
                 disabled={adding || catLoading || !category}
                 style={[
                   styles.submitBtn,
@@ -479,7 +611,9 @@ export default function DashboardScreen() {
                 ) : (
                   <>
                     <Icon name="check" size={17} color="#FFF" />
-                    <Text style={styles.submitText}>Add Expense</Text>
+                    <Text style={styles.submitText}>
+                      {editTarget ? 'Save Changes' : 'Add Expense'}
+                    </Text>
                   </>
                 )}
               </TouchableOpacity>
@@ -487,12 +621,166 @@ export default function DashboardScreen() {
           </TouchableOpacity>
         </KeyboardAvoidingView>
       </Modal>
+
+      {/* Notification permission sheet */}
+      <Modal
+        visible={notifSheet}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setNotifSheet(false)}
+      >
+        <View style={styles.notifSheetOverlay}>
+          <View style={styles.notifSheet}>
+            <View style={styles.notifSheetIcon}>
+              <Icon name="bell-ring-outline" size={32} color={colors.primary} />
+            </View>
+            <Text style={styles.notifSheetTitle}>
+              Stay on top of your finances
+            </Text>
+            <Text style={styles.notifSheetSub}>
+              Get notified when it matters most
+            </Text>
+            <View style={styles.notifSheetItems}>
+              {[
+                {
+                  icon: 'alert-circle-outline',
+                  text: 'Budget alerts at 80% and 100%',
+                },
+                { icon: 'repeat', text: 'Recurring transactions auto-fired' },
+                {
+                  icon: 'file-chart-outline',
+                  text: 'Monthly spending report ready',
+                },
+              ].map(item => (
+                <View key={item.icon} style={styles.notifSheetItem}>
+                  <Icon name={item.icon} size={18} color={colors.primary} />
+                  <Text style={styles.notifSheetItemText}>{item.text}</Text>
+                </View>
+              ))}
+            </View>
+            <TouchableOpacity
+              style={styles.notifSheetBtn}
+              onPress={async () => {
+                setNotifSheet(false);
+                const granted = await requestAndRegister();
+                if (!granted) setNotifBanner(true);
+              }}
+            >
+              <Text style={styles.notifSheetBtnText}>Allow Notifications</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.notifSheetSkip}
+              onPress={async () => {
+                setNotifSheet(false);
+                const { default: AsyncStorage } =
+                  await import('@react-native-async-storage/async-storage');
+                await AsyncStorage.setItem('notif_permission_asked', 'true');
+              }}
+            >
+              <Text style={styles.notifSheetSkipText}>Maybe later</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.surface },
+  notifSheetOverlay: {
+    flex: 1,
+    justifyContent: 'flex-end',
+    backgroundColor: 'rgba(0,0,0,0.4)',
+  },
+  notifSheet: {
+    backgroundColor: colors.surface,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    paddingHorizontal: spacing.xl,
+    paddingTop: spacing.xl,
+    paddingBottom: 40,
+    alignItems: 'center',
+  },
+  notifSheetIcon: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: colors.primary + '15',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: spacing.lg,
+  },
+  notifSheetTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: colors.text,
+    textAlign: 'center',
+    marginBottom: 8,
+  },
+  notifSheetSub: {
+    fontSize: 14,
+    color: colors.textSecondary,
+    textAlign: 'center',
+    marginBottom: spacing.xl,
+  },
+  notifSheetItems: {
+    width: '100%',
+    gap: 14,
+    marginBottom: spacing.xl,
+  },
+  notifSheetItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  notifSheetItemText: {
+    fontSize: 14,
+    color: colors.text,
+  },
+  notifSheetBtn: {
+    width: '100%',
+    backgroundColor: colors.primary,
+    borderRadius: radius.md,
+    paddingVertical: 14,
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  notifSheetBtnText: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#fff',
+  },
+  notifSheetSkip: {
+    paddingVertical: 8,
+  },
+  notifSheetSkipText: {
+    fontSize: 14,
+    color: colors.textSecondary,
+  },
+  notifBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: '#FFFBEB',
+    borderWidth: 1,
+    borderColor: '#FDE68A',
+    borderRadius: radius.md,
+    marginHorizontal: spacing.lg,
+    marginBottom: spacing.md,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+  },
+  notifBannerText: {
+    flex: 1,
+    fontSize: 12,
+    color: '#92400E',
+  },
+  notifBannerAction: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#D97706',
+  },
   scroll: { paddingBottom: 100 },
 
   header: {
@@ -504,7 +792,12 @@ const styles = StyleSheet.create({
     paddingTop: 56,
     paddingBottom: spacing.lg,
   },
-  greeting: { fontSize: 13, color: colors.textSub, marginBottom: 2 },
+  nameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    flex: 1,
+  },
   name: {
     fontSize: 22,
     fontWeight: '700',
@@ -570,7 +863,6 @@ const styles = StyleSheet.create({
     borderRadius: 2,
     backgroundColor: colors.border,
   },
-
   sectionHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -632,24 +924,6 @@ const styles = StyleSheet.create({
     fontSize: 9,
     color: colors.textLight,
   },
-
-  empty: { alignItems: 'center', paddingTop: 48, paddingBottom: 80 },
-  emptyIcon: {
-    width: 64,
-    height: 64,
-    borderRadius: radius.xl,
-    backgroundColor: colors.inputBg,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: spacing.base,
-  },
-  emptyTitle: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: colors.textMed,
-    marginBottom: 4,
-  },
-  emptySub: { fontSize: 13, color: colors.textLight },
 
   fab: {
     position: 'absolute',

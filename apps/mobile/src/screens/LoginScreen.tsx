@@ -21,8 +21,9 @@ export default function LoginScreen() {
     try {
       await signInWithGoogle();
       await api.post('/auth/sync');
-    } catch (e: any) {
-      Alert.alert('Sign in failed', e.message ?? 'Please try again');
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Please try again';
+      Alert.alert('Sign in failed', message);
     } finally {
       setLoading(false);
     }
