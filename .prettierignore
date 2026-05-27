@@ -21,3 +21,10 @@ yarn.lock
 # Generated files
 *.generated.*
 **/next-env.d.ts
+
+# React Native / Android build artifacts
+apps/mobile/android/**/.cxx/**
+apps/mobile/android/build/**
+apps/mobile/android/.gradle/**
+apps/mobile/ios/build/**
+apps/mobile/ios/Pods/**
