@@ -6,12 +6,9 @@ import React, {
   useState,
 } from 'react';
 import {
-  ActivityIndicator,
-  Alert,
   Animated,
   AppState,
   Easing,
-  KeyboardAvoidingView,
   Linking,
   Modal,
   NativeModules,
@@ -21,17 +18,15 @@ import {
   StatusBar,
   StyleSheet,
   Text,
-  TextInput,
   TouchableOpacity,
   View,
 } from 'react-native';
 
-import { useFocusEffect } from '@react-navigation/native';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
+import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import MonthlyReportCard from '../components/MonthlyReportCard';
 import EmptyState from '../components/EmptyState';
-import BudgetWarning from '../components/BudgetWarning';
-import { signOut } from '../services/firebase';
 import {
   hasAskedPermission,
   isNotificationGranted,
@@ -42,32 +37,28 @@ import { updateWidget } from '../services/widgetBridge';
 import { useAuthStore } from '../stores/authStore';
 import { useCategoryStore } from '../stores/categoryStore';
 import { useTransactionStore } from '../stores/transactionStore';
+import { useTransactionModalStore } from '../stores/transactionModalStore';
 import { colors, radius, shadow, spacing } from '../theme';
-import type { TTransaction } from '../types/transaction';
 import {
   BUDGET_WARNING_THRESHOLD_PCT,
   DASHBOARD_RECENT_LIMIT,
-  DESCRIPTION_MAX_LENGTH,
-  NOTE_MAX_LENGTH,
-  TRANSACTION_MAX_AMOUNT,
 } from '../constants/config';
+import type { BottomTabParams } from '../navigation';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 function useCountUp(target: number, resetKey: number, duration = 900) {
   const animated = useRef(new Animated.Value(0)).current;
   const [display, setDisplay] = useState(0);
-  const prevTarget = useRef(0);
 
   useEffect(() => {
     animated.stopAnimation();
     animated.setValue(0);
-    prevTarget.current = 0;
     Animated.timing(animated, {
       toValue: target,
       duration,
       easing: Easing.out(Easing.cubic),
       useNativeDriver: false,
     }).start();
-    prevTarget.current = target;
   }, [target, resetKey]);
 
   useEffect(() => {
@@ -81,28 +72,18 @@ function useCountUp(target: number, resetKey: number, duration = 900) {
 }
 
 export default function DashboardScreen() {
-  const { transactions, loading, fetch, add, update, remove } =
-    useTransactionStore();
+  const { transactions, loading, fetch } = useTransactionStore();
   const { user } = useAuthStore();
   const {
     categories,
     loading: catLoading,
     fetch: fetchCats,
   } = useCategoryStore();
+  const navigation = useNavigation<BottomTabNavigationProp<BottomTabParams>>();
   const [refreshing, setRefreshing] = useState(false);
   const [refreshCount, setRefreshCount] = useState(0);
   const [notifBanner, setNotifBanner] = useState(false);
   const [notifSheet, setNotifSheet] = useState(false);
-
-  // Add / edit modal state
-  const [modalOpen, setModalOpen] = useState(false);
-  const [editTarget, setEditTarget] = useState<TTransaction | null>(null);
-  const [amount, setAmount] = useState('');
-  const [description, setDescription] = useState('');
-  const [note, setNote] = useState('');
-  const [category, setCategory] = useState<string>('');
-  const [adding, setAdding] = useState(false);
-  const amountRef = useRef<TextInput>(null);
 
   const currentMonth = new Date().toISOString().slice(0, 7);
 
@@ -145,7 +126,10 @@ export default function DashboardScreen() {
   );
 
   const { totalSpent, count, totalBudget } = useMemo(() => {
-    const spent = transactions.reduce((s, t) => s + t.amount, 0);
+    const spent = transactions.reduce((s, t) => {
+      const cat = categoryMap.get(t.category);
+      return cat?.is_income ? s : s + t.amount;
+    }, 0);
     const budget = categories
       .filter(c => !c.is_income && c.budget != null)
       .reduce((s, c) => s + (c.budget ?? 0), 0);
@@ -154,7 +138,7 @@ export default function DashboardScreen() {
       count: transactions.length,
       totalBudget: budget > 0 ? budget : null,
     };
-  }, [transactions, categories]);
+  }, [transactions, categories, categoryMap]);
 
   // Keep Android widget in sync
   useEffect(() => {
@@ -196,130 +180,73 @@ export default function DashboardScreen() {
         (cat: string | null) => {
           if (!cat) return;
           if (categories.length === 0) fetchCats();
-          setCategory(cat);
-          setModalOpen(true);
+          useTransactionModalStore.getState().openAdd();
         },
       );
     }, [categories.length, fetchCats]),
   );
 
-  const openModal = () => {
-    if (categories.length === 0) fetchCats();
-    setEditTarget(null);
-    setCategory(expenseCategories[0]?.key ?? '');
-    setModalOpen(true);
-  };
-
-  const openEdit = (item: TTransaction) => {
-    setEditTarget(item);
-    setAmount(String(item.amount));
-    setDescription(item.description);
-    setNote(item.note ?? '');
-    setCategory(item.category);
-    setModalOpen(true);
-  };
-
-  const resetForm = () => {
-    setEditTarget(null);
-    setAmount('');
-    setDescription('');
-    setNote('');
-    setCategory(expenseCategories[0]?.key ?? 'food');
-  };
-
-  const handleAdd = async () => {
-    const parsed = parseFloat(amount);
-    if (!amount || isNaN(parsed) || parsed <= 0) {
-      Alert.alert('Invalid amount', 'Enter a valid amount greater than 0');
-      return;
-    }
-    if (parsed > TRANSACTION_MAX_AMOUNT) {
-      Alert.alert(
-        'Amount too large',
-        `Maximum allowed amount is ₹${TRANSACTION_MAX_AMOUNT.toLocaleString('en-IN')}`,
-      );
-      return;
-    }
-    if (!description.trim()) {
-      Alert.alert('Missing description', 'Please add a description');
-      return;
-    }
-    setAdding(true);
-    try {
-      await add({
-        amount: parsed,
-        description: description.trim(),
-        note: note.trim() || undefined,
-        category,
-        source: 'manual',
-      });
-      resetForm();
-      setModalOpen(false);
-    } catch {
-      Alert.alert('Error', 'Failed to add transaction. Try again.');
-    } finally {
-      setAdding(false);
-    }
-  };
-
-  const handleUpdate = async () => {
-    if (!editTarget) return;
-    const parsed = parseFloat(amount);
-    if (!amount || isNaN(parsed) || parsed <= 0) {
-      Alert.alert('Invalid amount', 'Enter a valid amount greater than 0');
-      return;
-    }
-    if (parsed > TRANSACTION_MAX_AMOUNT) {
-      Alert.alert(
-        'Amount too large',
-        `Maximum allowed amount is ₹${TRANSACTION_MAX_AMOUNT.toLocaleString('en-IN')}`,
-      );
-      return;
-    }
-    if (!description.trim()) {
-      Alert.alert('Missing description', 'Please add a description');
-      return;
-    }
-    setAdding(true);
-    try {
-      await update(editTarget._id, {
-        amount: parsed,
-        description: description.trim(),
-        note: note.trim() || undefined,
-        category,
-      });
-      resetForm();
-      setModalOpen(false);
-    } catch {
-      Alert.alert('Error', 'Failed to update transaction. Try again.');
-    } finally {
-      setAdding(false);
-    }
-  };
-
   const animatedSpent = useCountUp(totalSpent, refreshCount);
 
   const budgetPct =
     totalBudget != null ? (totalSpent / totalBudget) * 100 : null;
-  const spentColor =
+  const barColor =
     budgetPct == null
       ? colors.accent
       : budgetPct >= 100
         ? colors.expense
         : budgetPct >= BUDGET_WARNING_THRESHOLD_PCT
-          ? '#F59E0B'
+          ? colors.warn
           : colors.accent;
 
-  const monthLabel = new Date().toLocaleDateString('en-IN', {
+  const pctMetaColor =
+    budgetPct == null
+      ? colors.ink2
+      : budgetPct >= 100
+        ? colors.expense
+        : budgetPct >= BUDGET_WARNING_THRESHOLD_PCT
+          ? colors.warn
+          : colors.ink2;
+
+  const now = new Date();
+  const monthLabel = now.toLocaleDateString('en-IN', {
     month: 'long',
     year: 'numeric',
   });
-  const firstName = user?.displayName?.split(' ')[0] ?? 'there';
+  const monthShort = now.toLocaleDateString('en-IN', {
+    month: 'short',
+    year: 'numeric',
+  });
+  const firstName = user?.displayName?.split(' ')[0] ?? 'You';
+  const avatarLetter =
+    (user?.displayName ?? firstName)[0]?.toUpperCase() ?? 'U';
+
   const recent = transactions.slice(0, 3);
+
+  // Top 4 categories by amount spent
+  const topCategories = useMemo(() => {
+    const catAmounts = new Map<string, number>();
+    transactions.forEach(t => {
+      const cat = categoryMap.get(t.category);
+      if (!cat?.is_income) {
+        catAmounts.set(
+          t.category,
+          (catAmounts.get(t.category) ?? 0) + t.amount,
+        );
+      }
+    });
+    return Array.from(catAmounts.entries())
+      .map(([key, amount]) => ({ key, amount, meta: categoryMap.get(key) }))
+      .filter(r => r.meta && !r.meta.is_income)
+      .sort((a, b) => b.amount - a.amount)
+      .slice(0, 4);
+  }, [transactions, categoryMap]);
+
+  const hasSpend = topCategories.length > 0;
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor={colors.surface} />
+      <StatusBar barStyle="dark-content" backgroundColor={colors.canvas} />
 
       <ScrollView
         showsVerticalScrollIndicator={false}
@@ -333,23 +260,10 @@ export default function DashboardScreen() {
           />
         }
       >
-        {/* Header */}
-        <View style={styles.header}>
-          <View style={styles.nameRow}>
-            <Text style={styles.name}>{firstName}</Text>
-            {budgetPct != null && totalBudget != null && (
-              <BudgetWarning
-                totalSpent={totalSpent}
-                totalBudget={totalBudget}
-                budgetPct={budgetPct}
-              />
-            )}
-          </View>
-          <TouchableOpacity onPress={signOut} style={styles.avatar}>
-            <Text style={styles.avatarText}>{firstName[0].toUpperCase()}</Text>
-          </TouchableOpacity>
-        </View>
+        {/* Status bar pad */}
+        <View style={{ height: 54 }} />
 
+        {/* Notification banner */}
         {notifBanner && (
           <View style={styles.notifBanner}>
             <Icon name="bell-off-outline" size={14} color="#92400E" />
@@ -365,43 +279,89 @@ export default function DashboardScreen() {
           </View>
         )}
 
-        {/* Spending hero — no card, just text on page */}
-        <View style={styles.hero}>
-          <Text style={styles.heroLabel}>Total Spent</Text>
-          <View style={styles.heroAmountRow}>
-            {totalBudget != null && (
-              <Text style={[styles.heroBudget, { opacity: 0 }]}>
-                / ₹{totalBudget.toLocaleString('en-IN')}
-              </Text>
-            )}
-            <Text style={[styles.heroAmount, { color: spentColor }]}>
-              ₹{animatedSpent.toLocaleString('en-IN')}
-            </Text>
-            {totalBudget != null && (
-              <Text style={styles.heroBudget}>
-                / ₹{totalBudget.toLocaleString('en-IN')}
-              </Text>
-            )}
+        {/* Header row */}
+        <View style={styles.headerRow}>
+          <View style={styles.monthPill}>
+            <Text style={styles.monthPillText}>{monthShort}</Text>
           </View>
-          <View style={styles.heroStats}>
-            <Text style={styles.heroStat}>{count} transactions</Text>
-            <View style={styles.heroDot} />
-            <Text style={styles.heroStat}>{monthLabel}</Text>
+          <TouchableOpacity
+            style={styles.avatarBtn}
+            onPress={() => navigation.navigate('Profile')}
+            activeOpacity={0.8}
+          >
+            <Text style={styles.avatarBtnText}>{avatarLetter}</Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* Hero section */}
+        <View style={styles.hero}>
+          <Text style={styles.heroLabel}>
+            {'TOTAL SPENT · ' + monthShort.toUpperCase()}
+          </Text>
+          <View style={styles.heroAmountRow}>
+            <Text style={styles.heroCurrency}>₹</Text>
+            <Text style={styles.heroAmount}>
+              {animatedSpent.toLocaleString('en-IN')}
+            </Text>
+          </View>
+          <View style={styles.heroMeta}>
+            <Text style={styles.heroMetaText}>{count} transactions</Text>
+            {budgetPct != null && (
+              <>
+                <View style={styles.heroDot} />
+                <Text style={[styles.heroMetaText, { color: pctMetaColor }]}>
+                  {Math.round(budgetPct)}% used
+                </Text>
+              </>
+            )}
           </View>
         </View>
 
-        {/* Monthly recap card — visible 1st–3rd of month */}
+        {/* Budget bar */}
+        {totalBudget != null && (
+          <View style={styles.budgetBarSection}>
+            <View style={styles.budgetTrack}>
+              <View
+                style={[
+                  styles.budgetFill,
+                  {
+                    width: `${Math.min(budgetPct ?? 0, 100)}%` as `${number}%`,
+                    backgroundColor: barColor,
+                  },
+                ]}
+              />
+            </View>
+            <View style={styles.budgetCap}>
+              <Text
+                style={[
+                  styles.budgetCapLeft,
+                  budgetPct != null &&
+                    budgetPct >= 100 && { color: colors.expense },
+                ]}
+              >
+                {budgetPct != null && budgetPct >= 100
+                  ? `Over by ₹${(totalSpent - totalBudget).toLocaleString('en-IN')}`
+                  : `Spent ₹${totalSpent.toLocaleString('en-IN')}`}
+              </Text>
+              <Text style={styles.budgetCapRight}>
+                Budget ₹{totalBudget.toLocaleString('en-IN')}
+              </Text>
+            </View>
+          </View>
+        )}
+
+        {/* Monthly report card */}
         <MonthlyReportCard />
 
-        {/* Section header */}
-        <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Recent transactions</Text>
+        {/* Recent section */}
+        <View style={styles.sectionRow}>
+          <Text style={styles.sectionTitle}>Recent</Text>
+          <TouchableOpacity onPress={() => navigation.navigate('History')}>
+            <Text style={styles.seeAll}>See all →</Text>
+          </TouchableOpacity>
         </View>
 
-        {/* Transaction list */}
-        {(loading || catLoading) && !refreshing ? (
-          <ActivityIndicator style={{ marginTop: 40 }} color={colors.accent} />
-        ) : recent.length === 0 ? (
+        {(loading || catLoading) && !refreshing ? null : recent.length === 0 ? (
           <EmptyState
             title="No transactions yet"
             subtitle="Tap + to record one"
@@ -425,202 +385,84 @@ export default function DashboardScreen() {
                 <TouchableOpacity
                   key={item._id}
                   style={styles.recentCard}
-                  onPress={() => openEdit(item)}
+                  onPress={() =>
+                    useTransactionModalStore.getState().openEdit(item)
+                  }
                   activeOpacity={0.75}
                 >
-                  <View style={styles.recentTop}>
-                    <View
-                      style={[
-                        styles.recentIconWrap,
-                        { backgroundColor: meta.bg },
-                      ]}
-                    >
-                      <Icon name={meta.icon} size={16} color={meta.color} />
-                    </View>
-                    <Text
-                      style={[styles.recentAmount, { color: amountColor }]}
-                      numberOfLines={1}
-                      adjustsFontSizeToFit
-                      minimumFontScale={0.6}
-                    >
-                      {isIncome ? '+' : '-'}₹
-                      {item.amount.toLocaleString('en-IN')}
-                    </Text>
+                  <View
+                    style={[
+                      styles.recentIconBubble,
+                      { backgroundColor: meta.bg },
+                    ]}
+                  >
+                    <Icon name={meta.icon} size={16} color={meta.color} />
                   </View>
-                  <View style={styles.recentFooter}>
-                    <Text style={styles.recentDesc} numberOfLines={1}>
-                      {item.description}
-                    </Text>
-                    <Text style={styles.recentDate}>{date}</Text>
-                  </View>
+                  <Text
+                    style={[styles.recentAmount, { color: amountColor }]}
+                    numberOfLines={1}
+                    adjustsFontSizeToFit
+                    minimumFontScale={0.6}
+                  >
+                    {isIncome ? '+' : '-'}₹{item.amount.toLocaleString('en-IN')}
+                  </Text>
+                  <Text style={styles.recentDesc} numberOfLines={1}>
+                    {item.description}
+                  </Text>
+                  <Text style={styles.recentDate}>{date}</Text>
                 </TouchableOpacity>
               );
             })}
           </View>
         )}
-      </ScrollView>
 
-      {/* FAB */}
-      <TouchableOpacity
-        style={[styles.fab, shadow.strong]}
-        onPress={openModal}
-        activeOpacity={0.85}
-      >
-        <Icon name="plus" size={26} color="#FFFFFF" />
-      </TouchableOpacity>
-
-      {/* Add Transaction Modal */}
-      <Modal
-        visible={modalOpen}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setModalOpen(false)}
-        onShow={() => setTimeout(() => amountRef.current?.focus(), 150)}
-      >
-        <KeyboardAvoidingView
-          style={{ flex: 1 }}
-          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        >
-          <TouchableOpacity
-            style={styles.modalOverlay}
-            activeOpacity={1}
-            onPress={() => setModalOpen(false)}
-          >
-            <TouchableOpacity
-              activeOpacity={1}
-              style={styles.dialog}
-              onPress={() => {}}
-            >
-              {/* Dialog header */}
-              <View style={styles.dialogHeader}>
-                <Text style={styles.dialogTitle}>
-                  {editTarget ? 'Edit Expense' : 'Add Expense'}
-                </Text>
-                <TouchableOpacity
-                  onPress={() => {
-                    resetForm();
-                    setModalOpen(false);
-                  }}
-                >
-                  <Icon name="close" size={20} color={colors.ink2} />
-                </TouchableOpacity>
-              </View>
-
-              {/* Amount */}
-              <View style={styles.amountRow}>
-                <Text style={styles.amountCurrency}>₹</Text>
-                <TextInput
-                  ref={amountRef}
-                  value={amount}
-                  onChangeText={setAmount}
-                  keyboardType="numeric"
-                  placeholder="0"
-                  placeholderTextColor={colors.line}
-                  style={styles.amountInput}
-                />
-              </View>
-
-              {/* Description */}
-              <TextInput
-                value={description}
-                onChangeText={setDescription}
-                placeholder="Description"
-                placeholderTextColor={colors.ink3}
-                style={styles.descInput}
-                returnKeyType="next"
-                maxLength={DESCRIPTION_MAX_LENGTH}
-              />
-
-              {/* Note (optional) */}
-              <TextInput
-                value={note}
-                onChangeText={setNote}
-                placeholder="Add a note (optional)"
-                placeholderTextColor={colors.ink3}
-                style={styles.descInput}
-                returnKeyType="done"
-                maxLength={NOTE_MAX_LENGTH}
-              />
-
-              {/* Categories from store */}
-              {catLoading ? (
-                <ActivityIndicator
-                  color={colors.accent}
-                  style={{ marginVertical: spacing.lg }}
-                />
-              ) : (
-                <View style={styles.categoryGrid}>
-                  {expenseCategories.map(cat => {
-                    const selected = category === cat.key;
-                    return (
-                      <TouchableOpacity
-                        key={cat.key}
-                        onPress={() => setCategory(cat.key)}
+        {/* Where it went section */}
+        {hasSpend && (
+          <>
+            <Text style={styles.whereTitle}>Where it went</Text>
+            <View style={styles.whereCard}>
+              {topCategories.map(({ key, amount, meta }) => {
+                if (!meta) return null;
+                const maxAmt = topCategories[0]?.amount ?? 1;
+                const pct = Math.min((amount / maxAmt) * 100, 100);
+                return (
+                  <View key={key} style={styles.catBarRow}>
+                    <View style={styles.catBarTop}>
+                      <View
                         style={[
-                          styles.catChip,
-                          selected && {
-                            backgroundColor: cat.bg,
-                            borderColor: cat.color,
+                          styles.catBarIcon,
+                          { backgroundColor: meta.bg },
+                        ]}
+                      >
+                        <Icon name={meta.icon} size={14} color={meta.color} />
+                      </View>
+                      <Text style={styles.catBarName} numberOfLines={1}>
+                        {meta.name}
+                      </Text>
+                      <Text style={styles.catBarAmt}>
+                        ₹{amount.toLocaleString('en-IN')}
+                      </Text>
+                    </View>
+                    <View style={styles.catBarTrack}>
+                      <View
+                        style={[
+                          styles.catBarFill,
+                          {
+                            width: `${pct}%` as `${number}%`,
+                            backgroundColor: meta.color,
                           },
                         ]}
-                        activeOpacity={0.75}
-                      >
-                        <View
-                          style={[
-                            styles.catIconWrap,
-                            {
-                              backgroundColor: selected
-                                ? cat.color
-                                : colors.surface2,
-                            },
-                          ]}
-                        >
-                          <Icon
-                            name={cat.icon}
-                            size={13}
-                            color={selected ? '#FFF' : cat.color}
-                          />
-                        </View>
-                        <Text
-                          style={[
-                            styles.catLabel,
-                            { color: selected ? cat.color : colors.ink2 },
-                          ]}
-                        >
-                          {cat.name}
-                        </Text>
-                      </TouchableOpacity>
-                    );
-                  })}
-                </View>
-              )}
+                      />
+                    </View>
+                  </View>
+                );
+              })}
+            </View>
+          </>
+        )}
 
-              {/* Submit */}
-              <TouchableOpacity
-                onPress={editTarget ? handleUpdate : handleAdd}
-                disabled={adding || catLoading || !category}
-                style={[
-                  styles.submitBtn,
-                  shadow.card,
-                  (catLoading || !category) && { opacity: 0.5 },
-                ]}
-                activeOpacity={0.85}
-              >
-                {adding ? (
-                  <ActivityIndicator color="#FFF" />
-                ) : (
-                  <>
-                    <Icon name="check" size={17} color="#FFF" />
-                    <Text style={styles.submitText}>
-                      {editTarget ? 'Save Changes' : 'Add Expense'}
-                    </Text>
-                  </>
-                )}
-              </TouchableOpacity>
-            </TouchableOpacity>
-          </TouchableOpacity>
-        </KeyboardAvoidingView>
-      </Modal>
+        <View style={{ height: 100 }} />
+      </ScrollView>
 
       {/* Notification permission sheet */}
       <Modal
@@ -672,8 +514,6 @@ export default function DashboardScreen() {
               style={styles.notifSheetSkip}
               onPress={async () => {
                 setNotifSheet(false);
-                const { default: AsyncStorage } =
-                  await import('@react-native-async-storage/async-storage');
                 await AsyncStorage.setItem('notif_permission_asked', 'true');
               }}
             >
@@ -687,7 +527,232 @@ export default function DashboardScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.surface },
+  container: { flex: 1, backgroundColor: colors.canvas },
+  scroll: {},
+
+  // Notification banner
+  notifBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: '#FFFBEB',
+    borderWidth: 1,
+    borderColor: '#FDE68A',
+    borderRadius: radius.md,
+    marginHorizontal: spacing.lg,
+    marginBottom: spacing.md,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+  },
+  notifBannerText: { flex: 1, fontSize: 12, color: '#92400E' },
+  notifBannerAction: { fontSize: 12, fontWeight: '700', color: '#D97706' },
+
+  // Header row
+  headerRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 22,
+    paddingTop: 14,
+    paddingBottom: 6,
+  },
+  monthPill: {
+    backgroundColor: colors.accentSoft,
+    borderRadius: 99,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+  },
+  monthPillText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: colors.accent,
+  },
+  avatarBtn: {
+    width: 42,
+    height: 42,
+    borderRadius: radius.full,
+    backgroundColor: colors.ink,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  avatarBtnText: { color: colors.canvas, fontSize: 17, fontWeight: '700' },
+
+  // Hero
+  hero: {
+    alignItems: 'center',
+    paddingHorizontal: 22,
+    paddingTop: 18,
+    paddingBottom: 4,
+  },
+  heroLabel: {
+    fontSize: 11,
+    fontWeight: '700',
+    letterSpacing: 2,
+    color: colors.ink3,
+    textTransform: 'uppercase',
+    marginBottom: 10,
+  },
+  heroAmountRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    gap: 2,
+  },
+  heroCurrency: {
+    fontSize: 30,
+    fontWeight: '700',
+    color: colors.ink2,
+    marginBottom: 6,
+  },
+  heroAmount: {
+    fontSize: 66,
+    fontWeight: '800',
+    color: colors.ink,
+    letterSpacing: -3,
+    lineHeight: 72,
+  },
+  heroMeta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 9,
+    marginTop: 8,
+  },
+  heroMetaText: { fontSize: 13, color: colors.ink2 },
+  heroDot: {
+    width: 3,
+    height: 3,
+    borderRadius: 2,
+    backgroundColor: colors.line2,
+  },
+
+  // Budget bar
+  budgetBarSection: {
+    marginHorizontal: 22,
+    marginTop: 18,
+  },
+  budgetTrack: {
+    height: 10,
+    backgroundColor: colors.line,
+    borderRadius: 99,
+    overflow: 'hidden',
+  },
+  budgetFill: {
+    height: '100%',
+    borderRadius: 99,
+  },
+  budgetCap: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: 8,
+  },
+  budgetCapLeft: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: colors.ink2,
+  },
+  budgetCapRight: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: colors.ink3,
+  },
+
+  // Recent section
+  sectionRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 22,
+    paddingTop: 26,
+    paddingBottom: 12,
+  },
+  sectionTitle: { fontSize: 17, fontWeight: '800', color: colors.ink },
+  seeAll: { fontSize: 13, color: colors.ink3 },
+
+  recentRow: {
+    flexDirection: 'row',
+    paddingHorizontal: 18,
+    gap: 10,
+  },
+  recentCard: {
+    flex: 1,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.line,
+    borderRadius: 18,
+    padding: 12,
+    gap: 12,
+  },
+  recentIconBubble: {
+    width: 32,
+    height: 32,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  recentAmount: {
+    fontSize: 15,
+    fontWeight: '800',
+    color: colors.ink,
+    letterSpacing: -0.4,
+  },
+  recentDesc: { fontSize: 11, color: colors.ink2, fontWeight: '500' },
+  recentDate: { fontSize: 10, color: colors.ink3 },
+
+  // Where it went
+  whereTitle: {
+    fontSize: 17,
+    fontWeight: '800',
+    color: colors.ink,
+    paddingHorizontal: 22,
+    paddingTop: 26,
+    paddingBottom: 12,
+  },
+  whereCard: {
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.line,
+    borderRadius: 24,
+    padding: 18,
+    marginHorizontal: 18,
+    gap: 14,
+  },
+  catBarRow: { gap: 6 },
+  catBarTop: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  catBarIcon: {
+    width: 30,
+    height: 30,
+    borderRadius: 9,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexShrink: 0,
+  },
+  catBarName: {
+    flex: 1,
+    fontSize: 13,
+    fontWeight: '600',
+    color: colors.ink,
+  },
+  catBarAmt: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: colors.ink,
+  },
+  catBarTrack: {
+    height: 8,
+    backgroundColor: colors.line,
+    borderRadius: 99,
+    overflow: 'hidden',
+    marginLeft: 38,
+  },
+  catBarFill: {
+    height: '100%',
+    borderRadius: 99,
+  },
+
+  // Notif sheet
   notifSheetOverlay: {
     flex: 1,
     justifyContent: 'flex-end',
@@ -706,7 +771,7 @@ const styles = StyleSheet.create({
     width: 64,
     height: 64,
     borderRadius: 32,
-    backgroundColor: colors.accent + '15',
+    backgroundColor: colors.accentSoft,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: spacing.lg,
@@ -724,20 +789,13 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginBottom: spacing.xl,
   },
-  notifSheetItems: {
-    width: '100%',
-    gap: 14,
-    marginBottom: spacing.xl,
-  },
+  notifSheetItems: { width: '100%', gap: 14, marginBottom: spacing.xl },
   notifSheetItem: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
   },
-  notifSheetItemText: {
-    fontSize: 14,
-    color: colors.ink,
-  },
+  notifSheetItemText: { fontSize: 14, color: colors.ink },
   notifSheetBtn: {
     width: '100%',
     backgroundColor: colors.accent,
@@ -746,275 +804,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 12,
   },
-  notifSheetBtnText: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: '#fff',
-  },
-  notifSheetSkip: {
-    paddingVertical: 8,
-  },
-  notifSheetSkipText: {
-    fontSize: 14,
-    color: colors.ink2,
-  },
-  notifBanner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    backgroundColor: '#FFFBEB',
-    borderWidth: 1,
-    borderColor: '#FDE68A',
-    borderRadius: radius.md,
-    marginHorizontal: spacing.lg,
-    marginBottom: spacing.md,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-  },
-  notifBannerText: {
-    flex: 1,
-    fontSize: 12,
-    color: '#92400E',
-  },
-  notifBannerAction: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#D97706',
-  },
-  scroll: { paddingBottom: 100 },
-
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    backgroundColor: colors.surface,
-    paddingHorizontal: spacing.lg,
-    paddingTop: 56,
-    paddingBottom: spacing.lg,
-  },
-  nameRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-    flex: 1,
-  },
-  name: {
-    fontSize: 22,
-    fontWeight: '700',
-    color: colors.ink,
-    letterSpacing: -0.3,
-  },
-  avatar: {
-    width: 42,
-    height: 42,
-    borderRadius: radius.full,
-    backgroundColor: colors.accent,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  avatarText: { color: '#FFFFFF', fontSize: 17, fontWeight: '700' },
-
-  hero: {
-    alignItems: 'center',
-    paddingVertical: spacing.xl,
-    paddingHorizontal: spacing.base,
-    marginBottom: spacing.md,
-  },
-  heroLabel: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: colors.ink3,
-    textTransform: 'uppercase',
-    letterSpacing: 1,
-    marginBottom: spacing.sm,
-  },
-  heroAmountRow: {
-    flexDirection: 'row',
-    alignItems: 'baseline',
-    justifyContent: 'center',
-  },
-  heroAmount: {
-    fontSize: 62,
-    fontWeight: '800',
-    color: colors.accent,
-    letterSpacing: -2,
-  },
-  heroBudget: {
-    fontSize: 16,
-    fontWeight: '500',
-    color: colors.ink3,
-    marginLeft: 6,
-    marginBottom: 6,
-  },
-  heroStats: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-    marginTop: spacing.sm,
-  },
-  heroStat: {
-    fontSize: 12,
-    color: colors.ink2,
-    fontWeight: '500',
-  },
-  heroDot: {
-    width: 3,
-    height: 3,
-    borderRadius: 2,
-    backgroundColor: colors.line,
-  },
-  sectionHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: spacing.base,
-    marginBottom: spacing.sm,
-  },
-  sectionTitle: { fontSize: 16, fontWeight: '700', color: colors.ink },
-
-  recentRow: {
-    flexDirection: 'row',
-    paddingHorizontal: spacing.base,
-    gap: spacing.sm,
-  },
-  recentCard: {
-    flex: 1,
-    borderWidth: 1,
-    borderColor: colors.line,
-    borderRadius: radius.lg,
-    padding: spacing.sm,
-    paddingVertical: 12,
-    backgroundColor: colors.surface,
-    gap: 8,
-  },
-  recentTop: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: 4,
-  },
-  recentIconWrap: {
-    width: 30,
-    height: 30,
-    borderRadius: radius.sm,
-    alignItems: 'center',
-    justifyContent: 'center',
-    flexShrink: 0,
-  },
-  recentAmount: {
-    fontSize: 13,
-    fontWeight: '800',
-    color: colors.ink,
-    letterSpacing: -0.4,
-    flex: 1,
-    textAlign: 'right',
-  },
-  recentFooter: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  recentDesc: {
-    fontSize: 9,
-    color: colors.ink2,
-    fontWeight: '500',
-    flex: 1,
-  },
-  recentDate: {
-    fontSize: 9,
-    color: colors.ink3,
-  },
-
-  fab: {
-    position: 'absolute',
-    bottom: 20,
-    right: spacing.lg,
-    width: 56,
-    height: 56,
-    borderRadius: radius.full,
-    backgroundColor: colors.accent,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: spacing.base,
-  },
-  dialog: {
-    backgroundColor: colors.surface,
-    borderRadius: radius.xl,
-    padding: spacing.lg,
-    gap: spacing.md,
-    width: '100%',
-  },
-  dialogHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  dialogTitle: { fontSize: 18, fontWeight: '800', color: colors.ink },
-
-  amountRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.surface2,
-    borderRadius: radius.lg,
-    paddingHorizontal: spacing.base,
-    paddingVertical: spacing.sm,
-    gap: 6,
-  },
-  amountCurrency: { fontSize: 28, fontWeight: '700', color: colors.expense },
-  amountInput: {
-    flex: 1,
-    fontSize: 36,
-    fontWeight: '800',
-    color: colors.expense,
-    padding: 0,
-  },
-
-  descInput: {
-    backgroundColor: colors.surface2,
-    borderRadius: radius.lg,
-    paddingHorizontal: spacing.base,
-    paddingVertical: 12,
-    fontSize: 14,
-    color: colors.ink,
-  },
-
-  categoryGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
-  catChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: radius.lg,
-    borderWidth: 1.5,
-    borderColor: colors.line,
-    backgroundColor: colors.surface,
-  },
-  catIconWrap: {
-    width: 22,
-    height: 22,
-    borderRadius: radius.sm,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  catLabel: { fontSize: 12, fontWeight: '600' },
-
-  submitBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: spacing.sm,
-    backgroundColor: colors.expense,
-    borderRadius: radius.lg,
-    paddingVertical: 14,
-    marginTop: spacing.xs,
-  },
-  submitText: { color: '#FFF', fontSize: 15, fontWeight: '700' },
+  notifSheetBtnText: { fontSize: 15, fontWeight: '700', color: '#fff' },
+  notifSheetSkip: { paddingVertical: 8 },
+  notifSheetSkipText: { fontSize: 14, color: colors.ink2 },
 });

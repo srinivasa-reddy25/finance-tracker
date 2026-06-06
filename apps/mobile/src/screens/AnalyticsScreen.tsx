@@ -30,11 +30,10 @@ const FOCUS_EXTRA = 8;
 const CONN_HORIZ = 22;
 const PIE_LABEL_PAD = 72;
 const PIE_SVG_H = (PIE_R + FOCUS_EXTRA + PIE_LABEL_PAD) * 2;
-const LABEL_MIN_GAP = 20; // min vertical px between labels on same side
+const LABEL_MIN_GAP = 20;
 const PIE_CX = CHART_W / 2;
 const PIE_CY = PIE_LABEL_PAD + PIE_R + FOCUS_EXTRA;
 
-// SVG donut helpers — angles in degrees from TOP (12 o'clock), clockwise
 function polar(cx: number, cy: number, r: number, deg: number) {
   const rad = ((deg - 90) * Math.PI) / 180;
   return { x: cx + r * Math.cos(rad), y: cy + r * Math.sin(rad) };
@@ -166,7 +165,6 @@ export default function AnalyticsScreen() {
     [categories],
   );
 
-  // Donut ring data
   const donutData = useMemo(() => {
     const remaining = Math.max((totalBudget || totalSpent) - totalSpent, 0);
     const over = totalBudget > 0 && totalSpent > totalBudget;
@@ -176,7 +174,6 @@ export default function AnalyticsScreen() {
     ];
   }, [totalSpent, totalBudget]);
 
-  // Area line chart — last N days only
   const daysInMonth = new Date(year, mon, 0).getDate();
   const lastDay = isCurrentMonth ? now.getDate() : daysInMonth;
   const firstDay = Math.max(1, lastDay - (ANALYTICS_LINE_CHART_DAYS - 1));
@@ -195,7 +192,6 @@ export default function AnalyticsScreen() {
   const hasAnySpend = lineData.some(d => d.value > 0);
   const maxDaily = Math.max(...lineData.map(d => d.value), 1);
 
-  // Pie chart — category breakdown
   const categoryRows = useMemo(() => {
     const rows = (data?.current_by_category ?? [])
       .map(c => ({ ...c, meta: categoryMap.get(c.category) }))
@@ -204,7 +200,6 @@ export default function AnalyticsScreen() {
     return rows;
   }, [data, categoryMap]);
 
-  // Custom SVG donut — all slice geometry computed here
   const sliceConfigs = useMemo(() => {
     if (!categoryRows.length) return [];
     const total = categoryRows.reduce((s, r) => s + r.amount, 0);
@@ -245,39 +240,34 @@ export default function AnalyticsScreen() {
         pct,
         meta: row.meta!,
         amount: row.amount,
-        labelY: ce.y, // will be adjusted below
+        labelY: ce.y,
       };
     });
 
-    // Collision avoidance — spread labels that are too close on the same side
     const spread = (indices: number[]) => {
-      // sort by raw y
       const sorted = [...indices].sort((a, b) => raw[a].ce.y - raw[b].ce.y);
-      // forward pass: push down
       for (let k = 1; k < sorted.length; k++) {
-        const prev = raw[sorted[k - 1]].labelY;
-        if (raw[sorted[k]].labelY - prev < LABEL_MIN_GAP) {
-          raw[sorted[k]].labelY = prev + LABEL_MIN_GAP;
+        const prev = raw[sorted[k - 1]!].labelY;
+        if (raw[sorted[k]!].labelY - prev < LABEL_MIN_GAP) {
+          raw[sorted[k]!].labelY = prev + LABEL_MIN_GAP;
         }
       }
-      // backward pass: pull up (keeps cluster centred)
       for (let k = sorted.length - 2; k >= 0; k--) {
-        const next = raw[sorted[k + 1]].labelY;
-        if (next - raw[sorted[k]].labelY < LABEL_MIN_GAP) {
-          raw[sorted[k]].labelY = next - LABEL_MIN_GAP;
+        const next = raw[sorted[k + 1]!].labelY;
+        if (next - raw[sorted[k]!].labelY < LABEL_MIN_GAP) {
+          raw[sorted[k]!].labelY = next - LABEL_MIN_GAP;
         }
       }
     };
 
-    const leftIdx = raw.map((_, i) => i).filter(i => raw[i].isLeft);
-    const rightIdx = raw.map((_, i) => i).filter(i => !raw[i].isLeft);
+    const leftIdx = raw.map((_, i) => i).filter(i => raw[i]!.isLeft);
+    const rightIdx = raw.map((_, i) => i).filter(i => !raw[i]!.isLeft);
     spread(leftIdx);
     spread(rightIdx);
 
     return raw;
   }, [categoryRows, selectedPie]);
 
-  // Comparison rows
   const comparisonRows = useMemo(() => {
     const prevMap = new Map(
       (data?.prev_by_category ?? []).map(c => [c.category, c.amount]),
@@ -298,13 +288,14 @@ export default function AnalyticsScreen() {
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor={colors.surface} />
+      <StatusBar barStyle="dark-content" backgroundColor={colors.canvas} />
 
+      {/* Header */}
       <View style={styles.header}>
-        <Text style={styles.title}>Analytics</Text>
+        <Text style={styles.title}>Insights</Text>
       </View>
 
-      {/* Month Picker */}
+      {/* Month navigation */}
       <View style={styles.monthPicker}>
         <TouchableOpacity
           onPress={goPrev}
@@ -350,9 +341,9 @@ export default function AnalyticsScreen() {
             />
           }
         >
-          {/* ── Spending Ring ─────────────────────────── */}
+          {/* Monthly Snapshot */}
           <View style={styles.card}>
-            <Text style={styles.cardTitle}>Monthly Snapshot</Text>
+            <Text style={styles.cardSectionLabel}>MONTHLY SNAPSHOT</Text>
             <View style={styles.donutWrap}>
               <PieChart
                 donut
@@ -402,6 +393,20 @@ export default function AnalyticsScreen() {
                         Budget · ₹{totalBudget.toLocaleString('en-IN')}
                       </Text>
                     </View>
+                    <View style={styles.legendRow}>
+                      <View
+                        style={[
+                          styles.legendDot,
+                          { backgroundColor: colors.line2 },
+                        ]}
+                      />
+                      <Text style={styles.legendLabel}>
+                        Left ·{' '}
+                        {over
+                          ? `Over ₹${(totalSpent - totalBudget).toLocaleString('en-IN')}`
+                          : `₹${(totalBudget - totalSpent).toLocaleString('en-IN')}`}
+                      </Text>
+                    </View>
                     <View style={styles.pctPill}>
                       <Text
                         style={[
@@ -424,9 +429,16 @@ export default function AnalyticsScreen() {
             </View>
           </View>
 
-          {/* ── Daily Spending (Area Chart) ───────────── */}
+          {/* Daily Spending */}
           <View style={styles.card}>
-            <Text style={styles.cardTitle}>Daily Spending</Text>
+            <View style={styles.cardTitleRow}>
+              <Text style={styles.cardSectionLabel}>DAILY SPENDING</Text>
+              {hasAnySpend && (
+                <Text style={styles.cardSubVal}>
+                  Peak {formatAmount(maxDaily)}
+                </Text>
+              )}
+            </View>
             {!hasAnySpend ? (
               <Text style={styles.emptyHint}>No transactions this month</Text>
             ) : (
@@ -488,7 +500,6 @@ export default function AnalyticsScreen() {
                     },
                   }}
                 />
-                {/* Max spend label */}
                 <View style={styles.dailyHint}>
                   <Text style={styles.dailyHintText}>
                     Peak: {formatAmount(maxDaily)}
@@ -501,14 +512,50 @@ export default function AnalyticsScreen() {
             )}
           </View>
 
-          {/* ── Category Pie ──────────────────────────── */}
+          {/* By Category */}
           {categoryRows.length > 0 && (
             <View style={styles.card}>
-              <Text style={styles.cardTitle}>By Category</Text>
+              <Text style={styles.cardSectionLabel}>BY CATEGORY</Text>
+              {categoryRows.map(({ category, amount, meta }) => {
+                if (!meta) return null;
+                const maxAmt = categoryRows[0]?.amount ?? 1;
+                const barPct = Math.min((amount / maxAmt) * 100, 100);
+                return (
+                  <View key={category} style={styles.catBarRow}>
+                    <View style={styles.catBarTop}>
+                      <View
+                        style={[
+                          styles.catBarIcon,
+                          { backgroundColor: meta.bg },
+                        ]}
+                      >
+                        <Icon name={meta.icon} size={14} color={meta.color} />
+                      </View>
+                      <Text style={styles.catBarName} numberOfLines={1}>
+                        {meta.name}
+                      </Text>
+                      <Text style={styles.catBarAmt}>
+                        {formatAmount(amount)}
+                      </Text>
+                    </View>
+                    <View style={styles.catBarTrack}>
+                      <View
+                        style={[
+                          styles.catBarFill,
+                          {
+                            width: `${barPct}%` as `${number}%`,
+                            backgroundColor: meta.color,
+                          },
+                        ]}
+                      />
+                    </View>
+                  </View>
+                );
+              })}
+
+              {/* Pie donut below bars */}
               <View style={styles.pieContainer}>
-                {/* Fully custom SVG donut — slices + caps + connectors + labels */}
                 <Svg width={CHART_W} height={PIE_SVG_H}>
-                  {/* Slices */}
                   {sliceConfigs.map((s, i) => (
                     <G
                       key={i}
@@ -519,13 +566,11 @@ export default function AnalyticsScreen() {
                       <Path d={s.path} fill={s.color} />
                     </G>
                   ))}
-                  {/* Connector lines + labels (drawn on top) */}
                   {sliceConfigs.map((s, i) => {
                     const lx = s.ct.x;
                     const ly = s.labelY;
                     return (
                       <G key={`lbl-${i}`}>
-                        {/* Radial segment: slice edge → elbow */}
                         <Line
                           x1={s.cs.x}
                           y1={s.cs.y}
@@ -535,7 +580,6 @@ export default function AnalyticsScreen() {
                           strokeWidth={1}
                           opacity={0.5}
                         />
-                        {/* Diagonal/horizontal segment: elbow → label anchor */}
                         <Line
                           x1={s.ce.x}
                           y1={s.ce.y}
@@ -569,7 +613,6 @@ export default function AnalyticsScreen() {
                     );
                   })}
                 </Svg>
-                {/* Center tooltip — absolute overlay over the donut hole */}
                 <View style={styles.pieCenterOverlay}>
                   {selectedPie === null || !sliceConfigs[selectedPie] ? (
                     <View style={styles.pieCenter}>
@@ -613,10 +656,10 @@ export default function AnalyticsScreen() {
             </View>
           )}
 
-          {/* ── VS Last Month ─────────────────────────── */}
+          {/* VS Last Month */}
           {comparisonRows.length > 0 && (
             <View style={styles.card}>
-              <Text style={styles.cardTitle}>vs Last Month</Text>
+              <Text style={styles.cardSectionLabel}>VS LAST MONTH</Text>
               {comparisonRows.map(row => {
                 const diff = row.amount - row.prev;
                 const diffPct =
@@ -685,7 +728,7 @@ export default function AnalyticsScreen() {
             </View>
           )}
 
-          <View style={{ height: 32 }} />
+          <View style={{ height: 100 }} />
         </ScrollView>
       )}
     </View>
@@ -693,15 +736,16 @@ export default function AnalyticsScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.surface },
+  container: { flex: 1, backgroundColor: colors.canvas },
 
   header: {
     paddingHorizontal: spacing.base,
     paddingTop: 56,
     paddingBottom: spacing.sm,
+    backgroundColor: colors.canvas,
   },
   title: {
-    fontSize: 26,
+    fontSize: 30,
     fontWeight: '800',
     color: colors.ink,
     letterSpacing: -0.5,
@@ -715,6 +759,7 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.md,
     paddingHorizontal: spacing.base,
     marginBottom: spacing.sm,
+    backgroundColor: colors.canvas,
   },
   monthBtn: {
     width: 36,
@@ -722,7 +767,9 @@ const styles = StyleSheet.create({
     borderRadius: radius.full,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colors.surface2,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.line,
   },
   monthLabel: {
     fontSize: 15,
@@ -738,17 +785,27 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
     borderWidth: 1,
     borderColor: colors.line,
-    borderRadius: radius.xl,
+    borderRadius: 24,
     padding: spacing.base,
-    marginBottom: spacing.md,
+    marginBottom: 14,
+    gap: 14,
   },
-  cardTitle: {
-    fontSize: 13,
+  cardSectionLabel: {
+    fontSize: 11,
     fontWeight: '700',
     color: colors.ink2,
     textTransform: 'uppercase',
-    letterSpacing: 0.5,
-    marginBottom: spacing.base,
+    letterSpacing: 1,
+  },
+  cardTitleRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  cardSubVal: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: colors.ink2,
   },
 
   // Donut
@@ -769,9 +826,8 @@ const styles = StyleSheet.create({
   donutLegend: { flex: 1, gap: spacing.sm },
   legendRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   legendDot: { width: 8, height: 8, borderRadius: 4 },
-  legendLabel: { fontSize: 13, color: colors.ink2, fontWeight: '500' },
+  legendLabel: { fontSize: 12, color: colors.ink2, fontWeight: '500' },
   pctPill: {
-    marginTop: spacing.sm,
     alignSelf: 'flex-start',
     backgroundColor: colors.surface2,
     borderRadius: radius.full,
@@ -781,7 +837,29 @@ const styles = StyleSheet.create({
   pctText: { fontSize: 13, fontWeight: '700' },
   noBudgetHint: { fontSize: 12, color: colors.ink3, lineHeight: 18 },
 
-  // Daily area chart
+  // Category bars
+  catBarRow: { gap: 6 },
+  catBarTop: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  catBarIcon: {
+    width: 30,
+    height: 30,
+    borderRadius: 9,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexShrink: 0,
+  },
+  catBarName: { flex: 1, fontSize: 13, fontWeight: '600', color: colors.ink },
+  catBarAmt: { fontSize: 13, fontWeight: '700', color: colors.ink },
+  catBarTrack: {
+    height: 8,
+    backgroundColor: colors.line,
+    borderRadius: 99,
+    overflow: 'hidden',
+    marginLeft: 38,
+  },
+  catBarFill: { height: '100%', borderRadius: 99 },
+
+  // Daily chart
   axisLabel: { fontSize: 9, color: colors.ink3 },
   emptyHint: {
     fontSize: 13,
@@ -805,18 +883,10 @@ const styles = StyleSheet.create({
     paddingVertical: 5,
     alignItems: 'center',
   },
-  chartTooltipAmt: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: colors.accent,
-  },
-  chartTooltipDay: {
-    fontSize: 10,
-    color: colors.ink2,
-    fontWeight: '500',
-  },
+  chartTooltipAmt: { fontSize: 12, fontWeight: '700', color: colors.accent },
+  chartTooltipDay: { fontSize: 10, color: colors.ink2, fontWeight: '500' },
 
-  // Pie chart
+  // Pie
   pieContainer: {
     width: '100%',
     height: PIE_SVG_H,

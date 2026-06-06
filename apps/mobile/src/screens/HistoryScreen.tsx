@@ -10,9 +10,6 @@ import {
   Text,
   SectionList,
   ActivityIndicator,
-  Alert,
-  KeyboardAvoidingView,
-  Platform,
   TouchableOpacity,
   TextInput,
   Modal,
@@ -25,15 +22,11 @@ import { Swipeable } from 'react-native-gesture-handler';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useTransactionStore } from '../stores/transactionStore';
 import { useCategoryStore } from '../stores/categoryStore';
+import { useTransactionModalStore } from '../stores/transactionModalStore';
 import { colors, spacing, radius, shadow } from '../theme';
 import type { TTransaction } from '../types/transaction';
 import ConfirmDialog from '../components/ConfirmDialog';
 import EmptyState from '../components/EmptyState';
-import {
-  DESCRIPTION_MAX_LENGTH,
-  NOTE_MAX_LENGTH,
-  TRANSACTION_MAX_AMOUNT,
-} from '../constants/config';
 
 const ALL = 'all' as const;
 type TFilter = string | typeof ALL;
@@ -48,7 +41,7 @@ type TCategoryMeta = {
 
 type TDatePreset = 'this_month' | '30d' | '60d' | '90d';
 
-type TSection = { title: string; data: TTransaction[] };
+type TSection = { title: string; data: TTransaction[]; total: number };
 
 const DATE_PRESETS: {
   key: TDatePreset;
@@ -88,7 +81,10 @@ function daysAgoStr(n: number) {
   return d.toISOString().slice(0, 10);
 }
 
-function groupByDate(transactions: TTransaction[]): TSection[] {
+function groupByDate(
+  transactions: TTransaction[],
+  catMap: Map<string, TCategoryMeta>,
+): TSection[] {
   const todayStr = new Date().toDateString();
   const yesterdayStr = new Date(Date.now() - 86400000).toDateString();
   const groups = new Map<string, TTransaction[]>();
@@ -109,20 +105,24 @@ function groupByDate(transactions: TTransaction[]): TSection[] {
         month: 'long',
         year: 'numeric',
       });
-    return { title, data };
+
+    const total = data.reduce((s, t) => {
+      const m = catMap.get(t.category);
+      return m?.is_income ? s : s + t.amount;
+    }, 0);
+
+    return { title, data, total };
   });
 }
 
 function SwipeableRow({
   item,
   onDeleteRequest,
-  onEditRequest,
   categoryMap,
   isLast,
 }: {
   item: TTransaction;
   onDeleteRequest: (item: TTransaction) => void;
-  onEditRequest: (item: TTransaction) => void;
   categoryMap: Map<string, TCategoryMeta>;
   isLast: boolean;
 }) {
@@ -176,15 +176,12 @@ function SwipeableRow({
     >
       <TouchableOpacity
         style={[styles.txRow, !isLast && styles.txRowBorder]}
-        onPress={() => onEditRequest(item)}
+        onPress={() => useTransactionModalStore.getState().openEdit(item)}
         activeOpacity={0.7}
       >
-        {/* Circle icon */}
         <View style={[styles.txIconCircle, { backgroundColor: meta.bg }]}>
-          <Icon name={meta.icon} size={24} color={meta.color} />
+          <Icon name={meta.icon} size={22} color={meta.color} />
         </View>
-
-        {/* Info */}
         <View style={styles.txInfo}>
           <Text style={styles.txDesc} numberOfLines={1}>
             {item.description}
@@ -200,8 +197,6 @@ function SwipeableRow({
             </Text>
           ) : null}
         </View>
-
-        {/* Amount */}
         <Text
           style={[
             styles.txAmount,
@@ -223,7 +218,6 @@ export default function HistoryScreen() {
     loadingMore,
     fetch,
     fetchMore,
-    update,
     remove,
   } = useTransactionStore();
   const {
@@ -238,13 +232,6 @@ export default function HistoryScreen() {
   const [datePreset, setDatePreset] = useState<TDatePreset>('this_month');
   const [refreshing, setRefreshing] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<TTransaction | null>(null);
-  const [editTarget, setEditTarget] = useState<TTransaction | null>(null);
-  const [editAmount, setEditAmount] = useState('');
-  const [editDescription, setEditDescription] = useState('');
-  const [editNote, setEditNote] = useState('');
-  const [editCategory, setEditCategory] = useState('');
-  const [saving, setSaving] = useState(false);
-  const editAmountRef = useRef<TextInput>(null);
 
   const currentMonth = new Date().toISOString().slice(0, 7);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -266,7 +253,10 @@ export default function HistoryScreen() {
     [categories],
   );
 
-  const sections = useMemo(() => groupByDate(transactions), [transactions]);
+  const sections = useMemo(
+    () => groupByDate(transactions, categoryMap),
+    [transactions, categoryMap],
+  );
 
   const getDateParams = useCallback(() => {
     const today = new Date().toISOString().slice(0, 10);
@@ -341,86 +331,30 @@ export default function HistoryScreen() {
     [remove],
   );
 
-  const openEdit = useCallback((item: TTransaction) => {
-    setEditTarget(item);
-    setEditAmount(String(item.amount));
-    setEditDescription(item.description);
-    setEditNote(item.note ?? '');
-    setEditCategory(item.category);
-  }, []);
-
-  const closeEdit = useCallback(() => {
-    setEditTarget(null);
-    setEditAmount('');
-    setEditDescription('');
-    setEditNote('');
-    setEditCategory('');
-  }, []);
-
-  const handleUpdate = useCallback(async () => {
-    if (!editTarget) return;
-    const parsed = parseFloat(editAmount);
-    if (!editAmount || isNaN(parsed) || parsed <= 0) {
-      Alert.alert('Invalid amount', 'Enter a valid amount greater than 0');
-      return;
-    }
-    if (parsed > TRANSACTION_MAX_AMOUNT) {
-      Alert.alert(
-        'Amount too large',
-        `Maximum allowed amount is ₹${TRANSACTION_MAX_AMOUNT.toLocaleString('en-IN')}`,
-      );
-      return;
-    }
-    if (!editDescription.trim()) {
-      Alert.alert('Missing description', 'Please add a description');
-      return;
-    }
-    setSaving(true);
-    try {
-      await update(editTarget._id, {
-        amount: parsed,
-        description: editDescription.trim(),
-        note: editNote.trim() || undefined,
-        category: editCategory,
-      });
-      closeEdit();
-    } catch {
-      Alert.alert('Error', 'Failed to update transaction. Try again.');
-    } finally {
-      setSaving(false);
-    }
-  }, [
-    editTarget,
-    editAmount,
-    editDescription,
-    editNote,
-    editCategory,
-    update,
-    closeEdit,
-  ]);
-
   const activeFilterMeta =
     filter !== ALL ? (categoryMap.get(filter) ?? null) : null;
   const dateActive = datePreset !== 'this_month';
   const dateBtnLabel =
     datePreset === 'this_month'
-      ? 'Month'
+      ? new Date().toLocaleDateString('en-IN', {
+          month: 'short',
+          year: 'numeric',
+        })
       : datePreset === '30d'
-        ? '30d'
+        ? '30 days'
         : datePreset === '60d'
-          ? '60d'
-          : '90d';
+          ? '60 days'
+          : '90 days';
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor={colors.surface} />
+      <StatusBar barStyle="dark-content" backgroundColor={colors.canvas} />
 
       {/* Header */}
       <View style={styles.header}>
         <Text style={styles.title}>History</Text>
-        <View style={styles.headerDateBadge}>
-          <Icon name="calendar-month-outline" size={13} color={colors.accent} />
-          <Text style={styles.headerDateText}>
+        <View style={styles.monthPill}>
+          <Text style={styles.monthPillText}>
             {new Date().toLocaleDateString('en-IN', {
               month: 'short',
               year: 'numeric',
@@ -429,8 +363,8 @@ export default function HistoryScreen() {
         </View>
       </View>
 
-      {/* Search + Date + Filter toolbar */}
-      <View style={styles.toolbar}>
+      {/* Search bar */}
+      <View style={styles.searchRow}>
         <View style={styles.searchWrap}>
           <Icon name="magnify" size={15} color={colors.ink3} />
           <TextInput
@@ -446,12 +380,14 @@ export default function HistoryScreen() {
             </TouchableOpacity>
           )}
         </View>
+      </View>
 
-        {/* Date preset button */}
+      {/* Filter chips row */}
+      <View style={styles.chipRow}>
         <TouchableOpacity
           onPress={() => setDateSheetOpen(true)}
           style={[
-            styles.filterBtn,
+            styles.filterChip,
             dateActive && {
               backgroundColor: colors.accentSoft,
               borderColor: colors.accent,
@@ -460,12 +396,12 @@ export default function HistoryScreen() {
         >
           <Icon
             name="calendar-range"
-            size={14}
+            size={13}
             color={dateActive ? colors.accent : colors.ink2}
           />
           <Text
             style={[
-              styles.filterBtnText,
+              styles.filterChipText,
               dateActive && { color: colors.accent },
             ]}
           >
@@ -476,16 +412,15 @@ export default function HistoryScreen() {
               onPress={() => handlePresetSelect('this_month')}
               hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
             >
-              <Icon name="close" size={13} color={colors.accent} />
+              <Icon name="close" size={12} color={colors.accent} />
             </TouchableOpacity>
           )}
         </TouchableOpacity>
 
-        {/* Category filter button */}
         <TouchableOpacity
           onPress={() => setFilterOpen(true)}
           style={[
-            styles.filterBtn,
+            styles.filterChip,
             filter !== ALL && {
               backgroundColor: activeFilterMeta!.bg,
               borderColor: activeFilterMeta!.color,
@@ -494,12 +429,12 @@ export default function HistoryScreen() {
         >
           <Icon
             name={filter !== ALL ? activeFilterMeta!.icon : 'tune-variant'}
-            size={14}
+            size={13}
             color={filter !== ALL ? activeFilterMeta!.color : colors.ink2}
           />
           <Text
             style={[
-              styles.filterBtnText,
+              styles.filterChipText,
               filter !== ALL && { color: activeFilterMeta!.color },
             ]}
           >
@@ -510,7 +445,7 @@ export default function HistoryScreen() {
               onPress={() => handleFilterSelect(ALL)}
               hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
             >
-              <Icon name="close" size={13} color={activeFilterMeta!.color} />
+              <Icon name="close" size={12} color={activeFilterMeta!.color} />
             </TouchableOpacity>
           )}
         </TouchableOpacity>
@@ -544,16 +479,28 @@ export default function HistoryScreen() {
           renderSectionHeader={({ section }) => (
             <View style={styles.sectionHeader}>
               <Text style={styles.sectionTitle}>{section.title}</Text>
+              {section.total > 0 && (
+                <Text style={styles.sectionTotal}>
+                  −₹{section.total.toLocaleString('en-IN')}
+                </Text>
+              )}
             </View>
           )}
           renderItem={({ item, index, section }) => (
-            <SwipeableRow
-              item={item}
-              onDeleteRequest={setDeleteTarget}
-              onEditRequest={openEdit}
-              categoryMap={categoryMap}
-              isLast={index === section.data.length - 1}
-            />
+            <View
+              style={[
+                styles.sectionCard,
+                index === 0 && styles.sectionCardFirst,
+                index === section.data.length - 1 && styles.sectionCardLast,
+              ]}
+            >
+              <SwipeableRow
+                item={item}
+                onDeleteRequest={setDeleteTarget}
+                categoryMap={categoryMap}
+                isLast={index === section.data.length - 1}
+              />
+            </View>
           )}
           SectionSeparatorComponent={() => <View style={styles.sectionGap} />}
           contentContainerStyle={styles.listContent}
@@ -579,138 +526,6 @@ export default function HistoryScreen() {
           setDeleteTarget(null);
         }}
       />
-
-      {/* Edit transaction modal */}
-      <Modal
-        visible={editTarget !== null}
-        transparent
-        animationType="fade"
-        onRequestClose={closeEdit}
-        onShow={() => setTimeout(() => editAmountRef.current?.focus(), 150)}
-      >
-        <KeyboardAvoidingView
-          style={{ flex: 1 }}
-          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        >
-          <TouchableOpacity
-            style={styles.editOverlay}
-            activeOpacity={1}
-            onPress={closeEdit}
-          >
-            <TouchableOpacity
-              activeOpacity={1}
-              style={styles.editDialog}
-              onPress={() => {}}
-            >
-              <View style={styles.editHeader}>
-                <Text style={styles.editTitle}>Edit Expense</Text>
-                <TouchableOpacity onPress={closeEdit}>
-                  <Icon name="close" size={20} color={colors.ink2} />
-                </TouchableOpacity>
-              </View>
-
-              <View style={styles.editAmountRow}>
-                <Text style={styles.editCurrency}>₹</Text>
-                <TextInput
-                  ref={editAmountRef}
-                  value={editAmount}
-                  onChangeText={setEditAmount}
-                  keyboardType="numeric"
-                  placeholder="0"
-                  placeholderTextColor={colors.line}
-                  style={styles.editAmountInput}
-                />
-              </View>
-
-              <TextInput
-                value={editDescription}
-                onChangeText={setEditDescription}
-                placeholder="Description"
-                placeholderTextColor={colors.ink3}
-                style={styles.editTextInput}
-                returnKeyType="next"
-                maxLength={DESCRIPTION_MAX_LENGTH}
-              />
-
-              <TextInput
-                value={editNote}
-                onChangeText={setEditNote}
-                placeholder="Add a note (optional)"
-                placeholderTextColor={colors.ink3}
-                style={styles.editTextInput}
-                returnKeyType="done"
-                maxLength={NOTE_MAX_LENGTH}
-              />
-
-              <View style={styles.editCategoryGrid}>
-                {categories
-                  .filter(c => !c.is_income)
-                  .map(cat => {
-                    const selected = editCategory === cat.key;
-                    return (
-                      <TouchableOpacity
-                        key={cat.key}
-                        onPress={() => setEditCategory(cat.key)}
-                        style={[
-                          styles.editCatChip,
-                          selected && {
-                            backgroundColor: cat.bg,
-                            borderColor: cat.color,
-                          },
-                        ]}
-                        activeOpacity={0.75}
-                      >
-                        <View
-                          style={[
-                            styles.editCatIcon,
-                            {
-                              backgroundColor: selected
-                                ? cat.color
-                                : colors.surface2,
-                            },
-                          ]}
-                        >
-                          <Icon
-                            name={cat.icon}
-                            size={13}
-                            color={selected ? '#FFF' : cat.color}
-                          />
-                        </View>
-                        <Text
-                          style={[
-                            styles.editCatLabel,
-                            { color: selected ? cat.color : colors.ink2 },
-                          ]}
-                        >
-                          {cat.name}
-                        </Text>
-                      </TouchableOpacity>
-                    );
-                  })}
-              </View>
-
-              <TouchableOpacity
-                onPress={handleUpdate}
-                disabled={saving || !editCategory}
-                style={[
-                  styles.editSubmitBtn,
-                  (!editCategory || saving) && { opacity: 0.5 },
-                ]}
-                activeOpacity={0.85}
-              >
-                {saving ? (
-                  <ActivityIndicator color="#FFF" />
-                ) : (
-                  <>
-                    <Icon name="check" size={17} color="#FFF" />
-                    <Text style={styles.editSubmitText}>Save Changes</Text>
-                  </>
-                )}
-              </TouchableOpacity>
-            </TouchableOpacity>
-          </TouchableOpacity>
-        </KeyboardAvoidingView>
-      </Modal>
 
       {/* Date preset bottom sheet */}
       <Modal
@@ -877,11 +692,11 @@ export default function HistoryScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.surface },
+  container: { flex: 1, backgroundColor: colors.canvas },
 
   header: {
-    backgroundColor: colors.surface,
-    paddingHorizontal: spacing.lg,
+    backgroundColor: colors.canvas,
+    paddingHorizontal: 22,
     paddingTop: 56,
     paddingBottom: spacing.md,
     flexDirection: 'row',
@@ -889,44 +704,45 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   title: {
-    fontSize: 26,
+    fontSize: 30,
     fontWeight: '800',
     color: colors.ink,
-    letterSpacing: -0.5,
+    letterSpacing: -0.03 * 30,
   },
-  headerDateBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
+  monthPill: {
     backgroundColor: colors.accentSoft,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: radius.full,
+    borderRadius: 99,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
   },
-  headerDateText: { fontSize: 12, fontWeight: '600', color: colors.accent },
+  monthPillText: { fontSize: 13, fontWeight: '700', color: colors.accent },
 
-  toolbar: {
+  searchRow: {
+    paddingHorizontal: spacing.base,
+    paddingBottom: spacing.sm,
+    backgroundColor: colors.canvas,
+  },
+  searchWrap: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.sm,
     backgroundColor: colors.surface,
-    paddingHorizontal: spacing.base,
-    paddingBottom: spacing.md,
-  },
-  searchWrap: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-    backgroundColor: colors.surface2,
     borderRadius: radius.md,
     paddingHorizontal: spacing.md,
-    paddingVertical: 8,
+    paddingVertical: 10,
     borderWidth: 1,
     borderColor: colors.line,
   },
   searchInput: { flex: 1, fontSize: 13, color: colors.ink, padding: 0 },
-  filterBtn: {
+
+  chipRow: {
+    flexDirection: 'row',
+    gap: 9,
+    paddingHorizontal: spacing.base,
+    paddingBottom: spacing.md,
+    backgroundColor: colors.canvas,
+  },
+  filterChip: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 5,
@@ -937,15 +753,17 @@ const styles = StyleSheet.create({
     borderColor: colors.line,
     backgroundColor: colors.surface,
   },
-  filterBtnText: { fontSize: 13, fontWeight: '600', color: colors.ink2 },
+  filterChipText: { fontSize: 13, fontWeight: '600', color: colors.ink2 },
 
-  listContent: { paddingBottom: 100 },
+  listContent: { paddingBottom: 100, paddingTop: 4 },
 
   sectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     paddingHorizontal: spacing.base,
     paddingTop: spacing.base,
     paddingBottom: spacing.sm,
-    backgroundColor: colors.surface,
   },
   sectionTitle: {
     fontSize: 12,
@@ -954,7 +772,31 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
+  sectionTotal: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: colors.expense,
+  },
   sectionGap: { height: 4 },
+
+  sectionCard: {
+    marginHorizontal: 14,
+    backgroundColor: colors.surface,
+    borderLeftWidth: 1,
+    borderRightWidth: 1,
+    borderColor: colors.line,
+    overflow: 'hidden',
+  },
+  sectionCardFirst: {
+    borderTopWidth: 1,
+    borderTopLeftRadius: 18,
+    borderTopRightRadius: 18,
+  },
+  sectionCardLast: {
+    borderBottomWidth: 1,
+    borderBottomLeftRadius: 18,
+    borderBottomRightRadius: 18,
+  },
 
   txRow: {
     flexDirection: 'row',
@@ -970,8 +812,8 @@ const styles = StyleSheet.create({
   },
 
   txIconCircle: {
-    width: 46,
-    height: 46,
+    width: 44,
+    height: 44,
     borderRadius: radius.full,
     alignItems: 'center',
     justifyContent: 'center',
@@ -980,19 +822,20 @@ const styles = StyleSheet.create({
 
   txInfo: { flex: 1 },
   txDesc: {
-    fontSize: 17,
+    fontSize: 16,
     fontWeight: '600',
     color: colors.ink,
     marginBottom: 2,
   },
-  txMeta: { fontSize: 12, color: colors.ink2 },
+  txMeta: { fontSize: 12.5, color: colors.ink2 },
   txNote: { fontSize: 11, color: colors.ink3, marginTop: 1 },
 
   txAmount: {
-    fontSize: 15,
+    fontSize: 16,
     fontWeight: '700',
     letterSpacing: -0.3,
     paddingTop: 2,
+    color: colors.ink,
   },
 
   deleteAction: {
@@ -1003,83 +846,6 @@ const styles = StyleSheet.create({
   },
 
   footerSpinner: { paddingVertical: spacing.xl },
-
-  editOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: spacing.base,
-  },
-  editDialog: {
-    backgroundColor: colors.surface,
-    borderRadius: radius.xl,
-    padding: spacing.lg,
-    gap: spacing.md,
-    width: '100%',
-  },
-  editHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  editTitle: { fontSize: 18, fontWeight: '800', color: colors.ink },
-  editAmountRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.surface2,
-    borderRadius: radius.lg,
-    paddingHorizontal: spacing.base,
-    paddingVertical: spacing.sm,
-    gap: 6,
-  },
-  editCurrency: { fontSize: 28, fontWeight: '700', color: colors.expense },
-  editAmountInput: {
-    flex: 1,
-    fontSize: 36,
-    fontWeight: '800',
-    color: colors.expense,
-    padding: 0,
-  },
-  editTextInput: {
-    backgroundColor: colors.surface2,
-    borderRadius: radius.lg,
-    paddingHorizontal: spacing.base,
-    paddingVertical: 12,
-    fontSize: 14,
-    color: colors.ink,
-  },
-  editCategoryGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
-  editCatChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: radius.lg,
-    borderWidth: 1.5,
-    borderColor: colors.line,
-    backgroundColor: colors.surface,
-  },
-  editCatIcon: {
-    width: 22,
-    height: 22,
-    borderRadius: radius.sm,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  editCatLabel: { fontSize: 12, fontWeight: '600' },
-  editSubmitBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: spacing.sm,
-    backgroundColor: colors.expense,
-    borderRadius: radius.lg,
-    paddingVertical: 14,
-    marginTop: spacing.xs,
-  },
-  editSubmitText: { color: '#FFF', fontSize: 15, fontWeight: '700' },
 
   overlay: {
     flex: 1,

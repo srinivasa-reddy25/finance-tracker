@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -19,7 +19,7 @@ import { useAuthStore } from '../stores/authStore';
 import { useCategoryStore } from '../stores/categoryStore';
 import { useTransactionStore } from '../stores/transactionStore';
 import { signOut } from '../services/firebase';
-import { colors, radius, spacing } from '../theme';
+import { colors, radius, shadow, spacing } from '../theme';
 
 export default function ProfileScreen() {
   const navigation =
@@ -35,15 +35,21 @@ export default function ProfileScreen() {
   const firstName = user?.displayName?.split(' ')[0] ?? 'User';
   const fullName = user?.displayName ?? 'User';
   const email = user?.email ?? '';
-
-  const joinedDate = user?.metadata?.creationTime
-    ? new Date(user.metadata.creationTime).toLocaleDateString('en-IN', {
-        month: 'short',
-        year: 'numeric',
-      })
-    : '—';
+  const avatarLetter = fullName[0]?.toUpperCase() ?? 'U';
 
   const totalTx = pagination?.total ?? transactions.length;
+  const catCount = categories.length;
+
+  const thisMonthSpent = useMemo(() => {
+    const currentMonth = new Date().toISOString().slice(0, 7);
+    const catMap = new Map(categories.map(c => [c.key, c]));
+    return transactions
+      .filter(t => {
+        const month = t.date.slice(0, 7);
+        return month === currentMonth && !catMap.get(t.category)?.is_income;
+      })
+      .reduce((s, t) => s + t.amount, 0);
+  }, [transactions, categories]);
 
   const handleSignOut = () => {
     Alert.alert('Sign out', 'Are you sure you want to sign out?', [
@@ -51,8 +57,6 @@ export default function ProfileScreen() {
       { text: 'Sign out', style: 'destructive', onPress: signOut },
     ]);
   };
-
-  const catCount = categories.length;
 
   const [exportOpen, setExportOpen] = useState(false);
   const [exportFormat, setExportFormat] = useState<'csv' | 'pdf'>('csv');
@@ -94,7 +98,7 @@ export default function ProfileScreen() {
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor={colors.surface} />
+      <StatusBar barStyle="dark-content" backgroundColor={colors.canvas} />
 
       <ScrollView
         showsVerticalScrollIndicator={false}
@@ -105,122 +109,110 @@ export default function ProfileScreen() {
           <Text style={styles.pageTitle}>Profile</Text>
         </View>
 
-        {/* Hero block */}
+        {/* Profile hero */}
         <View style={styles.hero}>
           <View style={styles.avatarRing}>
             <View style={styles.avatar}>
-              <Text style={styles.avatarText}>
-                {firstName[0]!.toUpperCase()}
-              </Text>
+              <Text style={styles.avatarText}>{avatarLetter}</Text>
             </View>
           </View>
           <Text style={styles.heroName}>{fullName}</Text>
           <Text style={styles.heroEmail}>{email}</Text>
         </View>
 
-        {/* Stats strip */}
-        <View style={styles.statsCard}>
-          <View style={styles.stat}>
-            <Text style={styles.statVal}>{joinedDate}</Text>
-            <Text style={styles.statLabel}>Member since</Text>
+        {/* Stats trio */}
+        <View style={styles.statsTrio}>
+          <View style={styles.statCard}>
+            <Text style={styles.statValue}>{totalTx}</Text>
+            <Text style={styles.statKey}>Transactions</Text>
           </View>
-          <View style={styles.statDivider} />
-          <View style={styles.stat}>
-            <Text style={styles.statVal}>{totalTx}</Text>
-            <Text style={styles.statLabel}>Transactions</Text>
+          <View style={styles.statCard}>
+            <Text style={styles.statValue}>{catCount}</Text>
+            <Text style={styles.statKey}>Categories</Text>
           </View>
-        </View>
-
-        {/* Account section */}
-        <View style={styles.section}>
-          <Text style={styles.sectionLabel}>Account</Text>
-          <View style={styles.card}>
-            <View style={styles.row}>
-              <View style={styles.rowIconWrap}>
-                <Icon name="account-outline" size={17} color={colors.accent} />
-              </View>
-              <View style={styles.rowContent}>
-                <Text style={styles.rowLabel}>Full name</Text>
-                <Text style={styles.rowValue}>{fullName}</Text>
-              </View>
-            </View>
-
-            <View style={styles.divider} />
-
-            <View style={styles.row}>
-              <View style={styles.rowIconWrap}>
-                <Icon name="email-outline" size={17} color={colors.accent} />
-              </View>
-              <View style={styles.rowContent}>
-                <Text style={styles.rowLabel}>Email address</Text>
-                <Text style={styles.rowValue}>{email}</Text>
-              </View>
-            </View>
+          <View style={styles.statCard}>
+            <Text style={styles.statValue}>
+              ₹{(thisMonthSpent / 1000).toFixed(1)}k
+            </Text>
+            <Text style={styles.statKey}>This month</Text>
           </View>
         </View>
 
-        {/* Customization section */}
+        {/* MANAGE section */}
         <View style={styles.section}>
-          <Text style={styles.sectionLabel}>Customization</Text>
+          <Text style={styles.sectionLabel}>MANAGE</Text>
           <View style={styles.card}>
             <TouchableOpacity
-              style={styles.row}
+              style={styles.lrow}
               onPress={() => navigation.navigate('Categories')}
               activeOpacity={0.7}
             >
-              <View style={styles.rowIconWrap}>
+              <View
+                style={[
+                  styles.lrowIcon,
+                  { backgroundColor: colors.accentSoft },
+                ]}
+              >
                 <Icon
                   name="tag-multiple-outline"
                   size={17}
                   color={colors.accent}
                 />
               </View>
-              <View style={styles.rowContent}>
-                <Text style={styles.rowLabel}>Categories</Text>
-                <Text style={styles.rowValue}>
+              <View style={styles.lrowContent}>
+                <Text style={styles.lrowLabel}>Categories</Text>
+                <Text style={styles.lrowValue}>
                   {catCount > 0
                     ? `${catCount} ${catCount === 1 ? 'category' : 'categories'}`
-                    : 'Manage your spending categories'}
+                    : 'Manage spending categories'}
                 </Text>
               </View>
               <Icon name="chevron-right" size={18} color={colors.ink3} />
             </TouchableOpacity>
+
             <View style={styles.divider} />
+
             <TouchableOpacity
-              style={styles.row}
+              style={styles.lrow}
               onPress={() => navigation.navigate('Recurring')}
               activeOpacity={0.7}
             >
-              <View style={styles.rowIconWrap}>
+              <View
+                style={[
+                  styles.lrowIcon,
+                  { backgroundColor: colors.accentSoft },
+                ]}
+              >
                 <Icon name="repeat" size={17} color={colors.accent} />
               </View>
-              <View style={styles.rowContent}>
-                <Text style={styles.rowLabel}>Recurring</Text>
-                <Text style={styles.rowValue}>
+              <View style={styles.lrowContent}>
+                <Text style={styles.lrowLabel}>Recurring</Text>
+                <Text style={styles.lrowValue}>
                   Auto-transactions on a schedule
                 </Text>
               </View>
               <Icon name="chevron-right" size={18} color={colors.ink3} />
             </TouchableOpacity>
-          </View>
-        </View>
 
-        {/* Data section */}
-        <View style={styles.section}>
-          <Text style={styles.sectionLabel}>Data</Text>
-          <View style={styles.card}>
+            <View style={styles.divider} />
+
             <TouchableOpacity
-              style={styles.row}
+              style={styles.lrow}
               onPress={() => setExportOpen(true)}
               activeOpacity={0.7}
             >
-              <View style={styles.rowIconWrap}>
+              <View
+                style={[
+                  styles.lrowIcon,
+                  { backgroundColor: colors.accentSoft },
+                ]}
+              >
                 <Icon name="download-outline" size={17} color={colors.accent} />
               </View>
-              <View style={styles.rowContent}>
-                <Text style={styles.rowLabel}>Export to email</Text>
-                <Text style={styles.rowValue}>
-                  Get your transactions as CSV or PDF
+              <View style={styles.lrowContent}>
+                <Text style={styles.lrowLabel}>Export to email</Text>
+                <Text style={styles.lrowValue}>
+                  Get transactions as CSV or PDF
                 </Text>
               </View>
               <Icon name="chevron-right" size={18} color={colors.ink3} />
@@ -228,33 +220,37 @@ export default function ProfileScreen() {
           </View>
         </View>
 
-        {/* Preferences section */}
+        {/* PREFERENCES section */}
         <View style={styles.section}>
-          <Text style={styles.sectionLabel}>Preferences</Text>
+          <Text style={styles.sectionLabel}>PREFERENCES</Text>
           <View style={styles.card}>
-            <View style={styles.row}>
-              <View style={styles.rowIconWrap}>
-                <Icon name="currency-inr" size={17} color={colors.accent} />
+            <View style={styles.lrow}>
+              <View
+                style={[styles.lrowIcon, { backgroundColor: colors.surface2 }]}
+              >
+                <Icon name="currency-inr" size={17} color={colors.ink2} />
               </View>
-              <View style={styles.rowContent}>
-                <Text style={styles.rowLabel}>Currency</Text>
-                <Text style={styles.rowValue}>Indian Rupee (₹ INR)</Text>
+              <View style={styles.lrowContent}>
+                <Text style={styles.lrowLabel}>Currency</Text>
+                <Text style={styles.lrowValue}>Indian Rupee (₹ INR)</Text>
               </View>
             </View>
 
             <View style={styles.divider} />
 
-            <View style={styles.row}>
-              <View style={styles.rowIconWrap}>
+            <View style={styles.lrow}>
+              <View
+                style={[styles.lrowIcon, { backgroundColor: colors.surface2 }]}
+              >
                 <Icon
                   name="information-outline"
                   size={17}
-                  color={colors.accent}
+                  color={colors.ink2}
                 />
               </View>
-              <View style={styles.rowContent}>
-                <Text style={styles.rowLabel}>App version</Text>
-                <Text style={styles.rowValue}>1.0.0</Text>
+              <View style={styles.lrowContent}>
+                <Text style={styles.lrowLabel}>App version</Text>
+                <Text style={styles.lrowValue}>1.0.0</Text>
               </View>
             </View>
           </View>
@@ -269,6 +265,8 @@ export default function ProfileScreen() {
           <Icon name="logout" size={16} color={colors.expense} />
           <Text style={styles.signOutText}>Sign out</Text>
         </TouchableOpacity>
+
+        <Text style={styles.versionFooter}>Finance Tracker v1.0.0</Text>
       </ScrollView>
 
       {/* Export modal */}
@@ -289,7 +287,7 @@ export default function ProfileScreen() {
             onPress={() => {}}
           >
             <View style={styles.dialogHeader}>
-              <Text style={styles.sheetTitle}>Export transactions</Text>
+              <Text style={styles.dialogTitle}>Export transactions</Text>
               <TouchableOpacity
                 onPress={() => !exporting && setExportOpen(false)}
                 hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
@@ -298,14 +296,14 @@ export default function ProfileScreen() {
               </TouchableOpacity>
             </View>
 
-            <Text style={styles.sheetSub}>
+            <Text style={styles.exportSub}>
               We'll email the file to{'\n'}
               <Text style={{ color: colors.ink, fontWeight: '600' }}>
                 {email}
               </Text>
             </Text>
 
-            <Text style={styles.sheetLabel}>Format</Text>
+            <Text style={styles.exportLabel}>Format</Text>
             <View style={styles.chipRow}>
               {(['csv', 'pdf'] as const).map(f => (
                 <TouchableOpacity
@@ -325,7 +323,7 @@ export default function ProfileScreen() {
               ))}
             </View>
 
-            <Text style={styles.sheetLabel}>Date range</Text>
+            <Text style={styles.exportLabel}>Date range</Text>
             <View style={styles.chipRow}>
               {range_options.map(o => (
                 <TouchableOpacity
@@ -370,7 +368,7 @@ export default function ProfileScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.surface },
+  container: { flex: 1, backgroundColor: colors.canvas },
   scroll: { paddingBottom: 120 },
 
   pageHeader: {
@@ -379,86 +377,77 @@ const styles = StyleSheet.create({
     paddingBottom: spacing.md,
   },
   pageTitle: {
-    fontSize: 26,
+    fontSize: 30,
     fontWeight: '800',
     color: colors.ink,
     letterSpacing: -0.5,
   },
 
+  // Profile hero
   hero: {
     alignItems: 'center',
     paddingTop: spacing.lg,
     paddingBottom: spacing.xl,
-    marginHorizontal: spacing.base,
-    borderWidth: 1,
-    borderColor: colors.line,
-    borderRadius: radius.lg,
-    backgroundColor: colors.surface,
   },
   avatarRing: {
     width: 88,
     height: 88,
     borderRadius: radius.full,
-    borderWidth: 3,
-    borderColor: colors.line,
+    backgroundColor: colors.accentSoft,
+    padding: 3,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: spacing.md,
   },
   avatar: {
-    width: 78,
-    height: 78,
+    width: 82,
+    height: 82,
     borderRadius: radius.full,
-    backgroundColor: colors.accent,
+    backgroundColor: colors.ink,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  avatarText: {
-    color: '#FFFFFF',
-    fontSize: 30,
-    fontWeight: '800',
-    letterSpacing: -0.5,
-  },
+  avatarText: { color: colors.canvas, fontSize: 32, fontWeight: '800' },
   heroName: {
-    fontSize: 18,
-    fontWeight: '700',
+    fontSize: 22,
+    fontWeight: '800',
     color: colors.ink,
-    letterSpacing: -0.3,
-    marginBottom: 4,
+    marginTop: 14,
+    marginBottom: 2,
   },
-  heroEmail: { fontSize: 13, color: colors.ink2 },
+  heroEmail: { fontSize: 13, color: colors.ink2, marginTop: 2 },
 
-  statsCard: {
+  // Stats trio
+  statsTrio: {
     flexDirection: 'row',
-    marginHorizontal: spacing.base,
-    marginTop: spacing.md,
+    paddingHorizontal: 18,
+    gap: 10,
+    marginBottom: spacing.lg,
+  },
+  statCard: {
+    flex: 1,
+    backgroundColor: colors.surface,
     borderWidth: 1,
     borderColor: colors.line,
-    borderRadius: radius.lg,
-    overflow: 'hidden',
-    backgroundColor: colors.surface,
+    borderRadius: 18,
+    padding: 14,
+    alignItems: 'center',
   },
-  stat: { flex: 1, alignItems: 'center', paddingVertical: spacing.base },
-  statVal: {
-    fontSize: 17,
-    fontWeight: '700',
+  statValue: {
+    fontSize: 22,
+    fontWeight: '800',
     color: colors.ink,
-    marginBottom: 3,
   },
-  statLabel: {
+  statKey: {
     fontSize: 11,
-    fontWeight: '600',
     color: colors.ink2,
-    textTransform: 'uppercase',
-    letterSpacing: 0.4,
-  },
-  statDivider: {
-    width: 1,
-    backgroundColor: colors.line,
-    marginVertical: spacing.md,
+    fontWeight: '600',
+    marginTop: 2,
+    textAlign: 'center',
   },
 
-  section: { marginTop: spacing.xl, marginHorizontal: spacing.base },
+  // Sections
+  section: { marginBottom: 18, paddingHorizontal: 18 },
   sectionLabel: {
     fontSize: 11,
     fontWeight: '700',
@@ -475,39 +464,38 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     backgroundColor: colors.surface,
   },
-  row: {
+  lrow: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: spacing.base,
-    paddingVertical: 14,
+    paddingVertical: 15,
     gap: spacing.md,
   },
-  rowIconWrap: {
-    width: 32,
-    height: 32,
-    borderRadius: radius.sm,
-    backgroundColor: colors.accentSoft,
+  lrowIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
     alignItems: 'center',
     justifyContent: 'center',
+    flexShrink: 0,
   },
-  rowContent: { flex: 1 },
-  rowLabel: {
-    fontSize: 11,
-    color: colors.ink2,
+  lrowContent: { flex: 1 },
+  lrowLabel: {
+    fontSize: 14,
     fontWeight: '600',
-    textTransform: 'uppercase',
-    letterSpacing: 0.3,
+    color: colors.ink,
     marginBottom: 2,
   },
-  rowValue: { fontSize: 14, color: colors.ink, fontWeight: '500' },
+  lrowValue: { fontSize: 12, color: colors.ink2, fontWeight: '400' },
   divider: { height: 1, backgroundColor: colors.line },
 
+  // Sign out
   signOutBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: spacing.sm,
-    marginHorizontal: spacing.base,
+    marginHorizontal: 18,
     marginTop: spacing.xl,
     paddingVertical: 14,
     borderRadius: radius.lg,
@@ -516,6 +504,14 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
   },
   signOutText: { fontSize: 14, fontWeight: '700', color: colors.expense },
+
+  versionFooter: {
+    fontSize: 11,
+    color: colors.ink3,
+    textAlign: 'center',
+    marginTop: spacing.xl,
+  },
+
   // Export modal
   modalOverlay: {
     flex: 1,
@@ -536,23 +532,20 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
   },
-  sheetTitle: {
+  dialogTitle: {
     fontSize: 18,
     fontWeight: '700',
     color: colors.ink,
-    marginBottom: 6,
   },
-  sheetSub: {
+  exportSub: {
     fontSize: 13,
     color: colors.ink2,
-    marginBottom: spacing.lg,
     lineHeight: 18,
   },
-  sheetLabel: {
+  exportLabel: {
     fontSize: 12,
     fontWeight: '600',
     color: colors.ink2,
-    marginBottom: spacing.sm,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
@@ -560,7 +553,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: spacing.xs,
-    marginBottom: spacing.lg,
   },
   chip: {
     paddingHorizontal: spacing.md,

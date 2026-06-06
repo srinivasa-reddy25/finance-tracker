@@ -31,32 +31,39 @@ export default function LoginScreen() {
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor={colors.surface} />
+      <StatusBar barStyle="dark-content" backgroundColor={colors.canvas} />
 
-      <View style={styles.logoArea}>
-        <View style={styles.logoIcon}>
-          <Icon name="chart-line" size={32} color={colors.accent} />
+      {/* Top hero section */}
+      <View style={styles.topSection}>
+        {/* Logo block */}
+        <View style={styles.logoBlock}>
+          <Text style={styles.logoText}>₹</Text>
         </View>
         <Text style={styles.appName}>Finance Tracker</Text>
         <Text style={styles.tagline}>Know where every rupee goes</Text>
-      </View>
 
-      <View style={styles.features}>
-        {[
-          { icon: 'lightning-bolt', label: 'Track in seconds' },
-          { icon: 'shield-check-outline', label: 'Secure & private' },
-          { icon: 'chart-bar', label: 'Clear insights' },
-        ].map(f => (
-          <View key={f.icon} style={styles.featureRow}>
-            <View style={styles.featureDot}>
-              <Icon name={f.icon} size={14} color={colors.accent} />
+        {/* Feature list */}
+        <View style={styles.featureList}>
+          {[
+            { icon: 'lightning-bolt', text: 'Track an expense in seconds' },
+            { icon: 'chart-pie', text: 'See exactly where money goes' },
+            {
+              icon: 'shield-check-outline',
+              text: 'Private & secure by default',
+            },
+          ].map(f => (
+            <View key={f.icon} style={styles.featureRow}>
+              <View style={styles.featureIconBubble}>
+                <Icon name={f.icon} size={18} color={colors.accent} />
+              </View>
+              <Text style={styles.featureText}>{f.text}</Text>
             </View>
-            <Text style={styles.featureText}>{f.label}</Text>
-          </View>
-        ))}
+          ))}
+        </View>
       </View>
 
-      <View style={styles.bottom}>
+      {/* Bottom section */}
+      <View style={styles.bottomSection}>
         <TouchableOpacity
           onPress={handleGoogleSignIn}
           disabled={loading}
@@ -73,7 +80,7 @@ export default function LoginScreen() {
           )}
         </TouchableOpacity>
         <Text style={styles.terms}>
-          By continuing you agree to our Terms of Service
+          By continuing you agree to our Terms &amp; Privacy Policy
         </Text>
       </View>
     </View>
@@ -83,26 +90,31 @@ export default function LoginScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.surface,
-    paddingHorizontal: spacing.lg,
+    backgroundColor: colors.canvas,
+    paddingHorizontal: 26,
   },
-  logoArea: {
+
+  topSection: {
     flex: 1,
     alignItems: 'center',
-    justifyContent: 'center',
     paddingTop: 60,
   },
-  logoIcon: {
-    width: 72,
-    height: 72,
-    borderRadius: radius.xl,
-    backgroundColor: colors.accentSoft,
+  logoBlock: {
+    width: 84,
+    height: 84,
+    borderRadius: 24,
+    backgroundColor: colors.ink,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: spacing.lg,
   },
+  logoText: {
+    color: colors.canvas,
+    fontSize: 38,
+    fontWeight: '800',
+  },
   appName: {
-    fontSize: 28,
+    fontSize: 32,
     fontWeight: '800',
     color: colors.ink,
     letterSpacing: -0.5,
@@ -112,32 +124,38 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: colors.ink2,
     textAlign: 'center',
+    marginBottom: spacing.xl,
   },
-  features: {
-    paddingBottom: spacing.xxl,
-    gap: spacing.md,
+
+  featureList: {
+    width: '100%',
+    gap: 16,
+    paddingTop: 8,
+    paddingBottom: 28,
   },
   featureRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.md,
   },
-  featureDot: {
-    width: 32,
-    height: 32,
-    borderRadius: radius.sm,
+  featureIconBubble: {
+    width: 38,
+    height: 38,
+    borderRadius: 11,
     backgroundColor: colors.accentSoft,
     alignItems: 'center',
     justifyContent: 'center',
+    flexShrink: 0,
   },
   featureText: {
     fontSize: 14,
     color: colors.ink2,
     fontWeight: '500',
   },
-  bottom: {
+
+  bottomSection: {
     paddingBottom: 40,
-    gap: spacing.md,
+    gap: 12,
   },
   googleBtn: {
     flexDirection: 'row',
@@ -148,7 +166,7 @@ const styles = StyleSheet.create({
     borderWidth: 1.5,
     borderColor: colors.line,
     borderRadius: radius.xl,
-    paddingVertical: 16,
+    paddingVertical: 15,
   },
   googleBtnText: {
     fontSize: 15,
