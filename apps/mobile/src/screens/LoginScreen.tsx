@@ -35,7 +35,7 @@ export default function LoginScreen() {
 
       <View style={styles.logoArea}>
         <View style={styles.logoIcon}>
-          <Icon name="chart-line" size={32} color={colors.primary} />
+          <Icon name="chart-line" size={32} color={colors.accent} />
         </View>
         <Text style={styles.appName}>Finance Tracker</Text>
         <Text style={styles.tagline}>Know where every rupee goes</Text>
@@ -49,7 +49,7 @@ export default function LoginScreen() {
         ].map(f => (
           <View key={f.icon} style={styles.featureRow}>
             <View style={styles.featureDot}>
-              <Icon name={f.icon} size={14} color={colors.primary} />
+              <Icon name={f.icon} size={14} color={colors.accent} />
             </View>
             <Text style={styles.featureText}>{f.label}</Text>
           </View>
@@ -64,7 +64,7 @@ export default function LoginScreen() {
           activeOpacity={0.85}
         >
           {loading ? (
-            <ActivityIndicator color={colors.textMed} />
+            <ActivityIndicator color={colors.ink2} />
           ) : (
             <>
               <Icon name="google" size={20} color="#4285F4" />
@@ -96,7 +96,7 @@ const styles = StyleSheet.create({
     width: 72,
     height: 72,
     borderRadius: radius.xl,
-    backgroundColor: colors.primaryLight,
+    backgroundColor: colors.accentSoft,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: spacing.lg,
@@ -104,13 +104,13 @@ const styles = StyleSheet.create({
   appName: {
     fontSize: 28,
     fontWeight: '800',
-    color: colors.text,
+    color: colors.ink,
     letterSpacing: -0.5,
     marginBottom: spacing.sm,
   },
   tagline: {
     fontSize: 15,
-    color: colors.textSub,
+    color: colors.ink2,
     textAlign: 'center',
   },
   features: {
@@ -126,13 +126,13 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: radius.sm,
-    backgroundColor: colors.primaryLight,
+    backgroundColor: colors.accentSoft,
     alignItems: 'center',
     justifyContent: 'center',
   },
   featureText: {
     fontSize: 14,
-    color: colors.textMed,
+    color: colors.ink2,
     fontWeight: '500',
   },
   bottom: {
@@ -146,18 +146,18 @@ const styles = StyleSheet.create({
     gap: spacing.md,
     backgroundColor: colors.surface,
     borderWidth: 1.5,
-    borderColor: colors.border,
+    borderColor: colors.line,
     borderRadius: radius.xl,
     paddingVertical: 16,
   },
   googleBtnText: {
     fontSize: 15,
     fontWeight: '600',
-    color: colors.text,
+    color: colors.ink,
   },
   terms: {
     fontSize: 11,
-    color: colors.textLight,
+    color: colors.ink3,
     textAlign: 'center',
   },
 });

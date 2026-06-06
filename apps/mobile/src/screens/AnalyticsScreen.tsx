@@ -171,8 +171,8 @@ export default function AnalyticsScreen() {
     const remaining = Math.max((totalBudget || totalSpent) - totalSpent, 0);
     const over = totalBudget > 0 && totalSpent > totalBudget;
     return [
-      { value: totalSpent, color: over ? colors.expense : colors.primary },
-      { value: remaining, color: colors.border },
+      { value: totalSpent, color: over ? colors.expense : colors.accent },
+      { value: remaining, color: colors.line },
     ];
   }, [totalSpent, totalBudget]);
 
@@ -314,7 +314,7 @@ export default function AnalyticsScreen() {
           <Icon
             name="chevron-left"
             size={20}
-            color={isJoinMonth ? colors.border : colors.textSub}
+            color={isJoinMonth ? colors.line : colors.ink2}
           />
         </TouchableOpacity>
         <Text style={styles.monthLabel}>{monthLabel(year, mon)}</Text>
@@ -326,7 +326,7 @@ export default function AnalyticsScreen() {
           <Icon
             name="chevron-right"
             size={20}
-            color={isCurrentMonth ? colors.border : colors.textSub}
+            color={isCurrentMonth ? colors.line : colors.ink2}
           />
         </TouchableOpacity>
       </View>
@@ -334,7 +334,7 @@ export default function AnalyticsScreen() {
       {loading ? (
         <ActivityIndicator
           style={{ marginTop: 80 }}
-          color={colors.primary}
+          color={colors.accent}
           size="large"
         />
       ) : (
@@ -345,8 +345,8 @@ export default function AnalyticsScreen() {
             <RefreshControl
               refreshing={refreshing}
               onRefresh={handleRefresh}
-              tintColor={colors.primary}
-              colors={[colors.primary]}
+              tintColor={colors.accent}
+              colors={[colors.accent]}
             />
           }
         >
@@ -383,7 +383,7 @@ export default function AnalyticsScreen() {
                           {
                             backgroundColor: over
                               ? colors.expense
-                              : colors.primary,
+                              : colors.accent,
                           },
                         ]}
                       />
@@ -395,7 +395,7 @@ export default function AnalyticsScreen() {
                       <View
                         style={[
                           styles.legendDot,
-                          { backgroundColor: colors.border },
+                          { backgroundColor: colors.line },
                         ]}
                       />
                       <Text style={styles.legendLabel}>
@@ -406,7 +406,7 @@ export default function AnalyticsScreen() {
                       <Text
                         style={[
                           styles.pctText,
-                          { color: over ? colors.expense : colors.primary },
+                          { color: over ? colors.expense : colors.accent },
                         ]}
                       >
                         {over
@@ -438,15 +438,15 @@ export default function AnalyticsScreen() {
                   height={130}
                   spacing={Math.floor((CHART_W - 40) / 9)}
                   initialSpacing={8}
-                  color={colors.primary}
+                  color={colors.accent}
                   thickness={2}
-                  startFillColor={colors.primary}
-                  endFillColor={colors.primaryLight}
+                  startFillColor={colors.accent}
+                  endFillColor={colors.accentSoft}
                   startOpacity={0.22}
                   endOpacity={0.02}
-                  dataPointsColor={colors.primary}
+                  dataPointsColor={colors.accent}
                   dataPointsRadius={3}
-                  xAxisColor={colors.border}
+                  xAxisColor={colors.line}
                   xAxisThickness={1}
                   yAxisThickness={0}
                   hideRules
@@ -459,9 +459,9 @@ export default function AnalyticsScreen() {
                   onPress={(_item: { value: number }, _index: number) => {}}
                   pointerConfig={{
                     pointerStripHeight: 130,
-                    pointerStripColor: colors.border,
+                    pointerStripColor: colors.line,
                     pointerStripWidth: 1,
-                    pointerColor: colors.primary,
+                    pointerColor: colors.accent,
                     radius: 5,
                     pointerLabelWidth: 72,
                     pointerLabelHeight: 40,
@@ -550,7 +550,7 @@ export default function AnalyticsScreen() {
                           y={ly - 2}
                           fontSize={10}
                           fontWeight="600"
-                          fill={colors.text}
+                          fill={colors.ink}
                           textAnchor={s.isLeft ? 'end' : 'start'}
                         >
                           {s.name}
@@ -655,8 +655,8 @@ export default function AnalyticsScreen() {
                             styles.diffBadge,
                             {
                               backgroundColor: isUp
-                                ? colors.expenseLight
-                                : colors.incomeLight,
+                                ? colors.expenseSoft
+                                : colors.incomeSoft,
                             },
                           ]}
                         >
@@ -703,7 +703,7 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 26,
     fontWeight: '800',
-    color: colors.text,
+    color: colors.ink,
     letterSpacing: -0.5,
   },
 
@@ -722,12 +722,12 @@ const styles = StyleSheet.create({
     borderRadius: radius.full,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colors.inputBg,
+    backgroundColor: colors.surface2,
   },
   monthLabel: {
     fontSize: 15,
     fontWeight: '700',
-    color: colors.text,
+    color: colors.ink,
     minWidth: 160,
     textAlign: 'center',
   },
@@ -737,7 +737,7 @@ const styles = StyleSheet.create({
   card: {
     backgroundColor: colors.surface,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: colors.line,
     borderRadius: radius.xl,
     padding: spacing.base,
     marginBottom: spacing.md,
@@ -745,7 +745,7 @@ const styles = StyleSheet.create({
   cardTitle: {
     fontSize: 13,
     fontWeight: '700',
-    color: colors.textSub,
+    color: colors.ink2,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
     marginBottom: spacing.base,
@@ -762,30 +762,30 @@ const styles = StyleSheet.create({
   donutAmount: {
     fontSize: 22,
     fontWeight: '800',
-    color: colors.text,
+    color: colors.ink,
     letterSpacing: -0.5,
   },
-  donutSub: { fontSize: 11, color: colors.textSub, marginTop: 2 },
+  donutSub: { fontSize: 11, color: colors.ink2, marginTop: 2 },
   donutLegend: { flex: 1, gap: spacing.sm },
   legendRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   legendDot: { width: 8, height: 8, borderRadius: 4 },
-  legendLabel: { fontSize: 13, color: colors.textMed, fontWeight: '500' },
+  legendLabel: { fontSize: 13, color: colors.ink2, fontWeight: '500' },
   pctPill: {
     marginTop: spacing.sm,
     alignSelf: 'flex-start',
-    backgroundColor: colors.inputBg,
+    backgroundColor: colors.surface2,
     borderRadius: radius.full,
     paddingHorizontal: 10,
     paddingVertical: 4,
   },
   pctText: { fontSize: 13, fontWeight: '700' },
-  noBudgetHint: { fontSize: 12, color: colors.textLight, lineHeight: 18 },
+  noBudgetHint: { fontSize: 12, color: colors.ink3, lineHeight: 18 },
 
   // Daily area chart
-  axisLabel: { fontSize: 9, color: colors.textLight },
+  axisLabel: { fontSize: 9, color: colors.ink3 },
   emptyHint: {
     fontSize: 13,
-    color: colors.textLight,
+    color: colors.ink3,
     textAlign: 'center',
     paddingVertical: spacing.xl,
   },
@@ -795,11 +795,11 @@ const styles = StyleSheet.create({
     marginTop: spacing.sm,
     paddingHorizontal: 4,
   },
-  dailyHintText: { fontSize: 11, color: colors.textSub, fontWeight: '500' },
+  dailyHintText: { fontSize: 11, color: colors.ink2, fontWeight: '500' },
   chartTooltip: {
     backgroundColor: colors.surface,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: colors.line,
     borderRadius: radius.md,
     paddingHorizontal: 8,
     paddingVertical: 5,
@@ -808,11 +808,11 @@ const styles = StyleSheet.create({
   chartTooltipAmt: {
     fontSize: 12,
     fontWeight: '700',
-    color: colors.primary,
+    color: colors.accent,
   },
   chartTooltipDay: {
     fontSize: 10,
-    color: colors.textSub,
+    color: colors.ink2,
     fontWeight: '500',
   },
 
@@ -841,7 +841,7 @@ const styles = StyleSheet.create({
   },
   pieCenterHint: {
     fontSize: 12,
-    color: colors.textLight,
+    color: colors.ink3,
     textAlign: 'center',
     lineHeight: 17,
   },
@@ -862,10 +862,10 @@ const styles = StyleSheet.create({
   pieCenterAmt: {
     fontSize: 15,
     fontWeight: '800',
-    color: colors.text,
+    color: colors.ink,
     letterSpacing: -0.3,
   },
-  pieCenterPct: { fontSize: 11, color: colors.textSub, fontWeight: '600' },
+  pieCenterPct: { fontSize: 11, color: colors.ink2, fontWeight: '600' },
 
   // Comparison
   compRow: {
@@ -874,7 +874,7 @@ const styles = StyleSheet.create({
     gap: spacing.md,
     paddingVertical: 10,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: colors.border,
+    borderBottomColor: colors.line,
   },
   compIcon: {
     width: 40,
@@ -885,10 +885,10 @@ const styles = StyleSheet.create({
     flexShrink: 0,
   },
   compInfo: { flex: 1 },
-  compName: { fontSize: 14, fontWeight: '600', color: colors.text },
-  compPrev: { fontSize: 11, color: colors.textSub, marginTop: 1 },
+  compName: { fontSize: 14, fontWeight: '600', color: colors.ink },
+  compPrev: { fontSize: 11, color: colors.ink2, marginTop: 1 },
   compRight: { alignItems: 'flex-end', gap: 4 },
-  compCurrent: { fontSize: 15, fontWeight: '700', color: colors.text },
+  compCurrent: { fontSize: 15, fontWeight: '700', color: colors.ink },
   diffBadge: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -898,5 +898,5 @@ const styles = StyleSheet.create({
     borderRadius: radius.full,
   },
   diffText: { fontSize: 11, fontWeight: '700' },
-  diffSame: { fontSize: 11, color: colors.textLight },
+  diffSame: { fontSize: 11, color: colors.ink3 },
 });

@@ -129,7 +129,7 @@ function SwipeableRow({
   const swipeRef = useRef<Swipeable>(null);
   const meta = categoryMap.get(item.category) ?? {
     icon: 'shape-outline',
-    color: '#6B7280',
+    color: '#7A746B',
     bg: '#F3F4F6',
     name: item.category,
     is_income: false,
@@ -205,7 +205,7 @@ function SwipeableRow({
         <Text
           style={[
             styles.txAmount,
-            { color: isIncome ? colors.income : colors.text },
+            { color: isIncome ? colors.income : colors.ink },
           ]}
         >
           {isIncome ? '+' : ''}₹{item.amount.toLocaleString('en-IN')}
@@ -419,11 +419,7 @@ export default function HistoryScreen() {
       <View style={styles.header}>
         <Text style={styles.title}>History</Text>
         <View style={styles.headerDateBadge}>
-          <Icon
-            name="calendar-month-outline"
-            size={13}
-            color={colors.primary}
-          />
+          <Icon name="calendar-month-outline" size={13} color={colors.accent} />
           <Text style={styles.headerDateText}>
             {new Date().toLocaleDateString('en-IN', {
               month: 'short',
@@ -436,17 +432,17 @@ export default function HistoryScreen() {
       {/* Search + Date + Filter toolbar */}
       <View style={styles.toolbar}>
         <View style={styles.searchWrap}>
-          <Icon name="magnify" size={15} color={colors.textLight} />
+          <Icon name="magnify" size={15} color={colors.ink3} />
           <TextInput
             value={search}
             onChangeText={setSearch}
             placeholder="Search transactions..."
-            placeholderTextColor={colors.textLight}
+            placeholderTextColor={colors.ink3}
             style={styles.searchInput}
           />
           {search.length > 0 && (
             <TouchableOpacity onPress={() => setSearch('')}>
-              <Icon name="close-circle" size={14} color={colors.textLight} />
+              <Icon name="close-circle" size={14} color={colors.ink3} />
             </TouchableOpacity>
           )}
         </View>
@@ -457,20 +453,20 @@ export default function HistoryScreen() {
           style={[
             styles.filterBtn,
             dateActive && {
-              backgroundColor: colors.primaryLight,
-              borderColor: colors.primary,
+              backgroundColor: colors.accentSoft,
+              borderColor: colors.accent,
             },
           ]}
         >
           <Icon
             name="calendar-range"
             size={14}
-            color={dateActive ? colors.primary : colors.textSub}
+            color={dateActive ? colors.accent : colors.ink2}
           />
           <Text
             style={[
               styles.filterBtnText,
-              dateActive && { color: colors.primary },
+              dateActive && { color: colors.accent },
             ]}
           >
             {dateBtnLabel}
@@ -480,7 +476,7 @@ export default function HistoryScreen() {
               onPress={() => handlePresetSelect('this_month')}
               hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
             >
-              <Icon name="close" size={13} color={colors.primary} />
+              <Icon name="close" size={13} color={colors.accent} />
             </TouchableOpacity>
           )}
         </TouchableOpacity>
@@ -499,7 +495,7 @@ export default function HistoryScreen() {
           <Icon
             name={filter !== ALL ? activeFilterMeta!.icon : 'tune-variant'}
             size={14}
-            color={filter !== ALL ? activeFilterMeta!.color : colors.textSub}
+            color={filter !== ALL ? activeFilterMeta!.color : colors.ink2}
           />
           <Text
             style={[
@@ -522,7 +518,7 @@ export default function HistoryScreen() {
 
       {/* List */}
       {(loading || catLoading) && !refreshing ? (
-        <ActivityIndicator style={{ marginTop: 64 }} color={colors.primary} />
+        <ActivityIndicator style={{ marginTop: 64 }} color={colors.accent} />
       ) : transactions.length === 0 ? (
         <EmptyState
           title={search ? 'No results found' : 'No transactions'}
@@ -541,8 +537,8 @@ export default function HistoryScreen() {
             <RefreshControl
               refreshing={refreshing}
               onRefresh={handleRefresh}
-              colors={[colors.primary]}
-              tintColor={colors.primary}
+              colors={[colors.accent]}
+              tintColor={colors.accent}
             />
           }
           renderSectionHeader={({ section }) => (
@@ -565,7 +561,7 @@ export default function HistoryScreen() {
             loadingMore ? (
               <ActivityIndicator
                 style={styles.footerSpinner}
-                color={colors.primary}
+                color={colors.accent}
               />
             ) : null
           }
@@ -609,7 +605,7 @@ export default function HistoryScreen() {
               <View style={styles.editHeader}>
                 <Text style={styles.editTitle}>Edit Expense</Text>
                 <TouchableOpacity onPress={closeEdit}>
-                  <Icon name="close" size={20} color={colors.textSub} />
+                  <Icon name="close" size={20} color={colors.ink2} />
                 </TouchableOpacity>
               </View>
 
@@ -621,7 +617,7 @@ export default function HistoryScreen() {
                   onChangeText={setEditAmount}
                   keyboardType="numeric"
                   placeholder="0"
-                  placeholderTextColor={colors.border}
+                  placeholderTextColor={colors.line}
                   style={styles.editAmountInput}
                 />
               </View>
@@ -630,7 +626,7 @@ export default function HistoryScreen() {
                 value={editDescription}
                 onChangeText={setEditDescription}
                 placeholder="Description"
-                placeholderTextColor={colors.textLight}
+                placeholderTextColor={colors.ink3}
                 style={styles.editTextInput}
                 returnKeyType="next"
                 maxLength={DESCRIPTION_MAX_LENGTH}
@@ -640,7 +636,7 @@ export default function HistoryScreen() {
                 value={editNote}
                 onChangeText={setEditNote}
                 placeholder="Add a note (optional)"
-                placeholderTextColor={colors.textLight}
+                placeholderTextColor={colors.ink3}
                 style={styles.editTextInput}
                 returnKeyType="done"
                 maxLength={NOTE_MAX_LENGTH}
@@ -670,7 +666,7 @@ export default function HistoryScreen() {
                             {
                               backgroundColor: selected
                                 ? cat.color
-                                : colors.inputBg,
+                                : colors.surface2,
                             },
                           ]}
                         >
@@ -683,7 +679,7 @@ export default function HistoryScreen() {
                         <Text
                           style={[
                             styles.editCatLabel,
-                            { color: selected ? cat.color : colors.textSub },
+                            { color: selected ? cat.color : colors.ink2 },
                           ]}
                         >
                           {cat.name}
@@ -747,22 +743,22 @@ export default function HistoryScreen() {
                       styles.sheetIcon,
                       {
                         backgroundColor: active
-                          ? colors.primary
-                          : colors.primaryLight,
+                          ? colors.accent
+                          : colors.accentSoft,
                       },
                     ]}
                   >
                     <Icon
                       name={preset.icon}
                       size={15}
-                      color={active ? '#FFF' : colors.primary}
+                      color={active ? '#FFF' : colors.accent}
                     />
                   </View>
                   <View style={{ flex: 1 }}>
                     <Text
                       style={[
                         styles.sheetOptionText,
-                        active && { color: colors.primary, fontWeight: '700' },
+                        active && { color: colors.accent, fontWeight: '700' },
                       ]}
                     >
                       {preset.label}
@@ -770,11 +766,7 @@ export default function HistoryScreen() {
                     <Text style={styles.sheetOptionSub}>{preset.sublabel}</Text>
                   </View>
                   {active && (
-                    <Icon
-                      name="check-circle"
-                      size={18}
-                      color={colors.primary}
-                    />
+                    <Icon name="check-circle" size={18} color={colors.accent} />
                   )}
                 </TouchableOpacity>
               );
@@ -809,13 +801,13 @@ export default function HistoryScreen() {
               <View
                 style={[
                   styles.sheetIcon,
-                  { backgroundColor: colors.primaryLight },
+                  { backgroundColor: colors.accentSoft },
                 ]}
               >
                 <Icon
                   name="view-grid-outline"
                   size={15}
-                  color={colors.primary}
+                  color={colors.accent}
                 />
               </View>
               <View style={{ flex: 1 }}>
@@ -823,7 +815,7 @@ export default function HistoryScreen() {
                   style={[
                     styles.sheetOptionText,
                     filter === ALL && {
-                      color: colors.primary,
+                      color: colors.accent,
                       fontWeight: '700',
                     },
                   ]}
@@ -832,7 +824,7 @@ export default function HistoryScreen() {
                 </Text>
               </View>
               {filter === ALL && (
-                <Icon name="check-circle" size={18} color={colors.primary} />
+                <Icon name="check-circle" size={18} color={colors.accent} />
               )}
             </TouchableOpacity>
 
@@ -899,19 +891,19 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 26,
     fontWeight: '800',
-    color: colors.text,
+    color: colors.ink,
     letterSpacing: -0.5,
   },
   headerDateBadge: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 5,
-    backgroundColor: colors.primaryLight,
+    backgroundColor: colors.accentSoft,
     paddingHorizontal: 10,
     paddingVertical: 5,
     borderRadius: radius.full,
   },
-  headerDateText: { fontSize: 12, fontWeight: '600', color: colors.primary },
+  headerDateText: { fontSize: 12, fontWeight: '600', color: colors.accent },
 
   toolbar: {
     flexDirection: 'row',
@@ -926,14 +918,14 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.sm,
-    backgroundColor: colors.inputBg,
+    backgroundColor: colors.surface2,
     borderRadius: radius.md,
     paddingHorizontal: spacing.md,
     paddingVertical: 8,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: colors.line,
   },
-  searchInput: { flex: 1, fontSize: 13, color: colors.text, padding: 0 },
+  searchInput: { flex: 1, fontSize: 13, color: colors.ink, padding: 0 },
   filterBtn: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -942,10 +934,10 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     borderRadius: radius.md,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: colors.line,
     backgroundColor: colors.surface,
   },
-  filterBtnText: { fontSize: 13, fontWeight: '600', color: colors.textSub },
+  filterBtnText: { fontSize: 13, fontWeight: '600', color: colors.ink2 },
 
   listContent: { paddingBottom: 100 },
 
@@ -958,7 +950,7 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 12,
     fontWeight: '700',
-    color: colors.textSub,
+    color: colors.ink2,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
@@ -974,7 +966,7 @@ const styles = StyleSheet.create({
   },
   txRowBorder: {
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: colors.border,
+    borderBottomColor: colors.line,
   },
 
   txIconCircle: {
@@ -990,11 +982,11 @@ const styles = StyleSheet.create({
   txDesc: {
     fontSize: 17,
     fontWeight: '600',
-    color: colors.text,
+    color: colors.ink,
     marginBottom: 2,
   },
-  txMeta: { fontSize: 12, color: colors.textSub },
-  txNote: { fontSize: 11, color: colors.textLight, marginTop: 1 },
+  txMeta: { fontSize: 12, color: colors.ink2 },
+  txNote: { fontSize: 11, color: colors.ink3, marginTop: 1 },
 
   txAmount: {
     fontSize: 15,
@@ -1031,11 +1023,11 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
   },
-  editTitle: { fontSize: 18, fontWeight: '800', color: colors.text },
+  editTitle: { fontSize: 18, fontWeight: '800', color: colors.ink },
   editAmountRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.inputBg,
+    backgroundColor: colors.surface2,
     borderRadius: radius.lg,
     paddingHorizontal: spacing.base,
     paddingVertical: spacing.sm,
@@ -1050,12 +1042,12 @@ const styles = StyleSheet.create({
     padding: 0,
   },
   editTextInput: {
-    backgroundColor: colors.inputBg,
+    backgroundColor: colors.surface2,
     borderRadius: radius.lg,
     paddingHorizontal: spacing.base,
     paddingVertical: 12,
     fontSize: 14,
-    color: colors.text,
+    color: colors.ink,
   },
   editCategoryGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
   editCatChip: {
@@ -1066,7 +1058,7 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
     borderRadius: radius.lg,
     borderWidth: 1.5,
-    borderColor: colors.border,
+    borderColor: colors.line,
     backgroundColor: colors.surface,
   },
   editCatIcon: {
@@ -1104,7 +1096,7 @@ const styles = StyleSheet.create({
   sheetHandle: {
     width: 36,
     height: 4,
-    backgroundColor: colors.border,
+    backgroundColor: colors.line,
     borderRadius: radius.full,
     alignSelf: 'center',
     marginTop: spacing.md,
@@ -1113,7 +1105,7 @@ const styles = StyleSheet.create({
   sheetTitle: {
     fontSize: 11,
     fontWeight: '700',
-    color: colors.textSub,
+    color: colors.ink2,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
     paddingHorizontal: spacing.lg,
@@ -1121,7 +1113,7 @@ const styles = StyleSheet.create({
   },
   sheetDivider: {
     height: 1,
-    backgroundColor: colors.border,
+    backgroundColor: colors.line,
     marginVertical: 6,
   },
   sheetOption: {
@@ -1131,7 +1123,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.lg,
     paddingVertical: 10,
   },
-  sheetOptionActive: { backgroundColor: colors.inputBg },
+  sheetOptionActive: { backgroundColor: colors.surface2 },
   sheetIcon: {
     width: 34,
     height: 34,
@@ -1139,6 +1131,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  sheetOptionText: { fontSize: 14, color: colors.textMed, fontWeight: '500' },
-  sheetOptionSub: { fontSize: 11, color: colors.textLight, marginTop: 1 },
+  sheetOptionText: { fontSize: 14, color: colors.ink2, fontWeight: '500' },
+  sheetOptionSub: { fontSize: 11, color: colors.ink3, marginTop: 1 },
 });

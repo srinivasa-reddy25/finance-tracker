@@ -49,15 +49,15 @@ const PRESET_ICONS = [
 
 const PRESET_COLORS: { color: string; bg: string }[] = [
   { color: '#7C3AED', bg: '#EDE9FE' },
-  { color: '#059669', bg: '#D1FAE5' },
+  { color: '#0E7B53', bg: '#E4F1EA' },
   { color: '#D97706', bg: '#FEF3C7' },
-  { color: '#DC2626', bg: '#FEE2E2' },
-  { color: '#2563EB', bg: '#DBEAFE' },
+  { color: '#C5392C', bg: '#FEE2E2' },
+  { color: '#2F6BE2', bg: '#DBEAFE' },
   { color: '#DB2777', bg: '#FCE7F3' },
   { color: '#0891B2', bg: '#CFFAFE' },
   { color: '#65A30D', bg: '#ECFCCB' },
   { color: '#EA580C', bg: '#FFEDD5' },
-  { color: '#6B7280', bg: '#F3F4F6' },
+  { color: '#7A746B', bg: '#EFEDE7' },
 ];
 
 export default function CategoriesScreen() {
@@ -262,7 +262,7 @@ export default function CategoriesScreen() {
           <View style={styles.rowRight}>
             {!item.is_deletable ? (
               <View style={styles.lockBadge}>
-                <Icon name="lock-outline" size={13} color={colors.textLight} />
+                <Icon name="lock-outline" size={13} color={colors.ink3} />
                 <Text style={styles.lockText}>Required</Text>
               </View>
             ) : (
@@ -271,11 +271,7 @@ export default function CategoriesScreen() {
                 onPress={() => handleDeletePress(item)}
                 hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
               >
-                <Icon
-                  name="trash-can-outline"
-                  size={18}
-                  color={colors.textLight}
-                />
+                <Icon name="trash-can-outline" size={18} color={colors.ink3} />
               </TouchableOpacity>
             )}
           </View>
@@ -294,7 +290,7 @@ export default function CategoriesScreen() {
           style={styles.backBtn}
           hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
         >
-          <Icon name="arrow-left" size={22} color={colors.text} />
+          <Icon name="arrow-left" size={22} color={colors.ink} />
         </TouchableOpacity>
         <Text style={styles.title}>Categories</Text>
         <TouchableOpacity
@@ -310,7 +306,7 @@ export default function CategoriesScreen() {
       </View>
 
       {loading && categories.length === 0 ? (
-        <ActivityIndicator style={{ marginTop: 64 }} color={colors.primary} />
+        <ActivityIndicator style={{ marginTop: 64 }} color={colors.accent} />
       ) : (
         <FlatList
           data={expenseCategories}
@@ -323,8 +319,8 @@ export default function CategoriesScreen() {
             <RefreshControl
               refreshing={refreshing}
               onRefresh={handleRefresh}
-              colors={[colors.primary]}
-              tintColor={colors.primary}
+              colors={[colors.accent]}
+              tintColor={colors.accent}
             />
           }
         />
@@ -421,11 +417,7 @@ export default function CategoriesScreen() {
                   {editingLocked ? (
                     <View style={styles.lockedRow}>
                       <Text style={styles.lockedValue}>{catName}</Text>
-                      <Icon
-                        name="lock-outline"
-                        size={14}
-                        color={colors.textLight}
-                      />
+                      <Icon name="lock-outline" size={14} color={colors.ink3} />
                     </View>
                   ) : (
                     <TextInput
@@ -433,7 +425,7 @@ export default function CategoriesScreen() {
                       value={catName}
                       onChangeText={setCatName}
                       placeholder="Category name"
-                      placeholderTextColor={colors.textLight}
+                      placeholderTextColor={colors.ink3}
                       style={styles.lockedInner}
                       maxLength={30}
                       returnKeyType="next"
@@ -451,7 +443,7 @@ export default function CategoriesScreen() {
                     value={catBudget}
                     onChangeText={setCatBudget}
                     placeholder="e.g. 5000"
-                    placeholderTextColor={colors.textLight}
+                    placeholderTextColor={colors.ink3}
                     keyboardType="numeric"
                     style={styles.budgetInput}
                   />
@@ -460,11 +452,7 @@ export default function CategoriesScreen() {
                       onPress={() => setCatBudget('')}
                       hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                     >
-                      <Icon
-                        name="close-circle"
-                        size={18}
-                        color={colors.textLight}
-                      />
+                      <Icon name="close-circle" size={18} color={colors.ink3} />
                     </TouchableOpacity>
                   )}
                 </View>
@@ -496,9 +484,7 @@ export default function CategoriesScreen() {
                             <Icon
                               name={icon}
                               size={20}
-                              color={
-                                active ? selectedColor.color : colors.textSub
-                              }
+                              color={active ? selectedColor.color : colors.ink2}
                             />
                           </TouchableOpacity>
                         );
@@ -562,7 +548,7 @@ export default function CategoriesScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.bg },
+  container: { flex: 1, backgroundColor: colors.canvas },
 
   header: {
     flexDirection: 'row',
@@ -573,14 +559,14 @@ const styles = StyleSheet.create({
     paddingBottom: spacing.md,
     gap: spacing.sm,
     borderBottomWidth: 1,
-    borderBottomColor: colors.border,
+    borderBottomColor: colors.line,
   },
   backBtn: {
     width: 36,
     height: 36,
     borderRadius: radius.md,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: colors.line,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -588,14 +574,14 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 20,
     fontWeight: '800',
-    color: colors.text,
+    color: colors.ink,
     letterSpacing: -0.4,
   },
   addBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 5,
-    backgroundColor: colors.primary,
+    backgroundColor: colors.accent,
     paddingHorizontal: spacing.md,
     paddingVertical: 8,
     borderRadius: radius.full,
@@ -629,31 +615,31 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   catInfo: { flex: 1 },
-  catName: { fontSize: 15, fontWeight: '600', color: colors.text },
+  catName: { fontSize: 15, fontWeight: '600', color: colors.ink },
   budgetText: {
     fontSize: 12,
-    color: colors.textSub,
+    color: colors.ink2,
     fontWeight: '500',
     marginTop: 2,
   },
   spentText: {
     fontSize: 12,
-    color: colors.textLight,
+    color: colors.ink3,
     fontWeight: '500',
     marginTop: 2,
   },
-  editHint: { fontSize: 12, color: colors.textLight, marginTop: 2 },
+  editHint: { fontSize: 12, color: colors.ink3, marginTop: 2 },
   rowRight: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
   lockBadge: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    backgroundColor: colors.inputBg,
+    backgroundColor: colors.surface2,
     paddingHorizontal: spacing.sm,
     paddingVertical: 4,
     borderRadius: radius.full,
   },
-  lockText: { fontSize: 11, fontWeight: '600', color: colors.textLight },
+  lockText: { fontSize: 11, fontWeight: '600', color: colors.ink3 },
   deleteBtn: {
     width: 32,
     height: 32,
@@ -662,7 +648,7 @@ const styles = StyleSheet.create({
   },
   rowDivider: {
     height: 1,
-    backgroundColor: colors.border,
+    backgroundColor: colors.line,
     marginLeft: 56 + spacing.base + spacing.md,
   },
 
@@ -682,7 +668,7 @@ const styles = StyleSheet.create({
   sheetHandle: {
     width: 36,
     height: 4,
-    backgroundColor: colors.border,
+    backgroundColor: colors.line,
     borderRadius: radius.full,
     alignSelf: 'center',
     marginTop: spacing.md,
@@ -695,7 +681,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.lg,
     paddingBottom: spacing.md,
     borderBottomWidth: 1,
-    borderBottomColor: colors.border,
+    borderBottomColor: colors.line,
   },
   previewIcon: {
     width: 44,
@@ -707,7 +693,7 @@ const styles = StyleSheet.create({
   sheetTitle: {
     fontSize: 12,
     fontWeight: '700',
-    color: colors.textSub,
+    color: colors.ink2,
     textTransform: 'uppercase',
     letterSpacing: 0.4,
   },
@@ -723,7 +709,7 @@ const styles = StyleSheet.create({
   fieldLabel: {
     fontSize: 11,
     fontWeight: '700',
-    color: colors.textSub,
+    color: colors.ink2,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
     marginBottom: spacing.sm,
@@ -732,52 +718,52 @@ const styles = StyleSheet.create({
     fontWeight: '400',
     textTransform: 'none',
     letterSpacing: 0,
-    color: colors.textLight,
+    color: colors.ink3,
     fontSize: 11,
   },
   textInput: {
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: colors.line,
     borderRadius: radius.md,
-    backgroundColor: colors.inputBg,
+    backgroundColor: colors.surface2,
     paddingHorizontal: spacing.base,
     paddingVertical: 11,
     fontSize: 15,
-    color: colors.text,
+    color: colors.ink,
     marginBottom: spacing.base,
   },
   inputLocked: {
-    backgroundColor: colors.bg,
-    borderColor: colors.border,
+    backgroundColor: colors.canvas,
+    borderColor: colors.line,
   },
   lockedRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
   },
-  lockedValue: { fontSize: 15, color: colors.textSub, fontWeight: '500' },
-  lockedInner: { fontSize: 15, color: colors.text },
+  lockedValue: { fontSize: 15, color: colors.ink2, fontWeight: '500' },
+  lockedInner: { fontSize: 15, color: colors.ink },
   budgetWrap: {
     flexDirection: 'row',
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: colors.line,
     borderRadius: radius.md,
-    backgroundColor: colors.inputBg,
+    backgroundColor: colors.surface2,
     paddingHorizontal: spacing.base,
     marginBottom: spacing.base,
   },
   currencyPrefix: {
     fontSize: 16,
     fontWeight: '700',
-    color: colors.text,
+    color: colors.ink,
     marginRight: spacing.sm,
   },
   budgetInput: {
     flex: 1,
     paddingVertical: 11,
     fontSize: 15,
-    color: colors.text,
+    color: colors.ink,
   },
 
   iconScroll: { marginBottom: spacing.base },
@@ -787,8 +773,8 @@ const styles = StyleSheet.create({
     height: 42,
     borderRadius: radius.md,
     borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.inputBg,
+    borderColor: colors.line,
+    backgroundColor: colors.surface2,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -816,23 +802,23 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.lg,
     paddingTop: spacing.md,
     borderTopWidth: 1,
-    borderTopColor: colors.border,
+    borderTopColor: colors.line,
   },
   cancelBtn: {
     flex: 1,
     height: 46,
     borderRadius: radius.md,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: colors.line,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  cancelBtnText: { fontSize: 14, fontWeight: '600', color: colors.textSub },
+  cancelBtnText: { fontSize: 14, fontWeight: '600', color: colors.ink2 },
   saveBtn: {
     flex: 2,
     height: 46,
     borderRadius: radius.md,
-    backgroundColor: colors.primary,
+    backgroundColor: colors.accent,
     alignItems: 'center',
     justifyContent: 'center',
   },

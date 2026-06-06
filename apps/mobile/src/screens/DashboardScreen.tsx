@@ -303,12 +303,12 @@ export default function DashboardScreen() {
     totalBudget != null ? (totalSpent / totalBudget) * 100 : null;
   const spentColor =
     budgetPct == null
-      ? colors.primary
+      ? colors.accent
       : budgetPct >= 100
         ? colors.expense
         : budgetPct >= BUDGET_WARNING_THRESHOLD_PCT
           ? '#F59E0B'
-          : colors.primary;
+          : colors.accent;
 
   const monthLabel = new Date().toLocaleDateString('en-IN', {
     month: 'long',
@@ -328,8 +328,8 @@ export default function DashboardScreen() {
           <RefreshControl
             refreshing={refreshing}
             onRefresh={handleRefresh}
-            colors={[colors.primary]}
-            tintColor={colors.primary}
+            colors={[colors.accent]}
+            tintColor={colors.accent}
           />
         }
       >
@@ -400,7 +400,7 @@ export default function DashboardScreen() {
 
         {/* Transaction list */}
         {(loading || catLoading) && !refreshing ? (
-          <ActivityIndicator style={{ marginTop: 40 }} color={colors.primary} />
+          <ActivityIndicator style={{ marginTop: 40 }} color={colors.accent} />
         ) : recent.length === 0 ? (
           <EmptyState
             title="No transactions yet"
@@ -411,8 +411,8 @@ export default function DashboardScreen() {
             {recent.map(item => {
               const meta = categoryMap.get(item.category) ?? {
                 icon: 'shape-outline',
-                color: '#6B7280',
-                bg: '#F9FAFB',
+                color: '#7A746B',
+                bg: '#EFEDE7',
               };
               const isIncome =
                 categoryMap.get(item.category)?.is_income ?? false;
@@ -502,7 +502,7 @@ export default function DashboardScreen() {
                     setModalOpen(false);
                   }}
                 >
-                  <Icon name="close" size={20} color={colors.textSub} />
+                  <Icon name="close" size={20} color={colors.ink2} />
                 </TouchableOpacity>
               </View>
 
@@ -515,7 +515,7 @@ export default function DashboardScreen() {
                   onChangeText={setAmount}
                   keyboardType="numeric"
                   placeholder="0"
-                  placeholderTextColor={colors.border}
+                  placeholderTextColor={colors.line}
                   style={styles.amountInput}
                 />
               </View>
@@ -525,7 +525,7 @@ export default function DashboardScreen() {
                 value={description}
                 onChangeText={setDescription}
                 placeholder="Description"
-                placeholderTextColor={colors.textLight}
+                placeholderTextColor={colors.ink3}
                 style={styles.descInput}
                 returnKeyType="next"
                 maxLength={DESCRIPTION_MAX_LENGTH}
@@ -536,7 +536,7 @@ export default function DashboardScreen() {
                 value={note}
                 onChangeText={setNote}
                 placeholder="Add a note (optional)"
-                placeholderTextColor={colors.textLight}
+                placeholderTextColor={colors.ink3}
                 style={styles.descInput}
                 returnKeyType="done"
                 maxLength={NOTE_MAX_LENGTH}
@@ -545,7 +545,7 @@ export default function DashboardScreen() {
               {/* Categories from store */}
               {catLoading ? (
                 <ActivityIndicator
-                  color={colors.primary}
+                  color={colors.accent}
                   style={{ marginVertical: spacing.lg }}
                 />
               ) : (
@@ -571,7 +571,7 @@ export default function DashboardScreen() {
                             {
                               backgroundColor: selected
                                 ? cat.color
-                                : colors.inputBg,
+                                : colors.surface2,
                             },
                           ]}
                         >
@@ -584,7 +584,7 @@ export default function DashboardScreen() {
                         <Text
                           style={[
                             styles.catLabel,
-                            { color: selected ? cat.color : colors.textSub },
+                            { color: selected ? cat.color : colors.ink2 },
                           ]}
                         >
                           {cat.name}
@@ -632,7 +632,7 @@ export default function DashboardScreen() {
         <View style={styles.notifSheetOverlay}>
           <View style={styles.notifSheet}>
             <View style={styles.notifSheetIcon}>
-              <Icon name="bell-ring-outline" size={32} color={colors.primary} />
+              <Icon name="bell-ring-outline" size={32} color={colors.accent} />
             </View>
             <Text style={styles.notifSheetTitle}>
               Stay on top of your finances
@@ -653,7 +653,7 @@ export default function DashboardScreen() {
                 },
               ].map(item => (
                 <View key={item.icon} style={styles.notifSheetItem}>
-                  <Icon name={item.icon} size={18} color={colors.primary} />
+                  <Icon name={item.icon} size={18} color={colors.accent} />
                   <Text style={styles.notifSheetItemText}>{item.text}</Text>
                 </View>
               ))}
@@ -706,7 +706,7 @@ const styles = StyleSheet.create({
     width: 64,
     height: 64,
     borderRadius: 32,
-    backgroundColor: colors.primary + '15',
+    backgroundColor: colors.accent + '15',
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: spacing.lg,
@@ -714,13 +714,13 @@ const styles = StyleSheet.create({
   notifSheetTitle: {
     fontSize: 20,
     fontWeight: '700',
-    color: colors.text,
+    color: colors.ink,
     textAlign: 'center',
     marginBottom: 8,
   },
   notifSheetSub: {
     fontSize: 14,
-    color: colors.textSecondary,
+    color: colors.ink2,
     textAlign: 'center',
     marginBottom: spacing.xl,
   },
@@ -736,11 +736,11 @@ const styles = StyleSheet.create({
   },
   notifSheetItemText: {
     fontSize: 14,
-    color: colors.text,
+    color: colors.ink,
   },
   notifSheetBtn: {
     width: '100%',
-    backgroundColor: colors.primary,
+    backgroundColor: colors.accent,
     borderRadius: radius.md,
     paddingVertical: 14,
     alignItems: 'center',
@@ -756,7 +756,7 @@ const styles = StyleSheet.create({
   },
   notifSheetSkipText: {
     fontSize: 14,
-    color: colors.textSecondary,
+    color: colors.ink2,
   },
   notifBanner: {
     flexDirection: 'row',
@@ -801,14 +801,14 @@ const styles = StyleSheet.create({
   name: {
     fontSize: 22,
     fontWeight: '700',
-    color: colors.text,
+    color: colors.ink,
     letterSpacing: -0.3,
   },
   avatar: {
     width: 42,
     height: 42,
     borderRadius: radius.full,
-    backgroundColor: colors.primary,
+    backgroundColor: colors.accent,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -823,7 +823,7 @@ const styles = StyleSheet.create({
   heroLabel: {
     fontSize: 12,
     fontWeight: '600',
-    color: colors.textLight,
+    color: colors.ink3,
     textTransform: 'uppercase',
     letterSpacing: 1,
     marginBottom: spacing.sm,
@@ -836,13 +836,13 @@ const styles = StyleSheet.create({
   heroAmount: {
     fontSize: 62,
     fontWeight: '800',
-    color: colors.primary,
+    color: colors.accent,
     letterSpacing: -2,
   },
   heroBudget: {
     fontSize: 16,
     fontWeight: '500',
-    color: colors.textLight,
+    color: colors.ink3,
     marginLeft: 6,
     marginBottom: 6,
   },
@@ -854,14 +854,14 @@ const styles = StyleSheet.create({
   },
   heroStat: {
     fontSize: 12,
-    color: colors.textSub,
+    color: colors.ink2,
     fontWeight: '500',
   },
   heroDot: {
     width: 3,
     height: 3,
     borderRadius: 2,
-    backgroundColor: colors.border,
+    backgroundColor: colors.line,
   },
   sectionHeader: {
     flexDirection: 'row',
@@ -870,7 +870,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.base,
     marginBottom: spacing.sm,
   },
-  sectionTitle: { fontSize: 16, fontWeight: '700', color: colors.text },
+  sectionTitle: { fontSize: 16, fontWeight: '700', color: colors.ink },
 
   recentRow: {
     flexDirection: 'row',
@@ -880,7 +880,7 @@ const styles = StyleSheet.create({
   recentCard: {
     flex: 1,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: colors.line,
     borderRadius: radius.lg,
     padding: spacing.sm,
     paddingVertical: 12,
@@ -904,7 +904,7 @@ const styles = StyleSheet.create({
   recentAmount: {
     fontSize: 13,
     fontWeight: '800',
-    color: colors.text,
+    color: colors.ink,
     letterSpacing: -0.4,
     flex: 1,
     textAlign: 'right',
@@ -916,13 +916,13 @@ const styles = StyleSheet.create({
   },
   recentDesc: {
     fontSize: 9,
-    color: colors.textSub,
+    color: colors.ink2,
     fontWeight: '500',
     flex: 1,
   },
   recentDate: {
     fontSize: 9,
-    color: colors.textLight,
+    color: colors.ink3,
   },
 
   fab: {
@@ -932,7 +932,7 @@ const styles = StyleSheet.create({
     width: 56,
     height: 56,
     borderRadius: radius.full,
-    backgroundColor: colors.primary,
+    backgroundColor: colors.accent,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -956,12 +956,12 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
   },
-  dialogTitle: { fontSize: 18, fontWeight: '800', color: colors.text },
+  dialogTitle: { fontSize: 18, fontWeight: '800', color: colors.ink },
 
   amountRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.inputBg,
+    backgroundColor: colors.surface2,
     borderRadius: radius.lg,
     paddingHorizontal: spacing.base,
     paddingVertical: spacing.sm,
@@ -977,12 +977,12 @@ const styles = StyleSheet.create({
   },
 
   descInput: {
-    backgroundColor: colors.inputBg,
+    backgroundColor: colors.surface2,
     borderRadius: radius.lg,
     paddingHorizontal: spacing.base,
     paddingVertical: 12,
     fontSize: 14,
-    color: colors.text,
+    color: colors.ink,
   },
 
   categoryGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
@@ -994,7 +994,7 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
     borderRadius: radius.lg,
     borderWidth: 1.5,
-    borderColor: colors.border,
+    borderColor: colors.line,
     backgroundColor: colors.surface,
   },
   catIconWrap: {

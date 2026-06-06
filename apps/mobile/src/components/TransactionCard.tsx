@@ -6,8 +6,8 @@ import type { TTransaction } from '../types/transaction';
 
 const FALLBACK_META = {
   icon: 'shape-outline',
-  color: '#6B7280',
-  bg: '#F9FAFB',
+  color: '#7A746B',
+  bg: '#EFEDE7',
 };
 
 type Props = {
@@ -58,7 +58,7 @@ export default function TransactionCard({
             style={styles.deleteBtn}
             hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
           >
-            <Icon name="trash-can-outline" size={15} color={colors.textLight} />
+            <Icon name="trash-can-outline" size={15} color={colors.ink3} />
           </TouchableOpacity>
         )}
       </View>
@@ -76,7 +76,7 @@ const styles = StyleSheet.create({
   },
   rowBorder: {
     borderBottomWidth: 1,
-    borderBottomColor: colors.border,
+    borderBottomColor: colors.line,
   },
   iconWrap: {
     width: 40,
@@ -90,12 +90,12 @@ const styles = StyleSheet.create({
   desc: {
     fontSize: 15,
     fontWeight: '600',
-    color: colors.text,
+    color: colors.ink,
     marginBottom: 2,
   },
   meta: {
     fontSize: 12,
-    color: colors.textSub,
+    color: colors.ink2,
     textTransform: 'capitalize',
   },
   right: { alignItems: 'flex-end' },

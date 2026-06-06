@@ -55,8 +55,8 @@ function MainTabs() {
               />
             );
           },
-          tabBarActiveTintColor: colors.primary,
-          tabBarInactiveTintColor: colors.textLight,
+          tabBarActiveTintColor: colors.accent,
+          tabBarInactiveTintColor: colors.ink3,
           tabBarShowLabel: true,
           tabBarLabelStyle: styles.tabLabel,
           tabBarStyle: styles.tabBar,
@@ -104,7 +104,7 @@ const styles = StyleSheet.create({
   tabBar: {
     backgroundColor: colors.surface,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: colors.line,
     borderRadius: radius.lg,
     marginHorizontal: spacing.base,
     marginBottom: spacing.base,

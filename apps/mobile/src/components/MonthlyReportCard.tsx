@@ -70,7 +70,7 @@ export default function MonthlyReportCard() {
       <View style={styles.header}>
         <View style={styles.headerLeft}>
           <View style={styles.badge}>
-            <Icon name="calendar-month" size={12} color={colors.primary} />
+            <Icon name="calendar-month" size={12} color={colors.accent} />
             <Text style={styles.badgeText}>Monthly Recap</Text>
           </View>
           <Text style={styles.month}>{summary.month_label}</Text>
@@ -80,7 +80,7 @@ export default function MonthlyReportCard() {
           hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
           style={styles.closeBtn}
         >
-          <Icon name="close" size={16} color={colors.textLight} />
+          <Icon name="close" size={16} color={colors.ink3} />
         </TouchableOpacity>
       </View>
 
@@ -112,7 +112,7 @@ export default function MonthlyReportCard() {
                     ? colors.expense
                     : pct_down
                       ? colors.income
-                      : colors.textSub
+                      : colors.ink2
                 }
               />
               <Text
@@ -193,7 +193,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
     borderRadius: radius.xl,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: colors.line,
     padding: spacing.base,
     gap: 10,
   },
@@ -207,7 +207,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    backgroundColor: colors.primaryLight,
+    backgroundColor: colors.accentSoft,
     paddingHorizontal: 8,
     paddingVertical: 3,
     borderRadius: radius.full,
@@ -216,14 +216,14 @@ const styles = StyleSheet.create({
   badgeText: {
     fontSize: 10,
     fontWeight: '700',
-    color: colors.primary,
+    color: colors.accent,
     textTransform: 'uppercase',
     letterSpacing: 0.4,
   },
   month: {
     fontSize: 18,
     fontWeight: '800',
-    color: colors.text,
+    color: colors.ink,
     letterSpacing: -0.4,
   },
   closeBtn: {
@@ -237,7 +237,7 @@ const styles = StyleSheet.create({
   },
   totalLabel: {
     fontSize: 13,
-    color: colors.textSub,
+    color: colors.ink2,
     fontWeight: '500',
   },
   totalRight: {
@@ -260,27 +260,27 @@ const styles = StyleSheet.create({
     borderRadius: radius.sm,
   },
   pctUp: { backgroundColor: '#FEF2F2' },
-  pctDown: { backgroundColor: '#ECFDF5' },
-  pctFlat: { backgroundColor: colors.bg },
+  pctDown: { backgroundColor: '#E4F1EA' },
+  pctFlat: { backgroundColor: colors.canvas },
   pctText: { fontSize: 11, fontWeight: '700' },
   pctTextUp: { color: colors.expense },
   pctTextDown: { color: colors.income },
-  pctTextFlat: { color: colors.textSub },
+  pctTextFlat: { color: colors.ink2 },
   txCount: {
     fontSize: 12,
-    color: colors.textLight,
+    color: colors.ink3,
     marginTop: -6,
   },
   divider: {
     height: 1,
-    backgroundColor: colors.border,
+    backgroundColor: colors.line,
     marginVertical: 2,
   },
   section: { gap: 8 },
   sectionLabel: {
     fontSize: 11,
     fontWeight: '700',
-    color: colors.textSub,
+    color: colors.ink2,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
@@ -298,13 +298,13 @@ const styles = StyleSheet.create({
   catName: {
     flex: 1,
     fontSize: 13,
-    color: colors.text,
+    color: colors.ink,
     fontWeight: '500',
   },
   catAmount: {
     fontSize: 13,
     fontWeight: '700',
-    color: colors.text,
+    color: colors.ink,
   },
   biggestRow: {
     flexDirection: 'row',
@@ -322,11 +322,11 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 13,
     fontWeight: '600',
-    color: colors.text,
+    color: colors.ink,
   },
   biggestCat: {
     fontSize: 11,
-    color: colors.textSub,
+    color: colors.ink2,
   },
   biggestAmount: {
     fontSize: 14,

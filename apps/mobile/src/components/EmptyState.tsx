@@ -17,7 +17,7 @@ export default function EmptyState({
   return (
     <View style={styles.container}>
       <View style={styles.iconWrap}>
-        <Icon name={icon} size={32} color={colors.textLight} />
+        <Icon name={icon} size={32} color={colors.ink3} />
       </View>
       <Text style={styles.title}>{title}</Text>
       {subtitle ? <Text style={styles.subtitle}>{subtitle}</Text> : null}
@@ -36,7 +36,7 @@ const styles = StyleSheet.create({
     width: 64,
     height: 64,
     borderRadius: radius.xl,
-    backgroundColor: colors.inputBg,
+    backgroundColor: colors.surface2,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: spacing.base,
@@ -44,13 +44,13 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 15,
     fontWeight: '600',
-    color: colors.textMed,
+    color: colors.ink2,
     marginBottom: 4,
     textAlign: 'center',
   },
   subtitle: {
     fontSize: 13,
-    color: colors.textLight,
+    color: colors.ink3,
     textAlign: 'center',
   },
 });

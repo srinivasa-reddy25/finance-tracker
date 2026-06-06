@@ -137,7 +137,7 @@ export default function ProfileScreen() {
           <View style={styles.card}>
             <View style={styles.row}>
               <View style={styles.rowIconWrap}>
-                <Icon name="account-outline" size={17} color={colors.primary} />
+                <Icon name="account-outline" size={17} color={colors.accent} />
               </View>
               <View style={styles.rowContent}>
                 <Text style={styles.rowLabel}>Full name</Text>
@@ -149,7 +149,7 @@ export default function ProfileScreen() {
 
             <View style={styles.row}>
               <View style={styles.rowIconWrap}>
-                <Icon name="email-outline" size={17} color={colors.primary} />
+                <Icon name="email-outline" size={17} color={colors.accent} />
               </View>
               <View style={styles.rowContent}>
                 <Text style={styles.rowLabel}>Email address</Text>
@@ -172,7 +172,7 @@ export default function ProfileScreen() {
                 <Icon
                   name="tag-multiple-outline"
                   size={17}
-                  color={colors.primary}
+                  color={colors.accent}
                 />
               </View>
               <View style={styles.rowContent}>
@@ -183,7 +183,7 @@ export default function ProfileScreen() {
                     : 'Manage your spending categories'}
                 </Text>
               </View>
-              <Icon name="chevron-right" size={18} color={colors.textLight} />
+              <Icon name="chevron-right" size={18} color={colors.ink3} />
             </TouchableOpacity>
             <View style={styles.divider} />
             <TouchableOpacity
@@ -192,7 +192,7 @@ export default function ProfileScreen() {
               activeOpacity={0.7}
             >
               <View style={styles.rowIconWrap}>
-                <Icon name="repeat" size={17} color={colors.primary} />
+                <Icon name="repeat" size={17} color={colors.accent} />
               </View>
               <View style={styles.rowContent}>
                 <Text style={styles.rowLabel}>Recurring</Text>
@@ -200,7 +200,7 @@ export default function ProfileScreen() {
                   Auto-transactions on a schedule
                 </Text>
               </View>
-              <Icon name="chevron-right" size={18} color={colors.textLight} />
+              <Icon name="chevron-right" size={18} color={colors.ink3} />
             </TouchableOpacity>
           </View>
         </View>
@@ -215,11 +215,7 @@ export default function ProfileScreen() {
               activeOpacity={0.7}
             >
               <View style={styles.rowIconWrap}>
-                <Icon
-                  name="download-outline"
-                  size={17}
-                  color={colors.primary}
-                />
+                <Icon name="download-outline" size={17} color={colors.accent} />
               </View>
               <View style={styles.rowContent}>
                 <Text style={styles.rowLabel}>Export to email</Text>
@@ -227,7 +223,7 @@ export default function ProfileScreen() {
                   Get your transactions as CSV or PDF
                 </Text>
               </View>
-              <Icon name="chevron-right" size={18} color={colors.textLight} />
+              <Icon name="chevron-right" size={18} color={colors.ink3} />
             </TouchableOpacity>
           </View>
         </View>
@@ -238,7 +234,7 @@ export default function ProfileScreen() {
           <View style={styles.card}>
             <View style={styles.row}>
               <View style={styles.rowIconWrap}>
-                <Icon name="currency-inr" size={17} color={colors.primary} />
+                <Icon name="currency-inr" size={17} color={colors.accent} />
               </View>
               <View style={styles.rowContent}>
                 <Text style={styles.rowLabel}>Currency</Text>
@@ -253,7 +249,7 @@ export default function ProfileScreen() {
                 <Icon
                   name="information-outline"
                   size={17}
-                  color={colors.primary}
+                  color={colors.accent}
                 />
               </View>
               <View style={styles.rowContent}>
@@ -298,13 +294,13 @@ export default function ProfileScreen() {
                 onPress={() => !exporting && setExportOpen(false)}
                 hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
               >
-                <Icon name="close" size={20} color={colors.textSub} />
+                <Icon name="close" size={20} color={colors.ink2} />
               </TouchableOpacity>
             </View>
 
             <Text style={styles.sheetSub}>
               We'll email the file to{'\n'}
-              <Text style={{ color: colors.text, fontWeight: '600' }}>
+              <Text style={{ color: colors.ink, fontWeight: '600' }}>
                 {email}
               </Text>
             </Text>
@@ -385,7 +381,7 @@ const styles = StyleSheet.create({
   pageTitle: {
     fontSize: 26,
     fontWeight: '800',
-    color: colors.text,
+    color: colors.ink,
     letterSpacing: -0.5,
   },
 
@@ -395,7 +391,7 @@ const styles = StyleSheet.create({
     paddingBottom: spacing.xl,
     marginHorizontal: spacing.base,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: colors.line,
     borderRadius: radius.lg,
     backgroundColor: colors.surface,
   },
@@ -404,7 +400,7 @@ const styles = StyleSheet.create({
     height: 88,
     borderRadius: radius.full,
     borderWidth: 3,
-    borderColor: colors.border,
+    borderColor: colors.line,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: spacing.md,
@@ -413,7 +409,7 @@ const styles = StyleSheet.create({
     width: 78,
     height: 78,
     borderRadius: radius.full,
-    backgroundColor: colors.primary,
+    backgroundColor: colors.accent,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -426,18 +422,18 @@ const styles = StyleSheet.create({
   heroName: {
     fontSize: 18,
     fontWeight: '700',
-    color: colors.text,
+    color: colors.ink,
     letterSpacing: -0.3,
     marginBottom: 4,
   },
-  heroEmail: { fontSize: 13, color: colors.textSub },
+  heroEmail: { fontSize: 13, color: colors.ink2 },
 
   statsCard: {
     flexDirection: 'row',
     marginHorizontal: spacing.base,
     marginTop: spacing.md,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: colors.line,
     borderRadius: radius.lg,
     overflow: 'hidden',
     backgroundColor: colors.surface,
@@ -446,19 +442,19 @@ const styles = StyleSheet.create({
   statVal: {
     fontSize: 17,
     fontWeight: '700',
-    color: colors.text,
+    color: colors.ink,
     marginBottom: 3,
   },
   statLabel: {
     fontSize: 11,
     fontWeight: '600',
-    color: colors.textSub,
+    color: colors.ink2,
     textTransform: 'uppercase',
     letterSpacing: 0.4,
   },
   statDivider: {
     width: 1,
-    backgroundColor: colors.border,
+    backgroundColor: colors.line,
     marginVertical: spacing.md,
   },
 
@@ -466,7 +462,7 @@ const styles = StyleSheet.create({
   sectionLabel: {
     fontSize: 11,
     fontWeight: '700',
-    color: colors.textSub,
+    color: colors.ink2,
     textTransform: 'uppercase',
     letterSpacing: 0.6,
     marginBottom: spacing.sm,
@@ -474,7 +470,7 @@ const styles = StyleSheet.create({
   },
   card: {
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: colors.line,
     borderRadius: radius.lg,
     overflow: 'hidden',
     backgroundColor: colors.surface,
@@ -490,21 +486,21 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: radius.sm,
-    backgroundColor: colors.primaryLight,
+    backgroundColor: colors.accentSoft,
     alignItems: 'center',
     justifyContent: 'center',
   },
   rowContent: { flex: 1 },
   rowLabel: {
     fontSize: 11,
-    color: colors.textSub,
+    color: colors.ink2,
     fontWeight: '600',
     textTransform: 'uppercase',
     letterSpacing: 0.3,
     marginBottom: 2,
   },
-  rowValue: { fontSize: 14, color: colors.text, fontWeight: '500' },
-  divider: { height: 1, backgroundColor: colors.border },
+  rowValue: { fontSize: 14, color: colors.ink, fontWeight: '500' },
+  divider: { height: 1, backgroundColor: colors.line },
 
   signOutBtn: {
     flexDirection: 'row',
@@ -543,19 +539,19 @@ const styles = StyleSheet.create({
   sheetTitle: {
     fontSize: 18,
     fontWeight: '700',
-    color: colors.text,
+    color: colors.ink,
     marginBottom: 6,
   },
   sheetSub: {
     fontSize: 13,
-    color: colors.textSub,
+    color: colors.ink2,
     marginBottom: spacing.lg,
     lineHeight: 18,
   },
   sheetLabel: {
     fontSize: 12,
     fontWeight: '600',
-    color: colors.textSub,
+    color: colors.ink2,
     marginBottom: spacing.sm,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
@@ -571,18 +567,18 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.xs + 2,
     borderRadius: radius.sm,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: colors.line,
     backgroundColor: colors.surface,
   },
-  chipActive: { backgroundColor: colors.primary, borderColor: colors.primary },
-  chipText: { fontSize: 13, fontWeight: '500', color: colors.textSub },
+  chipActive: { backgroundColor: colors.accent, borderColor: colors.accent },
+  chipText: { fontSize: 13, fontWeight: '500', color: colors.ink2 },
   chipTextActive: { color: '#fff' },
   sendBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
-    backgroundColor: colors.primary,
+    backgroundColor: colors.accent,
     borderRadius: radius.md,
     paddingVertical: spacing.md,
     marginTop: spacing.sm,

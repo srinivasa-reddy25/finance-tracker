@@ -20,7 +20,7 @@ export const CATEGORY_META: Record<
   health: { icon: 'heart-pulse', color: '#EF4444', bg: '#FEF2F2' },
   shopping: { icon: 'shopping-outline', color: '#EC4899', bg: '#FDF2F8' },
   bills: { icon: 'receipt', color: '#EAB308', bg: '#FEFCE8' },
-  others: { icon: 'shape-outline', color: '#6B7280', bg: '#F9FAFB' },
+  others: { icon: 'shape-outline', color: '#7A746B', bg: '#EFEDE7' },
 };
 
 export const EXPENSE_CATEGORIES: TCategory[] = [

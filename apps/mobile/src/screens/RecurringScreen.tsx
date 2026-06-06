@@ -162,7 +162,7 @@ function RecurringForm({ initial, onSave, onClose }: FormProps) {
           value={name}
           onChangeText={setName}
           placeholder="e.g. Netflix, Rent, Salary"
-          placeholderTextColor={colors.textLight}
+          placeholderTextColor={colors.ink3}
         />
 
         {/* Amount */}
@@ -173,7 +173,7 @@ function RecurringForm({ initial, onSave, onClose }: FormProps) {
           onChangeText={setAmount}
           keyboardType="numeric"
           placeholder="0"
-          placeholderTextColor={colors.textLight}
+          placeholderTextColor={colors.ink3}
         />
 
         {/* Frequency */}
@@ -237,7 +237,7 @@ function RecurringForm({ initial, onSave, onClose }: FormProps) {
               onChangeText={setDayOfMonth}
               keyboardType="numeric"
               placeholder="1–31"
-              placeholderTextColor={colors.textLight}
+              placeholderTextColor={colors.ink3}
             />
           </>
         )}
@@ -295,7 +295,7 @@ function RecurringForm({ initial, onSave, onClose }: FormProps) {
                   <Text
                     style={[
                       styles.catChipText,
-                      { color: category === c.key ? c.color : colors.textSub },
+                      { color: category === c.key ? c.color : colors.ink2 },
                     ]}
                   >
                     {c.name}
@@ -313,7 +313,7 @@ function RecurringForm({ initial, onSave, onClose }: FormProps) {
           value={description}
           onChangeText={setDescription}
           placeholder="e.g. Family plan"
-          placeholderTextColor={colors.textLight}
+          placeholderTextColor={colors.ink3}
         />
 
         <TouchableOpacity
@@ -375,7 +375,7 @@ function RunHistoryModal({ item, onClose }: RunHistoryProps) {
           onPress={onClose}
           hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
         >
-          <Icon name="close" size={20} color={colors.textLight} />
+          <Icon name="close" size={20} color={colors.ink3} />
         </TouchableOpacity>
       </View>
 
@@ -384,10 +384,10 @@ function RunHistoryModal({ item, onClose }: RunHistoryProps) {
         contentContainerStyle={styles.runsList}
       >
         {loading ? (
-          <ActivityIndicator color={colors.primary} style={{ marginTop: 32 }} />
+          <ActivityIndicator color={colors.accent} style={{ marginTop: 32 }} />
         ) : runs.length === 0 ? (
           <View style={styles.runsEmpty}>
-            <Icon name="history" size={40} color={colors.border} />
+            <Icon name="history" size={40} color={colors.line} />
             <Text style={styles.runsEmptyText}>No runs yet</Text>
             <Text style={styles.runsEmptySub}>
               Runs will appear here after the cron fires
@@ -407,7 +407,7 @@ function RunHistoryModal({ item, onClose }: RunHistoryProps) {
                 <Icon
                   name={run.status === 'success' ? 'check' : 'close'}
                   size={12}
-                  color={run.status === 'success' ? '#16A34A' : '#DC2626'}
+                  color={run.status === 'success' ? '#0E7B53' : '#C5392C'}
                 />
               </View>
               <View style={{ flex: 1 }}>
@@ -477,7 +477,7 @@ export default function RecurringScreen() {
           style={styles.backBtn}
           hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
         >
-          <Icon name="arrow-left" size={22} color={colors.text} />
+          <Icon name="arrow-left" size={22} color={colors.ink} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Recurring</Text>
         <TouchableOpacity
@@ -493,11 +493,11 @@ export default function RecurringScreen() {
       {/* List */}
       {loading && items.length === 0 ? (
         <View style={styles.center}>
-          <ActivityIndicator color={colors.primary} />
+          <ActivityIndicator color={colors.accent} />
         </View>
       ) : items.length === 0 ? (
         <View style={styles.center}>
-          <Icon name="repeat" size={48} color={colors.border} />
+          <Icon name="repeat" size={48} color={colors.line} />
           <Text style={styles.emptyText}>No recurring transactions yet</Text>
           <Text style={styles.emptySub}>Tap + to add your first one</Text>
         </View>
@@ -559,12 +559,10 @@ export default function RecurringScreen() {
                       value={item.is_active}
                       onValueChange={v => toggle(item._id, v)}
                       trackColor={{
-                        false: colors.border,
-                        true: colors.primary + '60',
+                        false: colors.line,
+                        true: colors.accent + '60',
                       }}
-                      thumbColor={
-                        item.is_active ? colors.primary : colors.textLight
-                      }
+                      thumbColor={item.is_active ? colors.accent : colors.ink3}
                       style={{ transform: [{ scaleX: 0.8 }, { scaleY: 0.8 }] }}
                     />
                     <Text style={styles.toggleLabel}>
@@ -577,7 +575,7 @@ export default function RecurringScreen() {
                       style={styles.iconBtn}
                       hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
                     >
-                      <Icon name="history" size={18} color={colors.textSub} />
+                      <Icon name="history" size={18} color={colors.ink2} />
                     </TouchableOpacity>
                     <TouchableOpacity
                       onPress={() => setSheet(item)}
@@ -587,7 +585,7 @@ export default function RecurringScreen() {
                       <Icon
                         name="pencil-outline"
                         size={18}
-                        color={colors.textSub}
+                        color={colors.ink2}
                       />
                     </TouchableOpacity>
                     <TouchableOpacity
@@ -656,7 +654,7 @@ export default function RecurringScreen() {
 // ─── Styles ───────────────────────────────────────────────────────────────────
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.bg },
+  container: { flex: 1, backgroundColor: colors.canvas },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -666,14 +664,14 @@ const styles = StyleSheet.create({
     paddingBottom: spacing.md,
     gap: spacing.sm,
     borderBottomWidth: 1,
-    borderBottomColor: colors.border,
+    borderBottomColor: colors.line,
   },
   backBtn: {
     width: 36,
     height: 36,
     borderRadius: radius.md,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: colors.line,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -681,14 +679,14 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 20,
     fontWeight: '800',
-    color: colors.text,
+    color: colors.ink,
     letterSpacing: -0.4,
   },
   addBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    backgroundColor: colors.primary,
+    backgroundColor: colors.accent,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.xs + 2,
     borderRadius: radius.md,
@@ -698,17 +696,17 @@ const styles = StyleSheet.create({
   emptyText: {
     fontSize: 16,
     fontWeight: '600',
-    color: colors.textSub,
+    color: colors.ink2,
     marginTop: spacing.sm,
   },
-  emptySub: { fontSize: 13, color: colors.textLight },
+  emptySub: { fontSize: 13, color: colors.ink3 },
   list: { padding: spacing.base, gap: spacing.sm },
   card: {
     backgroundColor: colors.surface,
     borderRadius: radius.lg,
     padding: spacing.base,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: colors.line,
     gap: 6,
   },
   cardInactive: { opacity: 0.45 },
@@ -721,7 +719,7 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 15,
     fontWeight: '700',
-    color: colors.text,
+    color: colors.ink,
   },
   cardAmount: {
     fontSize: 16,
@@ -747,26 +745,26 @@ const styles = StyleSheet.create({
   },
   cardMetaDot: {
     fontSize: 12,
-    color: colors.border,
+    color: colors.line,
   },
   cardFreq: {
     fontSize: 13,
-    color: colors.textSub,
+    color: colors.ink2,
     fontWeight: '500',
   },
   cardNext: {
     fontSize: 12,
-    color: colors.textLight,
+    color: colors.ink3,
     fontWeight: '500',
     flexShrink: 0,
   },
   cardLastRun: {
     fontSize: 11,
-    color: colors.textLight,
+    color: colors.ink3,
   },
   cardDivider: {
     height: 1,
-    backgroundColor: colors.border,
+    backgroundColor: colors.line,
     marginTop: 4,
     marginBottom: 2,
   },
@@ -783,7 +781,7 @@ const styles = StyleSheet.create({
   toggleLabel: {
     fontSize: 12,
     fontWeight: '600',
-    color: colors.textSub,
+    color: colors.ink2,
   },
   cardIcons: {
     flexDirection: 'row',
@@ -806,7 +804,7 @@ const styles = StyleSheet.create({
   formHandle: {
     width: 36,
     height: 4,
-    backgroundColor: colors.border,
+    backgroundColor: colors.line,
     borderRadius: 2,
     alignSelf: 'center',
     marginBottom: spacing.lg,
@@ -814,32 +812,32 @@ const styles = StyleSheet.create({
   formTitle: {
     fontSize: 18,
     fontWeight: '700',
-    color: colors.text,
+    color: colors.ink,
     marginBottom: spacing.lg,
   },
   label: {
     fontSize: 13,
     fontWeight: '600',
-    color: colors.textSub,
+    color: colors.ink2,
     marginBottom: spacing.xs,
   },
   subLabel: {
     fontSize: 11,
     fontWeight: '600',
-    color: colors.textLight,
+    color: colors.ink3,
     marginBottom: spacing.xs,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
   input: {
-    backgroundColor: colors.inputBg,
+    backgroundColor: colors.surface2,
     borderRadius: radius.sm,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: colors.line,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm + 2,
     fontSize: 15,
-    color: colors.text,
+    color: colors.ink,
     marginBottom: spacing.md,
   },
   chipRow: {
@@ -853,11 +851,11 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.xs + 2,
     borderRadius: radius.sm,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: colors.line,
     backgroundColor: colors.surface,
   },
-  chipActive: { backgroundColor: colors.primary, borderColor: colors.primary },
-  chipText: { fontSize: 13, fontWeight: '500', color: colors.textSub },
+  chipActive: { backgroundColor: colors.accent, borderColor: colors.accent },
+  chipText: { fontSize: 13, fontWeight: '500', color: colors.ink2 },
   chipTextActive: { color: '#fff' },
   catGrid: {
     flexDirection: 'row',
@@ -877,7 +875,7 @@ const styles = StyleSheet.create({
   },
   catChipText: { fontSize: 12, fontWeight: '500' },
   saveBtn: {
-    backgroundColor: colors.primary,
+    backgroundColor: colors.accent,
     borderRadius: radius.md,
     paddingVertical: spacing.md,
     alignItems: 'center',
@@ -896,11 +894,11 @@ const styles = StyleSheet.create({
   runsTitle: {
     fontSize: 18,
     fontWeight: '700',
-    color: colors.text,
+    color: colors.ink,
   },
   runsSub: {
     fontSize: 13,
-    color: colors.textSub,
+    color: colors.ink2,
     marginTop: 2,
   },
   runsList: {
@@ -916,11 +914,11 @@ const styles = StyleSheet.create({
   runsEmptyText: {
     fontSize: 15,
     fontWeight: '600',
-    color: colors.textSub,
+    color: colors.ink2,
   },
   runsEmptySub: {
     fontSize: 13,
-    color: colors.textLight,
+    color: colors.ink3,
     textAlign: 'center',
   },
   runRow: {
@@ -929,7 +927,7 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
     paddingVertical: spacing.sm,
     borderBottomWidth: 1,
-    borderBottomColor: colors.border,
+    borderBottomColor: colors.line,
   },
   runStatus: {
     width: 24,
@@ -942,7 +940,7 @@ const styles = StyleSheet.create({
   runFailed: { backgroundColor: '#FEE2E2' },
   runDate: {
     fontSize: 13,
-    color: colors.text,
+    color: colors.ink,
     fontWeight: '500',
   },
   runError: {
@@ -953,6 +951,6 @@ const styles = StyleSheet.create({
   runAmount: {
     fontSize: 13,
     fontWeight: '700',
-    color: colors.text,
+    color: colors.ink,
   },
 });
