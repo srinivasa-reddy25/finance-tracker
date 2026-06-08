@@ -282,7 +282,7 @@ export default function CategoriesScreen() {
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor={colors.surface} />
+      <StatusBar barStyle="dark-content" backgroundColor={colors.canvas} />
 
       <View style={styles.header}>
         <TouchableOpacity
