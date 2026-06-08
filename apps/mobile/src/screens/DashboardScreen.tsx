@@ -10,6 +10,7 @@ import {
   Alert,
   Animated,
   AppState,
+  DeviceEventEmitter,
   Easing,
   KeyboardAvoidingView,
   Linking,
@@ -23,14 +24,16 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
+  TouchableWithoutFeedback,
   View,
 } from 'react-native';
 
-import { useFocusEffect } from '@react-navigation/native';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
+import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import MonthlyReportCard from '../components/MonthlyReportCard';
 import EmptyState from '../components/EmptyState';
-import BudgetWarning from '../components/BudgetWarning';
+import type { BottomTabParams } from '../navigation';
 import { signOut } from '../services/firebase';
 import {
   hasAskedPermission,
@@ -42,7 +45,7 @@ import { updateWidget } from '../services/widgetBridge';
 import { useAuthStore } from '../stores/authStore';
 import { useCategoryStore } from '../stores/categoryStore';
 import { useTransactionStore } from '../stores/transactionStore';
-import { colors, radius, shadow, spacing } from '../theme';
+import { colors, radius, shadow, spacing, typography } from '../theme';
 import type { TTransaction } from '../types/transaction';
 import {
   BUDGET_WARNING_THRESHOLD_PCT,
@@ -51,6 +54,18 @@ import {
   NOTE_MAX_LENGTH,
   TRANSACTION_MAX_AMOUNT,
 } from '../constants/config';
+
+function compactAmount(n: number): string {
+  if (n >= 1_00_000) return `₹${(n / 1_00_000).toFixed(1)}L`;
+  if (n >= 1_000) return `₹${(n / 1_000).toFixed(1)}k`;
+  return `₹${n}`;
+}
+
+function monthOffset(base: string, delta: number): string {
+  const [y, m] = base.split('-').map(Number);
+  const d = new Date(y, m - 1 + delta, 1);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+}
 
 function useCountUp(target: number, resetKey: number, duration = 900) {
   const animated = useRef(new Animated.Value(0)).current;
@@ -81,18 +96,63 @@ function useCountUp(target: number, resetKey: number, duration = 900) {
 }
 
 export default function DashboardScreen() {
-  const { transactions, loading, fetch, add, update, remove } =
-    useTransactionStore();
+  const {
+    dashboardTransactions: transactions,
+    dashboardLoading: loading,
+    fetchDashboard,
+    add,
+    update,
+    remove,
+  } = useTransactionStore();
   const { user } = useAuthStore();
   const {
     categories,
     loading: catLoading,
     fetch: fetchCats,
   } = useCategoryStore();
+  const navigation = useNavigation<BottomTabNavigationProp<BottomTabParams>>();
   const [refreshing, setRefreshing] = useState(false);
   const [refreshCount, setRefreshCount] = useState(0);
   const [notifBanner, setNotifBanner] = useState(false);
   const [notifSheet, setNotifSheet] = useState(false);
+
+  const currentMonth = new Date().toISOString().slice(0, 7);
+  const [selectedMonth, setSelectedMonth] = useState(currentMonth);
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const [availableMonths, setAvailableMonths] = useState<string[]>([
+    currentMonth,
+  ]);
+  const isCurrentMonth = selectedMonth === currentMonth;
+
+  const PILL_H = 44;
+  const PILL_W = 100;
+  const DROP_W = 200;
+  const ROW_H = 52;
+  const morphAnim = useRef(new Animated.Value(0)).current;
+
+  const openPicker = () => {
+    setPickerOpen(true);
+    Animated.spring(morphAnim, {
+      toValue: 1,
+      useNativeDriver: false,
+      tension: 120,
+      friction: 14,
+    }).start();
+  };
+
+  const closePicker = () => {
+    Animated.spring(morphAnim, {
+      toValue: 0,
+      useNativeDriver: false,
+      tension: 120,
+      friction: 14,
+    }).start(() => setPickerOpen(false));
+  };
+
+  const selectMonth = (m: string) => {
+    setSelectedMonth(m);
+    closePicker();
+  };
 
   // Add / edit modal state
   const [modalOpen, setModalOpen] = useState(false);
@@ -104,10 +164,25 @@ export default function DashboardScreen() {
   const [adding, setAdding] = useState(false);
   const amountRef = useRef<TextInput>(null);
 
-  const currentMonth = new Date().toISOString().slice(0, 7);
+  useEffect(() => {
+    fetchDashboard({ month: selectedMonth, limit: DASHBOARD_RECENT_LIMIT });
+  }, [selectedMonth]);
 
   useEffect(() => {
-    fetch({ month: currentMonth, limit: DASHBOARD_RECENT_LIMIT });
+    // Build months from user's join month up to current month
+    const joinDate = user?.metadata?.creationTime
+      ? new Date(user.metadata.creationTime)
+      : new Date();
+    const joinMonth = `${joinDate.getFullYear()}-${String(joinDate.getMonth() + 1).padStart(2, '0')}`;
+    const months: string[] = [];
+    let m = currentMonth;
+    while (m >= joinMonth) {
+      months.push(m);
+      m = monthOffset(m, -1);
+      if (months.length > 24) break; // safety cap
+    }
+    setAvailableMonths(months);
+
     fetchCats();
 
     const checkNotif = async () => {
@@ -145,7 +220,9 @@ export default function DashboardScreen() {
   );
 
   const { totalSpent, count, totalBudget } = useMemo(() => {
-    const spent = transactions.reduce((s, t) => s + t.amount, 0);
+    const spent = transactions
+      .filter(t => !categoryMap.get(t.category)?.is_income)
+      .reduce((s, t) => s + t.amount, 0);
     const budget = categories
       .filter(c => !c.is_income && c.budget != null)
       .reduce((s, c) => s + (c.budget ?? 0), 0);
@@ -154,7 +231,7 @@ export default function DashboardScreen() {
       count: transactions.length,
       totalBudget: budget > 0 ? budget : null,
     };
-  }, [transactions, categories]);
+  }, [transactions, categoryMap, categories]);
 
   // Keep Android widget in sync
   useEffect(() => {
@@ -179,7 +256,7 @@ export default function DashboardScreen() {
     setRefreshing(true);
     try {
       await Promise.all([
-        fetch({ month: currentMonth, limit: DASHBOARD_RECENT_LIMIT }),
+        fetchDashboard({ month: selectedMonth, limit: DASHBOARD_RECENT_LIMIT }),
         fetchCats(),
       ]);
       setRefreshCount(c => c + 1);
@@ -209,6 +286,14 @@ export default function DashboardScreen() {
     setCategory(expenseCategories[0]?.key ?? '');
     setModalOpen(true);
   };
+
+  useEffect(() => {
+    const sub = DeviceEventEmitter.addListener(
+      'openTransactionModal',
+      openModal,
+    );
+    return () => sub.remove();
+  }, [categories.length, expenseCategories]);
 
   const openEdit = (item: TTransaction) => {
     setEditTarget(item);
@@ -299,27 +384,71 @@ export default function DashboardScreen() {
 
   const animatedSpent = useCountUp(totalSpent, refreshCount);
 
+  // Morph animation derived values
+  const morphHeight = morphAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [PILL_H, PILL_H + availableMonths.length * ROW_H + 8],
+  });
+  const morphWidth = morphAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [PILL_W, DROP_W],
+  });
+  const morphRadius = morphAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [radius.full, radius.xl],
+  });
+  const chevronRot = morphAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: ['0deg', '180deg'],
+  });
+  const listOpacity = morphAnim.interpolate({
+    inputRange: [0, 0.4, 1],
+    outputRange: [0, 0, 1],
+  });
+
   const budgetPct =
     totalBudget != null ? (totalSpent / totalBudget) * 100 : null;
-  const spentColor =
-    budgetPct == null
-      ? colors.accent
-      : budgetPct >= 100
-        ? colors.expense
-        : budgetPct >= BUDGET_WARNING_THRESHOLD_PCT
-          ? '#F59E0B'
-          : colors.accent;
 
-  const monthLabel = new Date().toLocaleDateString('en-IN', {
-    month: 'long',
-    year: 'numeric',
-  });
+  const [selYear, selMonthNum] = selectedMonth.split('-').map(Number);
+  const monthLabel = new Date(selYear, selMonthNum - 1, 1).toLocaleDateString(
+    'en-IN',
+    { month: 'long', year: 'numeric' },
+  );
+  const monthShort = new Date(selYear, selMonthNum - 1, 1)
+    .toLocaleDateString('en-IN', { month: 'short' })
+    .toUpperCase();
   const firstName = user?.displayName?.split(' ')[0] ?? 'there';
+  const heroStatus =
+    budgetPct == null
+      ? null
+      : budgetPct >= 100
+        ? 'Over budget'
+        : `${Math.round(budgetPct)}% used`;
+  const budgetRemaining = totalBudget != null ? totalBudget - totalSpent : null;
   const recent = transactions.slice(0, 3);
+  const topCategories = useMemo(() => {
+    const spentByCategory = new Map<string, number>();
+    for (const transaction of transactions) {
+      if (categoryMap.get(transaction.category)?.is_income) continue;
+      spentByCategory.set(
+        transaction.category,
+        (spentByCategory.get(transaction.category) ?? 0) + transaction.amount,
+      );
+    }
+    return Array.from(spentByCategory.entries())
+      .map(([key, spent]) => ({
+        key,
+        spent,
+        meta: categoryMap.get(key),
+      }))
+      .filter(item => item.meta)
+      .sort((a, b) => b.spent - a.spent)
+      .slice(0, 4);
+  }, [transactions, categoryMap]);
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor={colors.surface} />
+      <StatusBar barStyle="dark-content" backgroundColor={colors.canvas} />
 
       <ScrollView
         showsVerticalScrollIndicator={false}
@@ -335,67 +464,191 @@ export default function DashboardScreen() {
       >
         {/* Header */}
         <View style={styles.header}>
-          <View style={styles.nameRow}>
-            <Text style={styles.name}>{firstName}</Text>
-            {budgetPct != null && totalBudget != null && (
-              <BudgetWarning
-                totalSpent={totalSpent}
-                totalBudget={totalBudget}
-                budgetPct={budgetPct}
-              />
-            )}
+          {/* Month pill — grows as overlay, pill row stays at top */}
+          <View style={styles.monthPillWrapper}>
+            <Animated.View
+              style={[
+                styles.morphContainer,
+                {
+                  height: morphHeight,
+                  width: morphWidth,
+                  borderRadius: morphRadius,
+                },
+              ]}
+            >
+              <TouchableOpacity
+                style={styles.morphPillRow}
+                onPress={pickerOpen ? closePicker : openPicker}
+                activeOpacity={0.8}
+              >
+                <Text style={styles.monthPillText} numberOfLines={1}>
+                  {pickerOpen
+                    ? monthLabel
+                    : new Date(selYear, selMonthNum - 1, 1).toLocaleDateString(
+                        'en-IN',
+                        { month: 'long' },
+                      )}
+                </Text>
+                <Animated.View style={{ transform: [{ rotate: chevronRot }] }}>
+                  <Icon name="chevron-down" size={14} color={colors.ink2} />
+                </Animated.View>
+              </TouchableOpacity>
+              <Animated.View
+                style={[styles.morphList, { opacity: listOpacity }]}
+              >
+                {pickerOpen &&
+                  availableMonths.map(m => {
+                    const [y, mo] = m.split('-').map(Number);
+                    const label = new Date(y, mo - 1, 1).toLocaleDateString(
+                      'en-IN',
+                      {
+                        month: 'long',
+                        year: 'numeric',
+                      },
+                    );
+                    const isCurrent = m === currentMonth;
+                    return (
+                      <TouchableOpacity
+                        key={m}
+                        style={styles.morphRow}
+                        onPress={() => selectMonth(m)}
+                        activeOpacity={0.6}
+                      >
+                        <Text style={styles.morphRowLabel}>{label}</Text>
+                        {isCurrent && (
+                          <View style={styles.currentBadge}>
+                            <Text style={styles.currentBadgeText}>Now</Text>
+                          </View>
+                        )}
+                      </TouchableOpacity>
+                    );
+                  })}
+              </Animated.View>
+            </Animated.View>
           </View>
-          <TouchableOpacity onPress={signOut} style={styles.avatar}>
-            <Text style={styles.avatarText}>{firstName[0].toUpperCase()}</Text>
-          </TouchableOpacity>
+
+          {/* Right side: warning tag + avatar */}
+          <View style={styles.headerRight}>
+            {budgetPct != null &&
+              totalBudget != null &&
+              budgetPct >= BUDGET_WARNING_THRESHOLD_PCT && (
+                <View
+                  style={[
+                    styles.warningTag,
+                    budgetPct >= 100
+                      ? styles.warningTagDanger
+                      : styles.warningTagAmber,
+                  ]}
+                >
+                  <Icon
+                    name={
+                      budgetPct >= 100
+                        ? 'alert-circle-outline'
+                        : 'alert-outline'
+                    }
+                    size={13}
+                    color={budgetPct >= 100 ? colors.expense : colors.warn}
+                  />
+                  <Text
+                    style={[
+                      styles.warningTagText,
+                      {
+                        color: budgetPct >= 100 ? colors.expense : colors.warn,
+                      },
+                    ]}
+                    numberOfLines={1}
+                  >
+                    {budgetPct >= 100
+                      ? 'Over budget'
+                      : `${Math.round(budgetPct)}% used`}
+                  </Text>
+                </View>
+              )}
+            <TouchableOpacity
+              style={styles.avatar}
+              onPress={() => navigation.navigate('Profile')}
+            >
+              <Text style={styles.avatarText}>
+                {firstName[0].toUpperCase()}
+              </Text>
+            </TouchableOpacity>
+          </View>
         </View>
 
+        {/* Notification bar — only when push permission denied */}
         {notifBanner && (
-          <View style={styles.notifBanner}>
-            <Icon name="bell-off-outline" size={14} color="#92400E" />
-            <Text style={styles.notifBannerText}>
-              Notifications off — you'll miss budget alerts
+          <View style={styles.notifBar}>
+            <Icon name="bell-off-outline" size={13} color={colors.ink2} />
+            <Text style={styles.notifBarText} numberOfLines={1}>
+              Notifications off — you'll miss alerts
             </Text>
             <TouchableOpacity onPress={() => Linking.openSettings()}>
-              <Text style={styles.notifBannerAction}>Enable</Text>
+              <Text style={styles.notifBarAction}>Enable</Text>
             </TouchableOpacity>
             <TouchableOpacity onPress={() => setNotifBanner(false)}>
-              <Icon name="close" size={14} color="#92400E" />
+              <Icon name="close" size={12} color={colors.ink3} />
             </TouchableOpacity>
           </View>
         )}
 
-        {/* Spending hero — no card, just text on page */}
+        {/* Spending hero */}
         <View style={styles.hero}>
-          <Text style={styles.heroLabel}>Total Spent</Text>
+          <Text style={styles.heroLabel}>TOTAL SPENT · {monthShort}</Text>
           <View style={styles.heroAmountRow}>
-            {totalBudget != null && (
-              <Text style={[styles.heroBudget, { opacity: 0 }]}>
-                / ₹{totalBudget.toLocaleString('en-IN')}
-              </Text>
-            )}
-            <Text style={[styles.heroAmount, { color: spentColor }]}>
-              ₹{animatedSpent.toLocaleString('en-IN')}
+            <Text style={styles.heroRupee}>₹</Text>
+            <Text style={styles.heroAmount}>
+              {animatedSpent.toLocaleString('en-IN')}
             </Text>
-            {totalBudget != null && (
-              <Text style={styles.heroBudget}>
-                / ₹{totalBudget.toLocaleString('en-IN')}
-              </Text>
-            )}
           </View>
           <View style={styles.heroStats}>
             <Text style={styles.heroStat}>{count} transactions</Text>
-            <View style={styles.heroDot} />
-            <Text style={styles.heroStat}>{monthLabel}</Text>
+            {heroStatus != null && (
+              <>
+                <View style={styles.heroDot} />
+                <Text style={styles.heroStat}>{heroStatus}</Text>
+              </>
+            )}
           </View>
         </View>
+
+        {totalBudget != null && (
+          <View style={styles.budgetWrap}>
+            <View style={styles.budgetTrack}>
+              <View
+                style={[
+                  styles.budgetFill,
+                  {
+                    width: `${Math.min(budgetPct ?? 0, 100)}%`,
+                    backgroundColor:
+                      budgetPct != null && budgetPct >= 100
+                        ? colors.expense
+                        : colors.accent,
+                  },
+                ]}
+              />
+            </View>
+            <View style={styles.budgetCap}>
+              <Text style={styles.budgetCapText}>
+                {budgetRemaining != null && budgetRemaining >= 0
+                  ? `₹${budgetRemaining.toLocaleString('en-IN')} left`
+                  : `Over ₹${Math.abs(budgetRemaining ?? 0).toLocaleString('en-IN')}`}
+              </Text>
+              <Text style={styles.budgetCapMuted}>
+                Budget ₹{totalBudget.toLocaleString('en-IN')}
+              </Text>
+            </View>
+          </View>
+        )}
 
         {/* Monthly recap card — visible 1st–3rd of month */}
         <MonthlyReportCard />
 
         {/* Section header */}
         <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Recent transactions</Text>
+          <Text style={styles.sectionTitle}>Recent</Text>
+          <TouchableOpacity onPress={() => navigation.navigate('History')}>
+            <Text style={styles.seeAll}>See all</Text>
+          </TouchableOpacity>
         </View>
 
         {/* Transaction list */}
@@ -440,11 +693,8 @@ export default function DashboardScreen() {
                     <Text
                       style={[styles.recentAmount, { color: amountColor }]}
                       numberOfLines={1}
-                      adjustsFontSizeToFit
-                      minimumFontScale={0.6}
                     >
-                      {isIncome ? '+' : '-'}₹
-                      {item.amount.toLocaleString('en-IN')}
+                      {compactAmount(item.amount)}
                     </Text>
                   </View>
                   <View style={styles.recentFooter}>
@@ -458,16 +708,55 @@ export default function DashboardScreen() {
             })}
           </View>
         )}
-      </ScrollView>
 
-      {/* FAB */}
-      <TouchableOpacity
-        style={[styles.fab, shadow.strong]}
-        onPress={openModal}
-        activeOpacity={0.85}
-      >
-        <Icon name="plus" size={26} color="#FFFFFF" />
-      </TouchableOpacity>
+        {topCategories.length > 0 && (
+          <>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>Where it went</Text>
+            </View>
+            <View style={styles.categoryBreakdown}>
+              {topCategories.map(item => {
+                const meta = item.meta!;
+                const pct =
+                  totalSpent > 0 ? Math.min(item.spent / totalSpent, 1) : 0;
+                return (
+                  <View key={item.key} style={styles.breakdownRow}>
+                    <View
+                      style={[
+                        styles.breakdownIcon,
+                        { backgroundColor: meta.bg },
+                      ]}
+                    >
+                      <Icon name={meta.icon} size={16} color={meta.color} />
+                    </View>
+                    <View style={styles.breakdownInfo}>
+                      <View style={styles.breakdownTop}>
+                        <Text style={styles.breakdownName} numberOfLines={1}>
+                          {meta.name}
+                        </Text>
+                        <Text style={styles.breakdownAmount}>
+                          ₹{item.spent.toLocaleString('en-IN')}
+                        </Text>
+                      </View>
+                      <View style={styles.breakdownTrack}>
+                        <View
+                          style={[
+                            styles.breakdownFill,
+                            {
+                              width: `${pct * 100}%`,
+                              backgroundColor: meta.color,
+                            },
+                          ]}
+                        />
+                      </View>
+                    </View>
+                  </View>
+                );
+              })}
+            </View>
+          </>
+        )}
+      </ScrollView>
 
       {/* Add Transaction Modal */}
       <Modal
@@ -494,7 +783,7 @@ export default function DashboardScreen() {
               {/* Dialog header */}
               <View style={styles.dialogHeader}>
                 <Text style={styles.dialogTitle}>
-                  {editTarget ? 'Edit Expense' : 'Add Expense'}
+                  {editTarget ? 'Edit expense' : 'Add expense'}
                 </Text>
                 <TouchableOpacity
                   onPress={() => {
@@ -612,7 +901,7 @@ export default function DashboardScreen() {
                   <>
                     <Icon name="check" size={17} color="#FFF" />
                     <Text style={styles.submitText}>
-                      {editTarget ? 'Save Changes' : 'Add Expense'}
+                      {editTarget ? 'Save changes' : 'Add expense'}
                     </Text>
                   </>
                 )}
@@ -687,14 +976,14 @@ export default function DashboardScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.surface },
+  container: { flex: 1, backgroundColor: colors.canvas },
   notifSheetOverlay: {
     flex: 1,
     justifyContent: 'flex-end',
     backgroundColor: 'rgba(0,0,0,0.4)',
   },
   notifSheet: {
-    backgroundColor: colors.surface,
+    backgroundColor: colors.canvas,
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     paddingHorizontal: spacing.xl,
@@ -758,93 +1047,173 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: colors.ink2,
   },
-  notifBanner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    backgroundColor: '#FFFBEB',
-    borderWidth: 1,
-    borderColor: '#FDE68A',
-    borderRadius: radius.md,
-    marginHorizontal: spacing.lg,
-    marginBottom: spacing.md,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-  },
-  notifBannerText: {
-    flex: 1,
-    fontSize: 12,
-    color: '#92400E',
-  },
-  notifBannerAction: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#D97706',
-  },
   scroll: { paddingBottom: 100 },
 
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    backgroundColor: colors.surface,
+    backgroundColor: colors.canvas,
     paddingHorizontal: spacing.lg,
     paddingTop: 56,
-    paddingBottom: spacing.lg,
+    paddingBottom: spacing.md,
   },
-  nameRow: {
+  monthPillWrapper: {
+    height: 44,
+    zIndex: 200,
+    alignSelf: 'flex-start',
+  },
+  morphContainer: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.line,
+    overflow: 'hidden',
+    shadowColor: '#1A1714',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.1,
+    shadowRadius: 16,
+    elevation: 5,
+  },
+  morphPillRow: {
+    height: 44,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.sm,
-    flex: 1,
+    paddingHorizontal: 16,
+    gap: 6,
   },
-  name: {
-    fontSize: 22,
+  monthPillText: {
+    fontSize: 15,
+    fontFamily: typography.bold,
     fontWeight: '700',
     color: colors.ink,
-    letterSpacing: -0.3,
+  },
+  morphList: {
+    paddingVertical: 8,
+  },
+  morphRow: {
+    height: 52,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    gap: 8,
+  },
+  morphRowLabel: {
+    flex: 1,
+    fontSize: 15,
+    fontFamily: typography.medium,
+    fontWeight: '500',
+    color: colors.ink,
+  },
+
+  headerRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 0,
+  },
+  warningTag: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingLeft: 12,
+    paddingRight: 28, // extra right padding so avatar overlaps it
+    height: 44,
+    borderTopLeftRadius: radius.full,
+    borderBottomLeftRadius: radius.full,
+    borderWidth: 1,
+    borderRightWidth: 0,
+    marginRight: -22, // avatar overlaps this by 22px
+  },
+  warningTagAmber: {
+    backgroundColor: colors.warnSoft,
+    borderColor: colors.warn + '66',
+  },
+  warningTagDanger: {
+    backgroundColor: colors.expenseSoft,
+    borderColor: colors.expense + '66',
+  },
+  warningTagText: {
+    fontSize: 12,
+    fontFamily: typography.semibold,
+    fontWeight: '600',
   },
   avatar: {
-    width: 42,
-    height: 42,
+    width: 44,
+    height: 44,
     borderRadius: radius.full,
-    backgroundColor: colors.accent,
+    backgroundColor: colors.ink,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  avatarText: { color: '#FFFFFF', fontSize: 17, fontWeight: '700' },
+  avatarText: {
+    color: colors.canvas,
+    fontSize: 16,
+    fontFamily: typography.extrabold,
+    fontWeight: '800',
+  },
+
+  notifBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: colors.warnSoft,
+    borderWidth: 1,
+    borderColor: colors.warn + '50',
+    borderRadius: radius.full,
+    marginHorizontal: spacing.lg,
+    marginBottom: spacing.sm,
+    paddingHorizontal: 14,
+    height: 40,
+  },
+  notifBarText: {
+    flex: 1,
+    fontSize: 12,
+    fontFamily: typography.medium,
+    fontWeight: '500',
+    color: colors.warn,
+  },
+  notifBarAction: {
+    fontSize: 12,
+    fontFamily: typography.bold,
+    fontWeight: '700',
+    color: colors.warn,
+  },
 
   hero: {
     alignItems: 'center',
-    paddingVertical: spacing.xl,
+    paddingTop: spacing.xl,
+    paddingBottom: spacing.base,
     paddingHorizontal: spacing.base,
-    marginBottom: spacing.md,
   },
   heroLabel: {
-    fontSize: 12,
-    fontWeight: '600',
+    fontSize: 11,
+    fontFamily: typography.bold,
+    fontWeight: '700',
     color: colors.ink3,
-    textTransform: 'uppercase',
-    letterSpacing: 1,
-    marginBottom: spacing.sm,
+    letterSpacing: 1.8,
+    marginBottom: spacing.md,
   },
   heroAmountRow: {
     flexDirection: 'row',
-    alignItems: 'baseline',
+    alignItems: 'flex-start',
     justifyContent: 'center',
   },
-  heroAmount: {
-    fontSize: 62,
-    fontWeight: '800',
-    color: colors.accent,
-    letterSpacing: -2,
+  heroRupee: {
+    fontSize: 28,
+    fontFamily: typography.bold,
+    fontWeight: '700',
+    color: colors.ink,
+    marginTop: 10,
+    marginRight: 2,
   },
-  heroBudget: {
-    fontSize: 16,
-    fontWeight: '500',
-    color: colors.ink3,
-    marginLeft: 6,
-    marginBottom: 6,
+  heroAmount: {
+    fontSize: 66,
+    fontFamily: typography.extrabold,
+    fontWeight: '800',
+    color: colors.ink,
+    letterSpacing: -3.3,
   },
   heroStats: {
     flexDirection: 'row',
@@ -853,39 +1222,85 @@ const styles = StyleSheet.create({
     marginTop: spacing.sm,
   },
   heroStat: {
-    fontSize: 12,
+    fontSize: 13,
     color: colors.ink2,
+    fontFamily: typography.medium,
     fontWeight: '500',
   },
   heroDot: {
     width: 3,
     height: 3,
     borderRadius: 2,
-    backgroundColor: colors.line,
+    backgroundColor: colors.ink3,
   },
   sectionHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: spacing.base,
-    marginBottom: spacing.sm,
+    paddingHorizontal: spacing.lg,
+    marginTop: spacing.xl,
+    marginBottom: spacing.md,
   },
-  sectionTitle: { fontSize: 16, fontWeight: '700', color: colors.ink },
+  sectionTitle: {
+    fontSize: 19,
+    fontFamily: typography.extrabold,
+    fontWeight: '800',
+    color: colors.ink,
+    letterSpacing: -0.4,
+  },
+  seeAll: {
+    fontSize: 14,
+    fontFamily: typography.bold,
+    fontWeight: '700',
+    color: colors.accent,
+  },
+
+  budgetWrap: {
+    marginHorizontal: spacing.lg,
+    marginTop: spacing.sm,
+  },
+  budgetTrack: {
+    height: 10,
+    borderRadius: radius.full,
+    backgroundColor: colors.line,
+    overflow: 'hidden',
+  },
+  budgetFill: {
+    height: '100%',
+    borderRadius: radius.full,
+  },
+  budgetCap: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: spacing.sm,
+  },
+  budgetCapText: {
+    fontSize: 12,
+    fontFamily: typography.semibold,
+    fontWeight: '600',
+    color: colors.ink2,
+  },
+  budgetCapMuted: {
+    fontSize: 12,
+    fontFamily: typography.semibold,
+    fontWeight: '600',
+    color: colors.ink3,
+  },
 
   recentRow: {
     flexDirection: 'row',
-    paddingHorizontal: spacing.base,
-    gap: spacing.sm,
+    paddingHorizontal: spacing.lg,
+    gap: 10,
   },
   recentCard: {
     flex: 1,
     borderWidth: 1,
     borderColor: colors.line,
     borderRadius: radius.lg,
-    padding: spacing.sm,
+    padding: spacing.md,
     paddingVertical: 12,
     backgroundColor: colors.surface,
-    gap: 8,
+    gap: 12,
   },
   recentTop: {
     flexDirection: 'row',
@@ -902,7 +1317,8 @@ const styles = StyleSheet.create({
     flexShrink: 0,
   },
   recentAmount: {
-    fontSize: 13,
+    fontSize: 15,
+    fontFamily: typography.extrabold,
     fontWeight: '800',
     color: colors.ink,
     letterSpacing: -0.4,
@@ -915,26 +1331,69 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   recentDesc: {
-    fontSize: 9,
+    fontSize: 11,
     color: colors.ink2,
+    fontFamily: typography.medium,
     fontWeight: '500',
     flex: 1,
   },
   recentDate: {
-    fontSize: 9,
+    fontSize: 10,
     color: colors.ink3,
+    fontFamily: typography.regular,
   },
 
-  fab: {
-    position: 'absolute',
-    bottom: 20,
-    right: spacing.lg,
-    width: 56,
-    height: 56,
-    borderRadius: radius.full,
-    backgroundColor: colors.accent,
+  categoryBreakdown: {
+    marginHorizontal: spacing.lg,
+    padding: spacing.lg,
+    borderWidth: 1,
+    borderColor: colors.line,
+    borderRadius: radius.xl,
+    backgroundColor: colors.surface,
+    gap: spacing.base,
+    ...shadow.sm,
+  },
+  breakdownRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+  },
+  breakdownIcon: {
+    width: 30,
+    height: 30,
+    borderRadius: radius.sm,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  breakdownInfo: { flex: 1, minWidth: 0 },
+  breakdownTop: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    marginBottom: spacing.sm,
+  },
+  breakdownName: {
+    flex: 1,
+    fontSize: 14,
+    fontFamily: typography.semibold,
+    fontWeight: '600',
+    color: colors.ink,
+  },
+  breakdownAmount: {
+    fontSize: 14,
+    fontFamily: typography.bold,
+    fontWeight: '700',
+    color: colors.ink,
+  },
+  breakdownTrack: {
+    height: 8,
+    borderRadius: radius.full,
+    backgroundColor: colors.line,
+    overflow: 'hidden',
+  },
+  breakdownFill: {
+    height: '100%',
+    borderRadius: radius.full,
   },
 
   modalOverlay: {
@@ -1017,4 +1476,38 @@ const styles = StyleSheet.create({
     marginTop: spacing.xs,
   },
   submitText: { color: '#FFF', fontSize: 15, fontWeight: '700' },
+
+  sheetOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.45)',
+    justifyContent: 'flex-end',
+  },
+  monthSheet: {
+    backgroundColor: colors.surface,
+    borderTopLeftRadius: radius.xl,
+    borderTopRightRadius: radius.xl,
+    paddingBottom: 48,
+    ...shadow.strong,
+  },
+  sheetHandle: {
+    width: 36,
+    height: 4,
+    backgroundColor: colors.line,
+    borderRadius: radius.full,
+    alignSelf: 'center',
+    marginTop: spacing.md,
+    marginBottom: spacing.sm,
+  },
+  currentBadge: {
+    backgroundColor: colors.accentSoft,
+    borderRadius: radius.full,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+  },
+  currentBadgeText: {
+    fontSize: 11,
+    fontFamily: typography.bold,
+    fontWeight: '700',
+    color: colors.accent,
+  },
 });
