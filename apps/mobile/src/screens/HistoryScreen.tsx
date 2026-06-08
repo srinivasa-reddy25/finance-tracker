@@ -25,7 +25,7 @@ import { Swipeable } from 'react-native-gesture-handler';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useTransactionStore } from '../stores/transactionStore';
 import { useCategoryStore } from '../stores/categoryStore';
-import { colors, spacing, radius, shadow } from '../theme';
+import { colors, spacing, radius, shadow, typography } from '../theme';
 import type { TTransaction } from '../types/transaction';
 import ConfirmDialog from '../components/ConfirmDialog';
 import EmptyState from '../components/EmptyState';
@@ -46,7 +46,7 @@ type TCategoryMeta = {
   is_income: boolean;
 };
 
-type TDatePreset = 'this_month' | '30d' | '60d' | '90d';
+type TDatePreset = 'all' | 'this_month' | '30d' | '60d' | '90d';
 
 type TSection = { title: string; data: TTransaction[] };
 
@@ -56,6 +56,12 @@ const DATE_PRESETS: {
   sublabel: string;
   icon: string;
 }[] = [
+  {
+    key: 'all',
+    label: 'All time',
+    sublabel: 'Every transaction ever',
+    icon: 'infinity',
+  },
   {
     key: 'this_month',
     label: 'This month',
@@ -118,12 +124,14 @@ function SwipeableRow({
   onDeleteRequest,
   onEditRequest,
   categoryMap,
+  isFirst,
   isLast,
 }: {
   item: TTransaction;
   onDeleteRequest: (item: TTransaction) => void;
   onEditRequest: (item: TTransaction) => void;
   categoryMap: Map<string, TCategoryMeta>;
+  isFirst: boolean;
   isLast: boolean;
 }) {
   const swipeRef = useRef<Swipeable>(null);
@@ -175,7 +183,12 @@ function SwipeableRow({
       friction={2}
     >
       <TouchableOpacity
-        style={[styles.txRow, !isLast && styles.txRowBorder]}
+        style={[
+          styles.txRow,
+          isFirst && styles.txRowFirst,
+          isLast && styles.txRowLast,
+          !isLast && styles.txRowBorder,
+        ]}
         onPress={() => onEditRequest(item)}
         activeOpacity={0.7}
       >
@@ -235,7 +248,7 @@ export default function HistoryScreen() {
   const [search, setSearch] = useState('');
   const [filterOpen, setFilterOpen] = useState(false);
   const [dateSheetOpen, setDateSheetOpen] = useState(false);
-  const [datePreset, setDatePreset] = useState<TDatePreset>('this_month');
+  const [datePreset, setDatePreset] = useState<TDatePreset>('all');
   const [refreshing, setRefreshing] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<TTransaction | null>(null);
   const [editTarget, setEditTarget] = useState<TTransaction | null>(null);
@@ -271,6 +284,8 @@ export default function HistoryScreen() {
   const getDateParams = useCallback(() => {
     const today = new Date().toISOString().slice(0, 10);
     switch (datePreset) {
+      case 'this_month':
+        return { month: currentMonth };
       case '30d':
         return { from: daysAgoStr(30), to: today };
       case '60d':
@@ -278,7 +293,7 @@ export default function HistoryScreen() {
       case '90d':
         return { from: daysAgoStr(90), to: today };
       default:
-        return { month: currentMonth };
+        return {};
     }
   }, [datePreset, currentMonth]);
 
@@ -401,32 +416,25 @@ export default function HistoryScreen() {
 
   const activeFilterMeta =
     filter !== ALL ? (categoryMap.get(filter) ?? null) : null;
-  const dateActive = datePreset !== 'this_month';
+  const dateActive = datePreset !== 'all';
   const dateBtnLabel =
-    datePreset === 'this_month'
-      ? 'Month'
-      : datePreset === '30d'
-        ? '30d'
-        : datePreset === '60d'
-          ? '60d'
-          : '90d';
+    datePreset === 'all'
+      ? 'Date'
+      : datePreset === 'this_month'
+        ? 'Month'
+        : datePreset === '30d'
+          ? '30d'
+          : datePreset === '60d'
+            ? '60d'
+            : '90d';
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor={colors.surface} />
+      <StatusBar barStyle="dark-content" backgroundColor={colors.canvas} />
 
       {/* Header */}
       <View style={styles.header}>
         <Text style={styles.title}>History</Text>
-        <View style={styles.headerDateBadge}>
-          <Icon name="calendar-month-outline" size={13} color={colors.accent} />
-          <Text style={styles.headerDateText}>
-            {new Date().toLocaleDateString('en-IN', {
-              month: 'short',
-              year: 'numeric',
-            })}
-          </Text>
-        </View>
       </View>
 
       {/* Search + Date + Filter toolbar */}
@@ -473,7 +481,7 @@ export default function HistoryScreen() {
           </Text>
           {dateActive && (
             <TouchableOpacity
-              onPress={() => handlePresetSelect('this_month')}
+              onPress={() => handlePresetSelect('all')}
               hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
             >
               <Icon name="close" size={13} color={colors.accent} />
@@ -552,6 +560,7 @@ export default function HistoryScreen() {
               onDeleteRequest={setDeleteTarget}
               onEditRequest={openEdit}
               categoryMap={categoryMap}
+              isFirst={index === 0}
               isLast={index === section.data.length - 1}
             />
           )}
@@ -877,10 +886,10 @@ export default function HistoryScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.surface },
+  container: { flex: 1, backgroundColor: colors.canvas },
 
   header: {
-    backgroundColor: colors.surface,
+    backgroundColor: colors.canvas,
     paddingHorizontal: spacing.lg,
     paddingTop: 56,
     paddingBottom: spacing.md,
@@ -889,28 +898,18 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   title: {
-    fontSize: 26,
+    fontSize: 30,
+    fontFamily: typography.extrabold,
     fontWeight: '800',
     color: colors.ink,
-    letterSpacing: -0.5,
+    letterSpacing: -0.9,
   },
-  headerDateBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-    backgroundColor: colors.accentSoft,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: radius.full,
-  },
-  headerDateText: { fontSize: 12, fontWeight: '600', color: colors.accent },
-
   toolbar: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.sm,
-    backgroundColor: colors.surface,
-    paddingHorizontal: spacing.base,
+    backgroundColor: colors.canvas,
+    paddingHorizontal: spacing.lg,
     paddingBottom: spacing.md,
   },
   searchWrap: {
@@ -925,7 +924,13 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.line,
   },
-  searchInput: { flex: 1, fontSize: 13, color: colors.ink, padding: 0 },
+  searchInput: {
+    flex: 1,
+    fontSize: 14,
+    fontFamily: typography.regular,
+    color: colors.ink,
+    padding: 0,
+  },
   filterBtn: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -937,20 +942,26 @@ const styles = StyleSheet.create({
     borderColor: colors.line,
     backgroundColor: colors.surface,
   },
-  filterBtnText: { fontSize: 13, fontWeight: '600', color: colors.ink2 },
+  filterBtnText: {
+    fontSize: 13,
+    fontFamily: typography.bold,
+    fontWeight: '700',
+    color: colors.ink2,
+  },
 
   listContent: { paddingBottom: 100 },
 
   sectionHeader: {
-    paddingHorizontal: spacing.base,
+    paddingHorizontal: spacing.lg,
     paddingTop: spacing.base,
     paddingBottom: spacing.sm,
-    backgroundColor: colors.surface,
+    backgroundColor: colors.canvas,
   },
   sectionTitle: {
     fontSize: 12,
+    fontFamily: typography.bold,
     fontWeight: '700',
-    color: colors.ink2,
+    color: colors.ink3,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
@@ -959,10 +970,24 @@ const styles = StyleSheet.create({
   txRow: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    paddingHorizontal: spacing.base,
+    marginHorizontal: spacing.lg,
+    paddingHorizontal: spacing.lg,
     paddingVertical: 13,
     gap: spacing.md,
     backgroundColor: colors.surface,
+    borderLeftWidth: 1,
+    borderRightWidth: 1,
+    borderColor: colors.line,
+  },
+  txRowFirst: {
+    borderTopWidth: 1,
+    borderTopLeftRadius: radius.xl,
+    borderTopRightRadius: radius.xl,
+  },
+  txRowLast: {
+    borderBottomWidth: 1,
+    borderBottomLeftRadius: radius.xl,
+    borderBottomRightRadius: radius.xl,
   },
   txRowBorder: {
     borderBottomWidth: StyleSheet.hairlineWidth,
@@ -981,15 +1006,26 @@ const styles = StyleSheet.create({
   txInfo: { flex: 1 },
   txDesc: {
     fontSize: 17,
+    fontFamily: typography.semibold,
     fontWeight: '600',
     color: colors.ink,
     marginBottom: 2,
   },
-  txMeta: { fontSize: 12, color: colors.ink2 },
-  txNote: { fontSize: 11, color: colors.ink3, marginTop: 1 },
+  txMeta: {
+    fontSize: 12.5,
+    fontFamily: typography.regular,
+    color: colors.ink2,
+  },
+  txNote: {
+    fontSize: 11,
+    fontFamily: typography.regular,
+    color: colors.ink3,
+    marginTop: 1,
+  },
 
   txAmount: {
-    fontSize: 15,
+    fontSize: 16,
+    fontFamily: typography.bold,
     fontWeight: '700',
     letterSpacing: -0.3,
     paddingTop: 2,
@@ -1023,7 +1059,12 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
   },
-  editTitle: { fontSize: 18, fontWeight: '800', color: colors.ink },
+  editTitle: {
+    fontSize: 20,
+    fontFamily: typography.extrabold,
+    fontWeight: '800',
+    color: colors.ink,
+  },
   editAmountRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1033,12 +1074,18 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.sm,
     gap: 6,
   },
-  editCurrency: { fontSize: 28, fontWeight: '700', color: colors.expense },
+  editCurrency: {
+    fontSize: 30,
+    fontFamily: typography.bold,
+    fontWeight: '700',
+    color: colors.ink3,
+  },
   editAmountInput: {
     flex: 1,
-    fontSize: 36,
+    fontSize: 38,
+    fontFamily: typography.extrabold,
     fontWeight: '800',
-    color: colors.expense,
+    color: colors.ink,
     padding: 0,
   },
   editTextInput: {
@@ -1047,6 +1094,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.base,
     paddingVertical: 12,
     fontSize: 14,
+    fontFamily: typography.regular,
     color: colors.ink,
   },
   editCategoryGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
@@ -1068,18 +1116,27 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  editCatLabel: { fontSize: 12, fontWeight: '600' },
+  editCatLabel: {
+    fontSize: 12,
+    fontFamily: typography.semibold,
+    fontWeight: '600',
+  },
   editSubmitBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: spacing.sm,
-    backgroundColor: colors.expense,
+    backgroundColor: colors.accent,
     borderRadius: radius.lg,
     paddingVertical: 14,
     marginTop: spacing.xs,
   },
-  editSubmitText: { color: '#FFF', fontSize: 15, fontWeight: '700' },
+  editSubmitText: {
+    color: '#FFF',
+    fontSize: 15,
+    fontFamily: typography.bold,
+    fontWeight: '700',
+  },
 
   overlay: {
     flex: 1,
@@ -1104,6 +1161,7 @@ const styles = StyleSheet.create({
   },
   sheetTitle: {
     fontSize: 11,
+    fontFamily: typography.bold,
     fontWeight: '700',
     color: colors.ink2,
     textTransform: 'uppercase',
@@ -1131,6 +1189,16 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  sheetOptionText: { fontSize: 14, color: colors.ink2, fontWeight: '500' },
-  sheetOptionSub: { fontSize: 11, color: colors.ink3, marginTop: 1 },
+  sheetOptionText: {
+    fontSize: 14,
+    color: colors.ink2,
+    fontFamily: typography.medium,
+    fontWeight: '500',
+  },
+  sheetOptionSub: {
+    fontSize: 11,
+    color: colors.ink3,
+    fontFamily: typography.regular,
+    marginTop: 1,
+  },
 });
