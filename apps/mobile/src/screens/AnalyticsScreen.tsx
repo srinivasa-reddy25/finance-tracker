@@ -10,18 +10,30 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { LineChart, PieChart } from 'react-native-gifted-charts';
-import Svg, { G, Line, Path, Text as SvgText } from 'react-native-svg';
+import { BarChart, LineChart, PieChart } from 'react-native-gifted-charts';
+import Svg, { Circle, G, Line, Path, Text as SvgText } from 'react-native-svg';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { api } from '../services/api';
 import { useAuthStore } from '../stores/authStore';
 import { useCategoryStore } from '../stores/categoryStore';
-import { colors, radius, spacing } from '../theme';
+import { colors, radius, spacing, shadow, typography } from '../theme';
 import { formatAmount } from '../utils/format';
 import { ANALYTICS_LINE_CHART_DAYS } from '../constants/config';
 
 const SCREEN_W = Dimensions.get('window').width;
 const CHART_W = SCREEN_W - spacing.base * 2 - 32;
+
+// Brand-aligned palette — greens + warm earthy tones
+const BRAND_PALETTE = [
+  '#0E7B53', // accent
+  '#1A9966',
+  '#0B5C3E',
+  '#2EB87A',
+  '#6BBF99',
+  '#A8D8C2',
+  '#5C7A6B',
+  '#3D6B55',
+];
 
 // Pie chart layout constants
 const PIE_R = 110;
@@ -172,7 +184,7 @@ export default function AnalyticsScreen() {
     const over = totalBudget > 0 && totalSpent > totalBudget;
     return [
       { value: totalSpent, color: over ? colors.expense : colors.accent },
-      { value: remaining, color: colors.line },
+      { value: remaining, color: '#E8E3D9' },
     ];
   }, [totalSpent, totalBudget]);
 
@@ -194,6 +206,22 @@ export default function AnalyticsScreen() {
 
   const hasAnySpend = lineData.some(d => d.value > 0);
   const maxDaily = Math.max(...lineData.map(d => d.value), 1);
+
+  const monShort = new Date(year, mon - 1, 1).toLocaleString('en-IN', {
+    month: 'short',
+  });
+  const barData = useMemo(() => {
+    const map = new Map((data?.daily ?? []).map(d => [d.day, d.amount]));
+    return Array.from({ length: lastDay }, (_, i) => {
+      const day = i + 1;
+      const value = map.get(day) ?? 0;
+      return {
+        value,
+        label: `${monShort} ${day}`,
+        frontColor: value > 0 ? colors.accent : 'transparent',
+      };
+    });
+  }, [data, lastDay, monShort]);
 
   // Pie chart — category breakdown
   const categoryRows = useMemo(() => {
@@ -235,7 +263,7 @@ export default function AnalyticsScreen() {
       const pct = Math.round((row.amount / total) * 100);
       return {
         path,
-        color: row.meta!.color,
+        color: BRAND_PALETTE[i % BRAND_PALETTE.length],
         cs,
         ce,
         ct,
@@ -298,10 +326,10 @@ export default function AnalyticsScreen() {
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor={colors.surface} />
+      <StatusBar barStyle="dark-content" backgroundColor={colors.canvas} />
 
       <View style={styles.header}>
-        <Text style={styles.title}>Analytics</Text>
+        <Text style={styles.title}>Insights</Text>
       </View>
 
       {/* Month Picker */}
@@ -350,29 +378,64 @@ export default function AnalyticsScreen() {
             />
           }
         >
-          {/* ── Spending Ring ─────────────────────────── */}
+          {/* ── Monthly Snapshot ──────────────────────── */}
           <View style={styles.card}>
-            <Text style={styles.cardTitle}>Monthly Snapshot</Text>
+            <Text style={styles.snapshotTitle}>MONTHLY SNAPSHOT</Text>
             <View style={styles.donutWrap}>
-              <PieChart
-                donut
-                data={donutData}
-                radius={90}
-                innerRadius={66}
-                strokeWidth={0}
-                centerLabelComponent={() => (
-                  <View style={styles.donutCenter}>
-                    <Text style={styles.donutAmount}>
-                      {totalSpent >= 1000
-                        ? `₹${(totalSpent / 1000).toFixed(1)}k`
-                        : `₹${totalSpent}`}
-                    </Text>
-                    <Text style={styles.donutSub}>
-                      {totalBudget > 0 ? 'spent' : 'this month'}
-                    </Text>
+              {/* Custom SVG ring with rounded caps on the spent arc */}
+              {(() => {
+                const RING_SIZE = 160;
+                const STROKE = 22;
+                const cx = RING_SIZE / 2;
+                const cy = RING_SIZE / 2;
+                const r = cx - STROKE / 2 - 2;
+                const circumference = 2 * Math.PI * r;
+                const spentPct = totalBudget > 0 ? Math.min(pct ?? 0, 1) : 0;
+                const dashOffset = circumference * (1 - spentPct);
+                const arcColor = over ? colors.expense : colors.accent;
+                return (
+                  <View style={{ width: RING_SIZE, height: RING_SIZE }}>
+                    <Svg width={RING_SIZE} height={RING_SIZE}>
+                      {/* Background track */}
+                      <Circle
+                        cx={cx}
+                        cy={cy}
+                        r={r}
+                        stroke="#E8E3D9"
+                        strokeWidth={STROKE}
+                        fill="none"
+                        strokeLinecap="round"
+                      />
+                      {/* Spent arc — rounded caps, starts from top */}
+                      {spentPct > 0 && (
+                        <Circle
+                          cx={cx}
+                          cy={cy}
+                          r={r}
+                          stroke={arcColor}
+                          strokeWidth={STROKE}
+                          fill="none"
+                          strokeLinecap="round"
+                          strokeDasharray={circumference}
+                          strokeDashoffset={dashOffset}
+                          rotation={-90}
+                          originX={cx}
+                          originY={cy}
+                        />
+                      )}
+                    </Svg>
+                    {/* Center label */}
+                    <View style={[StyleSheet.absoluteFill, styles.donutCenter]}>
+                      <Text style={styles.donutPct}>
+                        {totalBudget > 0
+                          ? `${Math.round((pct ?? 0) * 100)}%`
+                          : '—'}
+                      </Text>
+                      <Text style={styles.donutSub}>used</Text>
+                    </View>
                   </View>
-                )}
-              />
+                );
+              })()}
               <View style={styles.donutLegend}>
                 {totalBudget > 0 ? (
                   <>
@@ -387,31 +450,49 @@ export default function AnalyticsScreen() {
                           },
                         ]}
                       />
-                      <Text style={styles.legendLabel}>
-                        Spent · ₹{totalSpent.toLocaleString('en-IN')}
+                      <Text style={styles.legendLabel}>Spent</Text>
+                      <Text style={styles.legendAmt}>
+                        ₹{totalSpent.toLocaleString('en-IN')}
                       </Text>
                     </View>
                     <View style={styles.legendRow}>
                       <View
                         style={[
                           styles.legendDot,
-                          { backgroundColor: colors.line },
+                          { backgroundColor: '#E8E3D9' },
                         ]}
                       />
-                      <Text style={styles.legendLabel}>
-                        Budget · ₹{totalBudget.toLocaleString('en-IN')}
+                      <Text style={styles.legendLabel}>Budget</Text>
+                      <Text style={styles.legendAmt}>
+                        ₹{totalBudget.toLocaleString('en-IN')}
                       </Text>
                     </View>
-                    <View style={styles.pctPill}>
+                    <View style={styles.legendRow}>
+                      <View
+                        style={[
+                          styles.legendDot,
+                          {
+                            backgroundColor: over
+                              ? colors.expense
+                              : colors.accent,
+                          },
+                        ]}
+                      />
+                      <Text style={styles.legendLabel}>Left</Text>
                       <Text
                         style={[
-                          styles.pctText,
-                          { color: over ? colors.expense : colors.accent },
+                          styles.legendAmt,
+                          {
+                            color: over ? colors.expense : colors.accent,
+                            fontFamily: typography.bold,
+                            fontWeight: '700',
+                          },
                         ]}
                       >
-                        {over
-                          ? `${Math.round(((totalSpent - totalBudget) / totalBudget) * 100)}% over`
-                          : `${Math.round((pct ?? 0) * 100)}% used`}
+                        ₹
+                        {Math.max(totalBudget - totalSpent, 0).toLocaleString(
+                          'en-IN',
+                        )}
                       </Text>
                     </View>
                   </>
@@ -424,79 +505,57 @@ export default function AnalyticsScreen() {
             </View>
           </View>
 
-          {/* ── Daily Spending (Area Chart) ───────────── */}
+          {/* ── Daily Spending (Bar Chart) ────────────── */}
           <View style={styles.card}>
-            <Text style={styles.cardTitle}>Daily Spending</Text>
+            <View style={styles.dailyHeader}>
+              <Text style={styles.snapshotTitle}>DAILY SPENDING</Text>
+              <Text style={styles.dailyPeak}>
+                Peak{' '}
+                {maxDaily >= 1000
+                  ? `₹${(maxDaily / 1000).toFixed(1)}k`
+                  : `₹${maxDaily}`}
+              </Text>
+            </View>
             {!hasAnySpend ? (
               <Text style={styles.emptyHint}>No transactions this month</Text>
             ) : (
-              <View style={{ marginTop: 4 }}>
-                <LineChart
-                  areaChart
-                  data={lineData}
-                  width={CHART_W - 16}
-                  height={130}
-                  spacing={Math.floor((CHART_W - 40) / 9)}
-                  initialSpacing={8}
-                  color={colors.accent}
-                  thickness={2}
-                  startFillColor={colors.accent}
-                  endFillColor={colors.accentSoft}
-                  startOpacity={0.22}
-                  endOpacity={0.02}
-                  dataPointsColor={colors.accent}
-                  dataPointsRadius={3}
-                  xAxisColor={colors.line}
-                  xAxisThickness={1}
+              <View style={{ marginTop: 8 }}>
+                <BarChart
+                  data={barData}
+                  width={CHART_W - 8}
+                  height={150}
+                  barWidth={Math.max(
+                    20,
+                    Math.min(
+                      44,
+                      Math.floor((CHART_W - 40) / barData.length) - 8,
+                    ),
+                  )}
+                  spacing={Math.max(
+                    6,
+                    Math.floor((CHART_W - 40) / barData.length) -
+                      Math.max(
+                        20,
+                        Math.min(
+                          44,
+                          Math.floor((CHART_W - 40) / barData.length) - 8,
+                        ),
+                      ),
+                  )}
+                  initialSpacing={4}
+                  barBorderTopLeftRadius={4}
+                  barBorderTopRightRadius={4}
+                  frontColor={colors.accent}
+                  noOfSections={3}
+                  maxValue={Math.ceil(maxDaily * 1.3)}
                   yAxisThickness={0}
+                  xAxisThickness={0}
                   hideRules
                   hideYAxisText
                   xAxisLabelTextStyle={styles.axisLabel}
-                  noOfSections={3}
-                  maxValue={Math.ceil(maxDaily * 1.4)}
                   isAnimated
-                  animationDuration={700}
-                  onPress={(_item: { value: number }, _index: number) => {}}
-                  pointerConfig={{
-                    pointerStripHeight: 130,
-                    pointerStripColor: colors.line,
-                    pointerStripWidth: 1,
-                    pointerColor: colors.accent,
-                    radius: 5,
-                    pointerLabelWidth: 72,
-                    pointerLabelHeight: 40,
-                    autoAdjustPointerLabelPosition: true,
-                    pointerLabelComponent: (
-                      items: Array<{ value: number; label: string }>,
-                    ) => {
-                      const item = items[0];
-                      if (!item || item.value === 0) return null;
-                      return (
-                        <View style={styles.chartTooltip}>
-                          <Text style={styles.chartTooltipAmt}>
-                            {formatAmount(item.value)}
-                          </Text>
-                          <Text style={styles.chartTooltipDay}>
-                            {new Date(year, mon - 1, 1).toLocaleString(
-                              'en-IN',
-                              { month: 'short' },
-                            )}{' '}
-                            {item.label}
-                          </Text>
-                        </View>
-                      );
-                    },
-                  }}
+                  animationDuration={600}
                 />
-                {/* Max spend label */}
-                <View style={styles.dailyHint}>
-                  <Text style={styles.dailyHintText}>
-                    Peak: {formatAmount(maxDaily)}
-                  </Text>
-                  <Text style={styles.dailyHintText}>
-                    Total: {formatAmount(totalSpent)}
-                  </Text>
-                </View>
               </View>
             )}
           </View>
@@ -588,13 +647,13 @@ export default function AnalyticsScreen() {
                         <Icon
                           name={sliceConfigs[selectedPie]!.meta.icon}
                           size={16}
-                          color={sliceConfigs[selectedPie]!.meta.color}
+                          color={sliceConfigs[selectedPie]!.color}
                         />
                       </View>
                       <Text
                         style={[
                           styles.pieCenterName,
-                          { color: sliceConfigs[selectedPie]!.meta.color },
+                          { color: sliceConfigs[selectedPie]!.color },
                         ]}
                         numberOfLines={1}
                       >
@@ -617,7 +676,7 @@ export default function AnalyticsScreen() {
           {comparisonRows.length > 0 && (
             <View style={styles.card}>
               <Text style={styles.cardTitle}>vs Last Month</Text>
-              {comparisonRows.map(row => {
+              {comparisonRows.map((row, i) => {
                 const diff = row.amount - row.prev;
                 const diffPct =
                   row.prev > 0
@@ -625,18 +684,19 @@ export default function AnalyticsScreen() {
                     : null;
                 const isUp = diff > 0;
                 const isDown = diff < 0;
+                const brandColor = BRAND_PALETTE[i % BRAND_PALETTE.length];
                 return (
                   <View key={row.category} style={styles.compRow}>
                     <View
                       style={[
                         styles.compIcon,
-                        { backgroundColor: row.meta!.bg },
+                        { backgroundColor: colors.accentSoft },
                       ]}
                     >
                       <Icon
                         name={row.meta!.icon}
                         size={16}
-                        color={row.meta!.color}
+                        color={brandColor}
                       />
                     </View>
                     <View style={styles.compInfo}>
@@ -693,15 +753,16 @@ export default function AnalyticsScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.surface },
+  container: { flex: 1, backgroundColor: colors.canvas },
 
   header: {
-    paddingHorizontal: spacing.base,
+    paddingHorizontal: spacing.lg,
     paddingTop: 56,
     paddingBottom: spacing.sm,
   },
   title: {
     fontSize: 26,
+    fontFamily: typography.extrabold,
     fontWeight: '800',
     color: colors.ink,
     letterSpacing: -0.5,
@@ -732,7 +793,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
 
-  scroll: { paddingHorizontal: spacing.base, paddingBottom: 100 },
+  scroll: { paddingHorizontal: spacing.lg, paddingBottom: 100 },
 
   card: {
     backgroundColor: colors.surface,
@@ -741,35 +802,58 @@ const styles = StyleSheet.create({
     borderRadius: radius.xl,
     padding: spacing.base,
     marginBottom: spacing.md,
+    ...shadow.sm,
   },
   cardTitle: {
     fontSize: 13,
+    fontFamily: typography.bold,
     fontWeight: '700',
     color: colors.ink2,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
     marginBottom: spacing.base,
   },
+  snapshotTitle: {
+    fontSize: 11,
+    fontFamily: typography.bold,
+    fontWeight: '700',
+    color: colors.ink3,
+    letterSpacing: 1.2,
+    textTransform: 'uppercase',
+    marginBottom: spacing.lg,
+  },
 
   // Donut
   donutWrap: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: spacing.lg,
+    gap: spacing.xl,
   },
-  donutCenter: { alignItems: 'center' },
-  donutAmount: {
-    fontSize: 22,
+  donutCenter: { alignItems: 'center', justifyContent: 'center' },
+  donutPct: {
+    fontSize: 24,
+    fontFamily: typography.extrabold,
     fontWeight: '800',
     color: colors.ink,
     letterSpacing: -0.5,
   },
-  donutSub: { fontSize: 11, color: colors.ink2, marginTop: 2 },
-  donutLegend: { flex: 1, gap: spacing.sm },
-  legendRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  legendDot: { width: 8, height: 8, borderRadius: 4 },
-  legendLabel: { fontSize: 13, color: colors.ink2, fontWeight: '500' },
+  donutSub: { fontSize: 12, color: colors.ink2, marginTop: 1 },
+  donutLegend: { flex: 1, gap: 14 },
+  legendRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  legendDot: { width: 9, height: 9, borderRadius: 5 },
+  legendLabel: {
+    flex: 1,
+    fontSize: 14,
+    color: colors.ink2,
+    fontFamily: typography.medium,
+    fontWeight: '500',
+  },
+  legendAmt: {
+    fontSize: 14,
+    color: colors.ink,
+    fontFamily: typography.medium,
+    fontWeight: '500',
+  },
   pctPill: {
     marginTop: spacing.sm,
     alignSelf: 'flex-start',
@@ -788,6 +872,18 @@ const styles = StyleSheet.create({
     color: colors.ink3,
     textAlign: 'center',
     paddingVertical: spacing.xl,
+  },
+  dailyHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+  dailyPeak: {
+    fontSize: 12,
+    color: colors.ink2,
+    fontFamily: typography.medium,
+    fontWeight: '500',
   },
   dailyHint: {
     flexDirection: 'row',
