@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useMemo, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -19,10 +19,20 @@ import type { RootStackParams } from '../navigation';
 import { useAuthStore } from '../stores/authStore';
 import { useCategoryStore } from '../stores/categoryStore';
 import { useRecurringStore } from '../stores/recurringStore';
+import { useThemeStore } from '../stores/themeStore';
 import { signOut } from '../services/firebase';
-import { colors, radius, shadow, spacing, typography } from '../theme';
+import {
+  useColors,
+  TColors,
+  radius,
+  shadow,
+  spacing,
+  typography,
+} from '../theme';
 
 export default function ProfileScreen() {
+  const c = useColors();
+  const styles = useMemo(() => makeStyles(c), [c]);
   const navigation =
     useNavigation<NativeStackNavigationProp<RootStackParams>>();
   const { user } = useAuthStore();
@@ -32,7 +42,7 @@ export default function ProfileScreen() {
   const [allTimeSpent, setAllTimeSpent] = useState<number | null>(null);
   const [totalTxCount, setTotalTxCount] = useState<number | null>(null);
   const [notifEnabled, setNotifEnabled] = useState(true);
-  const [darkEnabled, setDarkEnabled] = useState(false);
+  const { isDark, toggle: toggleDark } = useThemeStore();
 
   useEffect(() => {
     fetchCats();
@@ -139,7 +149,10 @@ export default function ProfileScreen() {
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor={colors.canvas} />
+      <StatusBar
+        barStyle={isDark ? 'light-content' : 'dark-content'}
+        backgroundColor={c.canvas}
+      />
 
       <ScrollView
         showsVerticalScrollIndicator={false}
@@ -187,7 +200,7 @@ export default function ProfileScreen() {
               </View>
               <Text style={styles.rowText}>Categories</Text>
               <Text style={styles.rowBadge}>{catCount}</Text>
-              <Icon name="chevron-right" size={18} color={colors.ink3} />
+              <Icon name="chevron-right" size={18} color={c.ink3} />
             </TouchableOpacity>
 
             <View style={styles.divider} />
@@ -204,7 +217,7 @@ export default function ProfileScreen() {
               {activeRecurring > 0 && (
                 <Text style={styles.rowBadge}>{activeRecurring} active</Text>
               )}
-              <Icon name="chevron-right" size={18} color={colors.ink3} />
+              <Icon name="chevron-right" size={18} color={c.ink3} />
             </TouchableOpacity>
 
             <View style={styles.divider} />
@@ -218,7 +231,7 @@ export default function ProfileScreen() {
                 <Icon name="tray-arrow-down" size={18} color="#5B50D6" />
               </View>
               <Text style={styles.rowText}>Export data</Text>
-              <Icon name="chevron-right" size={18} color={colors.ink3} />
+              <Icon name="chevron-right" size={18} color={c.ink3} />
             </TouchableOpacity>
           </View>
         </View>
@@ -228,10 +241,8 @@ export default function ProfileScreen() {
           <Text style={styles.sectionLabel}>Preferences</Text>
           <View style={styles.card}>
             <View style={styles.row}>
-              <View
-                style={[styles.iconWrap, { backgroundColor: colors.surface2 }]}
-              >
-                <Icon name="bell-outline" size={18} color={colors.ink} />
+              <View style={[styles.iconWrap, { backgroundColor: c.surface2 }]}>
+                <Icon name="bell-outline" size={18} color={c.ink} />
               </View>
               <Text style={styles.rowText}>Notifications</Text>
               <Toggle value={notifEnabled} onValueChange={setNotifEnabled} />
@@ -240,13 +251,11 @@ export default function ProfileScreen() {
             <View style={styles.divider} />
 
             <View style={styles.row}>
-              <View
-                style={[styles.iconWrap, { backgroundColor: colors.surface2 }]}
-              >
-                <Icon name="star-outline" size={18} color={colors.ink} />
+              <View style={[styles.iconWrap, { backgroundColor: c.surface2 }]}>
+                <Icon name="star-outline" size={18} color={c.ink} />
               </View>
               <Text style={styles.rowText}>Dark appearance</Text>
-              <Toggle value={darkEnabled} onValueChange={setDarkEnabled} />
+              <Toggle value={isDark} onValueChange={toggleDark} />
             </View>
 
             <View style={styles.divider} />
@@ -258,13 +267,11 @@ export default function ProfileScreen() {
               }
               activeOpacity={0.7}
             >
-              <View
-                style={[styles.iconWrap, { backgroundColor: colors.surface2 }]}
-              >
-                <Icon name="help-circle-outline" size={18} color={colors.ink} />
+              <View style={[styles.iconWrap, { backgroundColor: c.surface2 }]}>
+                <Icon name="help-circle-outline" size={18} color={c.ink} />
               </View>
               <Text style={styles.rowText}>Help & support</Text>
-              <Icon name="chevron-right" size={18} color={colors.ink3} />
+              <Icon name="chevron-right" size={18} color={c.ink3} />
             </TouchableOpacity>
           </View>
         </View>
@@ -275,7 +282,7 @@ export default function ProfileScreen() {
           onPress={handleSignOut}
           activeOpacity={0.75}
         >
-          <Icon name="logout" size={16} color={colors.expense} />
+          <Icon name="logout" size={16} color={c.expense} />
           <Text style={styles.signOutText}>Sign out</Text>
         </TouchableOpacity>
 
@@ -306,15 +313,13 @@ export default function ProfileScreen() {
                 onPress={() => !exporting && setExportOpen(false)}
                 hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
               >
-                <Icon name="close" size={20} color={colors.ink2} />
+                <Icon name="close" size={20} color={c.ink2} />
               </TouchableOpacity>
             </View>
 
             <Text style={styles.sheetSub}>
               We'll email the file to{'\n'}
-              <Text style={{ color: colors.ink, fontWeight: '600' }}>
-                {email}
-              </Text>
+              <Text style={{ color: c.ink, fontWeight: '600' }}>{email}</Text>
             </Text>
 
             <Text style={styles.sheetLabel}>Format</Text>
@@ -381,237 +386,239 @@ export default function ProfileScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.canvas },
-  scroll: { paddingBottom: 120 },
+function makeStyles(c: TColors) {
+  return StyleSheet.create({
+    container: { flex: 1, backgroundColor: c.canvas },
+    scroll: { paddingBottom: 120 },
 
-  pageHeader: {
-    paddingHorizontal: spacing.lg,
-    paddingTop: 56,
-    paddingBottom: spacing.sm,
-  },
-  pageTitle: {
-    fontSize: 28,
-    fontFamily: typography.extrabold,
-    fontWeight: '800',
-    color: colors.ink,
-    letterSpacing: -0.5,
-  },
+    pageHeader: {
+      paddingHorizontal: spacing.lg,
+      paddingTop: 56,
+      paddingBottom: spacing.sm,
+    },
+    pageTitle: {
+      fontSize: 28,
+      fontFamily: typography.extrabold,
+      fontWeight: '800',
+      color: c.ink,
+      letterSpacing: -0.5,
+    },
 
-  // Hero
-  hero: {
-    alignItems: 'center',
-    paddingTop: spacing.xl,
-    paddingBottom: spacing.lg,
-  },
-  avatar: {
-    width: 84,
-    height: 84,
-    borderRadius: radius.full,
-    backgroundColor: colors.ink,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: spacing.md,
-  },
-  avatarText: {
-    color: '#FFFFFF',
-    fontSize: 32,
-    fontFamily: typography.extrabold,
-    fontWeight: '800',
-  },
-  heroName: {
-    fontSize: 20,
-    fontFamily: typography.bold,
-    fontWeight: '700',
-    color: colors.ink,
-    letterSpacing: -0.3,
-    marginBottom: 4,
-  },
-  heroEmail: {
-    fontSize: 14,
-    fontFamily: typography.regular,
-    color: colors.ink2,
-  },
+    // Hero
+    hero: {
+      alignItems: 'center',
+      paddingTop: spacing.xl,
+      paddingBottom: spacing.lg,
+    },
+    avatar: {
+      width: 84,
+      height: 84,
+      borderRadius: radius.full,
+      backgroundColor: c.ink,
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginBottom: spacing.md,
+    },
+    avatarText: {
+      color: '#FFFFFF',
+      fontSize: 32,
+      fontFamily: typography.extrabold,
+      fontWeight: '800',
+    },
+    heroName: {
+      fontSize: 20,
+      fontFamily: typography.bold,
+      fontWeight: '700',
+      color: c.ink,
+      letterSpacing: -0.3,
+      marginBottom: 4,
+    },
+    heroEmail: {
+      fontSize: 14,
+      fontFamily: typography.regular,
+      color: c.ink2,
+    },
 
-  // Stats — 2 cards
-  statsRow: {
-    flexDirection: 'row',
-    gap: spacing.md,
-    marginHorizontal: spacing.lg,
-    marginTop: spacing.lg,
-  },
-  statCard: {
-    flex: 1,
-    backgroundColor: colors.surface,
-    borderRadius: radius.xl,
-    borderWidth: 1,
-    borderColor: colors.line,
-    paddingVertical: spacing.base,
-    paddingHorizontal: spacing.md,
-    ...shadow.sm,
-  },
-  statVal: {
-    fontSize: 22,
-    fontFamily: typography.extrabold,
-    fontWeight: '800',
-    color: colors.ink,
-    letterSpacing: -0.5,
-    marginBottom: 4,
-  },
-  statLabel: {
-    fontSize: 12,
-    fontFamily: typography.medium,
-    fontWeight: '500',
-    color: colors.ink2,
-  },
+    // Stats — 2 cards
+    statsRow: {
+      flexDirection: 'row',
+      gap: spacing.md,
+      marginHorizontal: spacing.lg,
+      marginTop: spacing.lg,
+    },
+    statCard: {
+      flex: 1,
+      backgroundColor: c.surface,
+      borderRadius: radius.xl,
+      borderWidth: 1,
+      borderColor: c.line,
+      paddingVertical: spacing.base,
+      paddingHorizontal: spacing.md,
+      ...shadow.sm,
+    },
+    statVal: {
+      fontSize: 22,
+      fontFamily: typography.extrabold,
+      fontWeight: '800',
+      color: c.ink,
+      letterSpacing: -0.5,
+      marginBottom: 4,
+    },
+    statLabel: {
+      fontSize: 12,
+      fontFamily: typography.medium,
+      fontWeight: '500',
+      color: c.ink2,
+    },
 
-  // Sections
-  section: { marginTop: spacing.xl, marginHorizontal: spacing.lg },
-  sectionLabel: {
-    fontSize: 11,
-    fontFamily: typography.bold,
-    fontWeight: '700',
-    color: colors.ink2,
-    textTransform: 'uppercase',
-    letterSpacing: 0.8,
-    marginBottom: spacing.sm,
-    marginLeft: 4,
-  },
-  card: {
-    backgroundColor: colors.surface,
-    borderRadius: radius.xl,
-    borderWidth: 1,
-    borderColor: colors.line,
-    overflow: 'hidden',
-    ...shadow.sm,
-  },
-  divider: { height: StyleSheet.hairlineWidth, backgroundColor: colors.line2 },
+    // Sections
+    section: { marginTop: spacing.xl, marginHorizontal: spacing.lg },
+    sectionLabel: {
+      fontSize: 11,
+      fontFamily: typography.bold,
+      fontWeight: '700',
+      color: c.ink2,
+      textTransform: 'uppercase',
+      letterSpacing: 0.8,
+      marginBottom: spacing.sm,
+      marginLeft: 4,
+    },
+    card: {
+      backgroundColor: c.surface,
+      borderRadius: radius.xl,
+      borderWidth: 1,
+      borderColor: c.line,
+      overflow: 'hidden',
+      ...shadow.sm,
+    },
+    divider: { height: StyleSheet.hairlineWidth, backgroundColor: c.line2 },
 
-  // Rows
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: spacing.base,
-    paddingVertical: 14,
-    gap: spacing.md,
-  },
-  iconWrap: {
-    width: 36,
-    height: 36,
-    borderRadius: 10,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  rowText: {
-    flex: 1,
-    fontSize: 15,
-    fontFamily: typography.medium,
-    fontWeight: '500',
-    color: colors.ink,
-  },
-  rowBadge: {
-    fontSize: 14,
-    fontFamily: typography.medium,
-    fontWeight: '500',
-    color: colors.ink2,
-  },
+    // Rows
+    row: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingHorizontal: spacing.base,
+      paddingVertical: 14,
+      gap: spacing.md,
+    },
+    iconWrap: {
+      width: 36,
+      height: 36,
+      borderRadius: 10,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    rowText: {
+      flex: 1,
+      fontSize: 15,
+      fontFamily: typography.medium,
+      fontWeight: '500',
+      color: c.ink,
+    },
+    rowBadge: {
+      fontSize: 14,
+      fontFamily: typography.medium,
+      fontWeight: '500',
+      color: c.ink2,
+    },
 
-  // Sign out
-  signOutBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: spacing.sm,
-    marginHorizontal: spacing.lg,
-    marginTop: spacing.xl,
-    paddingVertical: 15,
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    borderColor: '#F5C5C2',
-    backgroundColor: colors.surface,
-  },
-  signOutText: {
-    fontSize: 15,
-    fontFamily: typography.semibold,
-    fontWeight: '600',
-    color: colors.expense,
-  },
+    // Sign out
+    signOutBtn: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: spacing.sm,
+      marginHorizontal: spacing.lg,
+      marginTop: spacing.xl,
+      paddingVertical: 15,
+      borderRadius: radius.lg,
+      borderWidth: 1,
+      borderColor: '#F5C5C2',
+      backgroundColor: c.surface,
+    },
+    signOutText: {
+      fontSize: 15,
+      fontFamily: typography.semibold,
+      fontWeight: '600',
+      color: c.expense,
+    },
 
-  // Footer
-  footer: {
-    textAlign: 'center',
-    marginTop: spacing.xl,
-    fontSize: 12,
-    color: colors.ink3,
-    fontFamily: typography.regular,
-  },
+    // Footer
+    footer: {
+      textAlign: 'center',
+      marginTop: spacing.xl,
+      fontSize: 12,
+      color: c.ink3,
+      fontFamily: typography.regular,
+    },
 
-  // Export modal
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: spacing.base,
-  },
-  dialog: {
-    backgroundColor: colors.surface,
-    borderRadius: radius.xl,
-    padding: spacing.lg,
-    gap: spacing.md,
-    width: '100%',
-  },
-  dialogHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  sheetTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: colors.ink,
-    marginBottom: 6,
-  },
-  sheetSub: {
-    fontSize: 13,
-    color: colors.ink2,
-    marginBottom: spacing.lg,
-    lineHeight: 18,
-  },
-  sheetLabel: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: colors.ink2,
-    marginBottom: spacing.sm,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-  },
-  chipRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: spacing.xs,
-    marginBottom: spacing.lg,
-  },
-  chip: {
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.xs + 2,
-    borderRadius: radius.sm,
-    borderWidth: 1,
-    borderColor: colors.line,
-    backgroundColor: colors.surface,
-  },
-  chipActive: { backgroundColor: colors.accent, borderColor: colors.accent },
-  chipText: { fontSize: 13, fontWeight: '500', color: colors.ink2 },
-  chipTextActive: { color: '#fff' },
-  sendBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    backgroundColor: colors.accent,
-    borderRadius: radius.md,
-    paddingVertical: spacing.md,
-    marginTop: spacing.sm,
-  },
-  sendBtnText: { color: '#fff', fontSize: 15, fontWeight: '700' },
-});
+    // Export modal
+    modalOverlay: {
+      flex: 1,
+      backgroundColor: 'rgba(0,0,0,0.5)',
+      justifyContent: 'center',
+      alignItems: 'center',
+      paddingHorizontal: spacing.base,
+    },
+    dialog: {
+      backgroundColor: c.surface,
+      borderRadius: radius.xl,
+      padding: spacing.lg,
+      gap: spacing.md,
+      width: '100%',
+    },
+    dialogHeader: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+    },
+    sheetTitle: {
+      fontSize: 18,
+      fontWeight: '700',
+      color: c.ink,
+      marginBottom: 6,
+    },
+    sheetSub: {
+      fontSize: 13,
+      color: c.ink2,
+      marginBottom: spacing.lg,
+      lineHeight: 18,
+    },
+    sheetLabel: {
+      fontSize: 12,
+      fontWeight: '600',
+      color: c.ink2,
+      marginBottom: spacing.sm,
+      textTransform: 'uppercase',
+      letterSpacing: 0.5,
+    },
+    chipRow: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: spacing.xs,
+      marginBottom: spacing.lg,
+    },
+    chip: {
+      paddingHorizontal: spacing.md,
+      paddingVertical: spacing.xs + 2,
+      borderRadius: radius.sm,
+      borderWidth: 1,
+      borderColor: c.line,
+      backgroundColor: c.surface,
+    },
+    chipActive: { backgroundColor: c.accent, borderColor: c.accent },
+    chipText: { fontSize: 13, fontWeight: '500', color: c.ink2 },
+    chipTextActive: { color: '#fff' },
+    sendBtn: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 8,
+      backgroundColor: c.accent,
+      borderRadius: radius.md,
+      paddingVertical: spacing.md,
+      marginTop: spacing.sm,
+    },
+    sendBtnText: { color: '#fff', fontSize: 15, fontWeight: '700' },
+  });
+}

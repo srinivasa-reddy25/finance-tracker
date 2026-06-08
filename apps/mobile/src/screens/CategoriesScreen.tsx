@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useMemo, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Dimensions,
@@ -18,7 +18,8 @@ import {
 import { useNavigation } from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useCategoryStore } from '../stores/categoryStore';
-import { colors, radius, spacing } from '../theme';
+import { useThemeStore } from '../stores/themeStore';
+import { useColors, TColors, catBg, radius, spacing } from '../theme';
 import type { TUserCategory } from '../types/user-category';
 import ConfirmDialog from '../components/ConfirmDialog';
 
@@ -61,6 +62,9 @@ const PRESET_COLORS: { color: string; bg: string }[] = [
 ];
 
 export default function CategoriesScreen() {
+  const c = useColors();
+  const styles = useMemo(() => makeStyles(c), [c]);
+  const { isDark } = useThemeStore();
   const navigation = useNavigation();
   const { categories, loading, fetch, add, update, remove } =
     useCategoryStore();
@@ -202,7 +206,7 @@ export default function CategoriesScreen() {
     const budget = item.budget ?? null;
     const pct = budget != null && budget > 0 ? Math.min(spent / budget, 1) : 0;
     const overBudget = budget != null && spent > budget;
-    const fillColor = overBudget ? colors.expense : item.color;
+    const fillColor = overBudget ? c.expense : item.color;
 
     return (
       <TouchableOpacity
@@ -236,7 +240,12 @@ export default function CategoriesScreen() {
 
         {/* Flex content — catRow is NOT a flex container so no gap bleeds onto fills */}
         <View style={styles.catRowContent}>
-          <View style={[styles.catIcon, { backgroundColor: item.bg }]}>
+          <View
+            style={[
+              styles.catIcon,
+              { backgroundColor: catBg(item.bg, item.color, isDark) },
+            ]}
+          >
             <Icon name={item.icon} size={18} color={item.color} />
           </View>
 
@@ -244,10 +253,7 @@ export default function CategoriesScreen() {
             <Text style={styles.catName}>{item.name}</Text>
             {budget != null ? (
               <Text
-                style={[
-                  styles.budgetText,
-                  overBudget && { color: colors.expense },
-                ]}
+                style={[styles.budgetText, overBudget && { color: c.expense }]}
               >
                 ₹{spent.toLocaleString('en-IN')} / ₹
                 {budget.toLocaleString('en-IN')}
@@ -262,7 +268,7 @@ export default function CategoriesScreen() {
           <View style={styles.rowRight}>
             {!item.is_deletable ? (
               <View style={styles.lockBadge}>
-                <Icon name="lock-outline" size={13} color={colors.ink3} />
+                <Icon name="lock-outline" size={13} color={c.ink3} />
                 <Text style={styles.lockText}>Required</Text>
               </View>
             ) : (
@@ -271,7 +277,7 @@ export default function CategoriesScreen() {
                 onPress={() => handleDeletePress(item)}
                 hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
               >
-                <Icon name="trash-can-outline" size={18} color={colors.ink3} />
+                <Icon name="trash-can-outline" size={18} color={c.ink3} />
               </TouchableOpacity>
             )}
           </View>
@@ -282,7 +288,10 @@ export default function CategoriesScreen() {
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor={colors.canvas} />
+      <StatusBar
+        barStyle={isDark ? 'light-content' : 'dark-content'}
+        backgroundColor={c.canvas}
+      />
 
       <View style={styles.header}>
         <TouchableOpacity
@@ -290,7 +299,7 @@ export default function CategoriesScreen() {
           style={styles.backBtn}
           hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
         >
-          <Icon name="arrow-left" size={22} color={colors.ink} />
+          <Icon name="arrow-left" size={22} color={c.ink} />
         </TouchableOpacity>
         <Text style={styles.title}>Categories</Text>
         <TouchableOpacity
@@ -306,7 +315,7 @@ export default function CategoriesScreen() {
       </View>
 
       {loading && categories.length === 0 ? (
-        <ActivityIndicator style={{ marginTop: 64 }} color={colors.accent} />
+        <ActivityIndicator style={{ marginTop: 64 }} color={c.accent} />
       ) : (
         <FlatList
           data={expenseCategories}
@@ -319,8 +328,8 @@ export default function CategoriesScreen() {
             <RefreshControl
               refreshing={refreshing}
               onRefresh={handleRefresh}
-              colors={[colors.accent]}
-              tintColor={colors.accent}
+              colors={[c.accent]}
+              tintColor={c.accent}
             />
           }
         />
@@ -417,7 +426,7 @@ export default function CategoriesScreen() {
                   {editingLocked ? (
                     <View style={styles.lockedRow}>
                       <Text style={styles.lockedValue}>{catName}</Text>
-                      <Icon name="lock-outline" size={14} color={colors.ink3} />
+                      <Icon name="lock-outline" size={14} color={c.ink3} />
                     </View>
                   ) : (
                     <TextInput
@@ -425,7 +434,7 @@ export default function CategoriesScreen() {
                       value={catName}
                       onChangeText={setCatName}
                       placeholder="Category name"
-                      placeholderTextColor={colors.ink3}
+                      placeholderTextColor={c.ink3}
                       style={styles.lockedInner}
                       maxLength={30}
                       returnKeyType="next"
@@ -443,7 +452,7 @@ export default function CategoriesScreen() {
                     value={catBudget}
                     onChangeText={setCatBudget}
                     placeholder="e.g. 5000"
-                    placeholderTextColor={colors.ink3}
+                    placeholderTextColor={c.ink3}
                     keyboardType="numeric"
                     style={styles.budgetInput}
                   />
@@ -452,7 +461,7 @@ export default function CategoriesScreen() {
                       onPress={() => setCatBudget('')}
                       hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                     >
-                      <Icon name="close-circle" size={18} color={colors.ink3} />
+                      <Icon name="close-circle" size={18} color={c.ink3} />
                     </TouchableOpacity>
                   )}
                 </View>
@@ -484,7 +493,7 @@ export default function CategoriesScreen() {
                             <Icon
                               name={icon}
                               size={20}
-                              color={active ? selectedColor.color : colors.ink2}
+                              color={active ? selectedColor.color : c.ink2}
                             />
                           </TouchableOpacity>
                         );
@@ -547,280 +556,282 @@ export default function CategoriesScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.canvas },
+function makeStyles(c: TColors) {
+  return StyleSheet.create({
+    container: { flex: 1, backgroundColor: c.canvas },
 
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.surface,
-    paddingHorizontal: spacing.base,
-    paddingTop: 56,
-    paddingBottom: spacing.md,
-    gap: spacing.sm,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.line,
-  },
-  backBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: radius.md,
-    borderWidth: 1,
-    borderColor: colors.line,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  title: {
-    flex: 1,
-    fontSize: 20,
-    fontWeight: '800',
-    color: colors.ink,
-    letterSpacing: -0.4,
-  },
-  addBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-    backgroundColor: colors.accent,
-    paddingHorizontal: spacing.md,
-    paddingVertical: 8,
-    borderRadius: radius.full,
-  },
-  addBtnText: { fontSize: 13, fontWeight: '700', color: '#FFF' },
+    header: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: c.surface,
+      paddingHorizontal: spacing.base,
+      paddingTop: 56,
+      paddingBottom: spacing.md,
+      gap: spacing.sm,
+      borderBottomWidth: 1,
+      borderBottomColor: c.line,
+    },
+    backBtn: {
+      width: 36,
+      height: 36,
+      borderRadius: radius.md,
+      borderWidth: 1,
+      borderColor: c.line,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    title: {
+      flex: 1,
+      fontSize: 20,
+      fontWeight: '800',
+      color: c.ink,
+      letterSpacing: -0.4,
+    },
+    addBtn: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 5,
+      backgroundColor: c.accent,
+      paddingHorizontal: spacing.md,
+      paddingVertical: 8,
+      borderRadius: radius.full,
+    },
+    addBtnText: { fontSize: 13, fontWeight: '700', color: '#FFF' },
 
-  list: { paddingVertical: spacing.sm, paddingBottom: 60 },
+    list: { paddingVertical: spacing.sm, paddingBottom: 60 },
 
-  catRow: {
-    backgroundColor: colors.surface,
-    overflow: 'hidden',
-  },
-  catRowContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: spacing.base,
-    paddingVertical: 14,
-    gap: spacing.md,
-  },
-  rowFill: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    bottom: 0,
-  },
-  catIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: radius.md,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  catInfo: { flex: 1 },
-  catName: { fontSize: 15, fontWeight: '600', color: colors.ink },
-  budgetText: {
-    fontSize: 12,
-    color: colors.ink2,
-    fontWeight: '500',
-    marginTop: 2,
-  },
-  spentText: {
-    fontSize: 12,
-    color: colors.ink3,
-    fontWeight: '500',
-    marginTop: 2,
-  },
-  editHint: { fontSize: 12, color: colors.ink3, marginTop: 2 },
-  rowRight: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
-  lockBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: colors.surface2,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: 4,
-    borderRadius: radius.full,
-  },
-  lockText: { fontSize: 11, fontWeight: '600', color: colors.ink3 },
-  deleteBtn: {
-    width: 32,
-    height: 32,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  rowDivider: {
-    height: 1,
-    backgroundColor: colors.line,
-    marginLeft: 56 + spacing.base + spacing.md,
-  },
+    catRow: {
+      backgroundColor: c.surface,
+      overflow: 'hidden',
+    },
+    catRowContent: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingHorizontal: spacing.base,
+      paddingVertical: 14,
+      gap: spacing.md,
+    },
+    rowFill: {
+      position: 'absolute',
+      top: 0,
+      left: 0,
+      bottom: 0,
+    },
+    catIcon: {
+      width: 40,
+      height: 40,
+      borderRadius: radius.md,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    catInfo: { flex: 1 },
+    catName: { fontSize: 15, fontWeight: '600', color: c.ink },
+    budgetText: {
+      fontSize: 12,
+      color: c.ink2,
+      fontWeight: '500',
+      marginTop: 2,
+    },
+    spentText: {
+      fontSize: 12,
+      color: c.ink3,
+      fontWeight: '500',
+      marginTop: 2,
+    },
+    editHint: { fontSize: 12, color: c.ink3, marginTop: 2 },
+    rowRight: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+    lockBadge: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 4,
+      backgroundColor: c.surface2,
+      paddingHorizontal: spacing.sm,
+      paddingVertical: 4,
+      borderRadius: radius.full,
+    },
+    lockText: { fontSize: 11, fontWeight: '600', color: c.ink3 },
+    deleteBtn: {
+      width: 32,
+      height: 32,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    rowDivider: {
+      height: 1,
+      backgroundColor: c.line,
+      marginLeft: 56 + spacing.base + spacing.md,
+    },
 
-  // Sheet
-  overlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    justifyContent: 'flex-end',
-  },
-  sheet: {
-    backgroundColor: colors.surface,
-    borderTopLeftRadius: radius.xl,
-    borderTopRightRadius: radius.xl,
-    maxHeight: SCREEN_H * 0.78,
-    paddingBottom: Platform.OS === 'ios' ? 8 : 16,
-  },
-  sheetHandle: {
-    width: 36,
-    height: 4,
-    backgroundColor: colors.line,
-    borderRadius: radius.full,
-    alignSelf: 'center',
-    marginTop: spacing.md,
-    marginBottom: spacing.sm,
-  },
-  sheetHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.md,
-    paddingHorizontal: spacing.lg,
-    paddingBottom: spacing.md,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.line,
-  },
-  previewIcon: {
-    width: 44,
-    height: 44,
-    borderRadius: radius.md,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  sheetTitle: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: colors.ink2,
-    textTransform: 'uppercase',
-    letterSpacing: 0.4,
-  },
-  previewName: { fontSize: 16, fontWeight: '700', marginTop: 1 },
+    // Sheet
+    overlay: {
+      flex: 1,
+      backgroundColor: 'rgba(0,0,0,0.5)',
+      justifyContent: 'flex-end',
+    },
+    sheet: {
+      backgroundColor: c.surface,
+      borderTopLeftRadius: radius.xl,
+      borderTopRightRadius: radius.xl,
+      maxHeight: SCREEN_H * 0.78,
+      paddingBottom: Platform.OS === 'ios' ? 8 : 16,
+    },
+    sheetHandle: {
+      width: 36,
+      height: 4,
+      backgroundColor: c.line,
+      borderRadius: radius.full,
+      alignSelf: 'center',
+      marginTop: spacing.md,
+      marginBottom: spacing.sm,
+    },
+    sheetHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.md,
+      paddingHorizontal: spacing.lg,
+      paddingBottom: spacing.md,
+      borderBottomWidth: 1,
+      borderBottomColor: c.line,
+    },
+    previewIcon: {
+      width: 44,
+      height: 44,
+      borderRadius: radius.md,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    sheetTitle: {
+      fontSize: 12,
+      fontWeight: '700',
+      color: c.ink2,
+      textTransform: 'uppercase',
+      letterSpacing: 0.4,
+    },
+    previewName: { fontSize: 16, fontWeight: '700', marginTop: 1 },
 
-  sheetScroll: { flexGrow: 0 },
-  sheetScrollContent: {
-    paddingHorizontal: spacing.lg,
-    paddingTop: spacing.md,
-    paddingBottom: spacing.sm,
-  },
+    sheetScroll: { flexGrow: 0 },
+    sheetScrollContent: {
+      paddingHorizontal: spacing.lg,
+      paddingTop: spacing.md,
+      paddingBottom: spacing.sm,
+    },
 
-  fieldLabel: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: colors.ink2,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-    marginBottom: spacing.sm,
-  },
-  optional: {
-    fontWeight: '400',
-    textTransform: 'none',
-    letterSpacing: 0,
-    color: colors.ink3,
-    fontSize: 11,
-  },
-  textInput: {
-    borderWidth: 1,
-    borderColor: colors.line,
-    borderRadius: radius.md,
-    backgroundColor: colors.surface2,
-    paddingHorizontal: spacing.base,
-    paddingVertical: 11,
-    fontSize: 15,
-    color: colors.ink,
-    marginBottom: spacing.base,
-  },
-  inputLocked: {
-    backgroundColor: colors.canvas,
-    borderColor: colors.line,
-  },
-  lockedRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  lockedValue: { fontSize: 15, color: colors.ink2, fontWeight: '500' },
-  lockedInner: { fontSize: 15, color: colors.ink },
-  budgetWrap: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: colors.line,
-    borderRadius: radius.md,
-    backgroundColor: colors.surface2,
-    paddingHorizontal: spacing.base,
-    marginBottom: spacing.base,
-  },
-  currencyPrefix: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: colors.ink,
-    marginRight: spacing.sm,
-  },
-  budgetInput: {
-    flex: 1,
-    paddingVertical: 11,
-    fontSize: 15,
-    color: colors.ink,
-  },
+    fieldLabel: {
+      fontSize: 11,
+      fontWeight: '700',
+      color: c.ink2,
+      textTransform: 'uppercase',
+      letterSpacing: 0.5,
+      marginBottom: spacing.sm,
+    },
+    optional: {
+      fontWeight: '400',
+      textTransform: 'none',
+      letterSpacing: 0,
+      color: c.ink3,
+      fontSize: 11,
+    },
+    textInput: {
+      borderWidth: 1,
+      borderColor: c.line,
+      borderRadius: radius.md,
+      backgroundColor: c.surface2,
+      paddingHorizontal: spacing.base,
+      paddingVertical: 11,
+      fontSize: 15,
+      color: c.ink,
+      marginBottom: spacing.base,
+    },
+    inputLocked: {
+      backgroundColor: c.canvas,
+      borderColor: c.line,
+    },
+    lockedRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+    },
+    lockedValue: { fontSize: 15, color: c.ink2, fontWeight: '500' },
+    lockedInner: { fontSize: 15, color: c.ink },
+    budgetWrap: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      borderWidth: 1,
+      borderColor: c.line,
+      borderRadius: radius.md,
+      backgroundColor: c.surface2,
+      paddingHorizontal: spacing.base,
+      marginBottom: spacing.base,
+    },
+    currencyPrefix: {
+      fontSize: 16,
+      fontWeight: '700',
+      color: c.ink,
+      marginRight: spacing.sm,
+    },
+    budgetInput: {
+      flex: 1,
+      paddingVertical: 11,
+      fontSize: 15,
+      color: c.ink,
+    },
 
-  iconScroll: { marginBottom: spacing.base },
-  iconScrollContent: { gap: spacing.sm, paddingRight: spacing.sm },
-  iconChip: {
-    width: 42,
-    height: 42,
-    borderRadius: radius.md,
-    borderWidth: 1,
-    borderColor: colors.line,
-    backgroundColor: colors.surface2,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
+    iconScroll: { marginBottom: spacing.base },
+    iconScrollContent: { gap: spacing.sm, paddingRight: spacing.sm },
+    iconChip: {
+      width: 42,
+      height: 42,
+      borderRadius: radius.md,
+      borderWidth: 1,
+      borderColor: c.line,
+      backgroundColor: c.surface2,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
 
-  colorGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: spacing.sm,
-    marginBottom: spacing.md,
-  },
-  colorDot: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 2,
-    borderColor: 'transparent',
-  },
-  colorDotActive: { borderColor: '#FFF', elevation: 3 },
+    colorGrid: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: spacing.sm,
+      marginBottom: spacing.md,
+    },
+    colorDot: {
+      width: 34,
+      height: 34,
+      borderRadius: 17,
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderWidth: 2,
+      borderColor: 'transparent',
+    },
+    colorDotActive: { borderColor: '#FFF', elevation: 3 },
 
-  sheetActions: {
-    flexDirection: 'row',
-    gap: spacing.sm,
-    paddingHorizontal: spacing.lg,
-    paddingTop: spacing.md,
-    borderTopWidth: 1,
-    borderTopColor: colors.line,
-  },
-  cancelBtn: {
-    flex: 1,
-    height: 46,
-    borderRadius: radius.md,
-    borderWidth: 1,
-    borderColor: colors.line,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  cancelBtnText: { fontSize: 14, fontWeight: '600', color: colors.ink2 },
-  saveBtn: {
-    flex: 2,
-    height: 46,
-    borderRadius: radius.md,
-    backgroundColor: colors.accent,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  saveBtnText: { fontSize: 14, fontWeight: '700', color: '#FFF' },
-});
+    sheetActions: {
+      flexDirection: 'row',
+      gap: spacing.sm,
+      paddingHorizontal: spacing.lg,
+      paddingTop: spacing.md,
+      borderTopWidth: 1,
+      borderTopColor: c.line,
+    },
+    cancelBtn: {
+      flex: 1,
+      height: 46,
+      borderRadius: radius.md,
+      borderWidth: 1,
+      borderColor: c.line,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    cancelBtnText: { fontSize: 14, fontWeight: '600', color: c.ink2 },
+    saveBtn: {
+      flex: 2,
+      height: 46,
+      borderRadius: radius.md,
+      backgroundColor: c.accent,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    saveBtnText: { fontSize: 14, fontWeight: '700', color: '#FFF' },
+  });
+}

@@ -25,7 +25,16 @@ import { Swipeable } from 'react-native-gesture-handler';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useTransactionStore } from '../stores/transactionStore';
 import { useCategoryStore } from '../stores/categoryStore';
-import { colors, spacing, radius, shadow, typography } from '../theme';
+import { useThemeStore } from '../stores/themeStore';
+import {
+  useColors,
+  TColors,
+  catBg,
+  spacing,
+  radius,
+  shadow,
+  typography,
+} from '../theme';
 import type { TTransaction } from '../types/transaction';
 import ConfirmDialog from '../components/ConfirmDialog';
 import EmptyState from '../components/EmptyState';
@@ -134,6 +143,9 @@ function SwipeableRow({
   isFirst: boolean;
   isLast: boolean;
 }) {
+  const c = useColors();
+  const styles = useMemo(() => makeStyles(c), [c]);
+  const { isDark } = useThemeStore();
   const swipeRef = useRef<Swipeable>(null);
   const meta = categoryMap.get(item.category) ?? {
     icon: 'shape-outline',
@@ -193,7 +205,12 @@ function SwipeableRow({
         activeOpacity={0.7}
       >
         {/* Circle icon */}
-        <View style={[styles.txIconCircle, { backgroundColor: meta.bg }]}>
+        <View
+          style={[
+            styles.txIconCircle,
+            { backgroundColor: catBg(meta.bg, meta.color, isDark) },
+          ]}
+        >
           <Icon name={meta.icon} size={24} color={meta.color} />
         </View>
 
@@ -215,12 +232,7 @@ function SwipeableRow({
         </View>
 
         {/* Amount */}
-        <Text
-          style={[
-            styles.txAmount,
-            { color: isIncome ? colors.income : colors.ink },
-          ]}
-        >
+        <Text style={[styles.txAmount, { color: isIncome ? c.income : c.ink }]}>
           {isIncome ? '+' : ''}₹{item.amount.toLocaleString('en-IN')}
         </Text>
       </TouchableOpacity>
@@ -229,6 +241,9 @@ function SwipeableRow({
 }
 
 export default function HistoryScreen() {
+  const c = useColors();
+  const styles = useMemo(() => makeStyles(c), [c]);
+  const { isDark } = useThemeStore();
   const {
     transactions,
     pagination,
@@ -430,7 +445,10 @@ export default function HistoryScreen() {
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor={colors.canvas} />
+      <StatusBar
+        barStyle={isDark ? 'light-content' : 'dark-content'}
+        backgroundColor={c.canvas}
+      />
 
       {/* Header */}
       <View style={styles.header}>
@@ -440,17 +458,17 @@ export default function HistoryScreen() {
       {/* Search + Date + Filter toolbar */}
       <View style={styles.toolbar}>
         <View style={styles.searchWrap}>
-          <Icon name="magnify" size={15} color={colors.ink3} />
+          <Icon name="magnify" size={15} color={c.ink3} />
           <TextInput
             value={search}
             onChangeText={setSearch}
             placeholder="Search transactions..."
-            placeholderTextColor={colors.ink3}
+            placeholderTextColor={c.ink3}
             style={styles.searchInput}
           />
           {search.length > 0 && (
             <TouchableOpacity onPress={() => setSearch('')}>
-              <Icon name="close-circle" size={14} color={colors.ink3} />
+              <Icon name="close-circle" size={14} color={c.ink3} />
             </TouchableOpacity>
           )}
         </View>
@@ -461,21 +479,18 @@ export default function HistoryScreen() {
           style={[
             styles.filterBtn,
             dateActive && {
-              backgroundColor: colors.accentSoft,
-              borderColor: colors.accent,
+              backgroundColor: c.accentSoft,
+              borderColor: c.accent,
             },
           ]}
         >
           <Icon
             name="calendar-range"
             size={14}
-            color={dateActive ? colors.accent : colors.ink2}
+            color={dateActive ? c.accent : c.ink2}
           />
           <Text
-            style={[
-              styles.filterBtnText,
-              dateActive && { color: colors.accent },
-            ]}
+            style={[styles.filterBtnText, dateActive && { color: c.accent }]}
           >
             {dateBtnLabel}
           </Text>
@@ -484,7 +499,7 @@ export default function HistoryScreen() {
               onPress={() => handlePresetSelect('all')}
               hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
             >
-              <Icon name="close" size={13} color={colors.accent} />
+              <Icon name="close" size={13} color={c.accent} />
             </TouchableOpacity>
           )}
         </TouchableOpacity>
@@ -503,7 +518,7 @@ export default function HistoryScreen() {
           <Icon
             name={filter !== ALL ? activeFilterMeta!.icon : 'tune-variant'}
             size={14}
-            color={filter !== ALL ? activeFilterMeta!.color : colors.ink2}
+            color={filter !== ALL ? activeFilterMeta!.color : c.ink2}
           />
           <Text
             style={[
@@ -526,7 +541,7 @@ export default function HistoryScreen() {
 
       {/* List */}
       {(loading || catLoading) && !refreshing ? (
-        <ActivityIndicator style={{ marginTop: 64 }} color={colors.accent} />
+        <ActivityIndicator style={{ marginTop: 64 }} color={c.accent} />
       ) : transactions.length === 0 ? (
         <EmptyState
           title={search ? 'No results found' : 'No transactions'}
@@ -545,8 +560,8 @@ export default function HistoryScreen() {
             <RefreshControl
               refreshing={refreshing}
               onRefresh={handleRefresh}
-              colors={[colors.accent]}
-              tintColor={colors.accent}
+              colors={[c.accent]}
+              tintColor={c.accent}
             />
           }
           renderSectionHeader={({ section }) => (
@@ -570,7 +585,7 @@ export default function HistoryScreen() {
             loadingMore ? (
               <ActivityIndicator
                 style={styles.footerSpinner}
-                color={colors.accent}
+                color={c.accent}
               />
             ) : null
           }
@@ -614,7 +629,7 @@ export default function HistoryScreen() {
               <View style={styles.editHeader}>
                 <Text style={styles.editTitle}>Edit Expense</Text>
                 <TouchableOpacity onPress={closeEdit}>
-                  <Icon name="close" size={20} color={colors.ink2} />
+                  <Icon name="close" size={20} color={c.ink2} />
                 </TouchableOpacity>
               </View>
 
@@ -626,7 +641,7 @@ export default function HistoryScreen() {
                   onChangeText={setEditAmount}
                   keyboardType="numeric"
                   placeholder="0"
-                  placeholderTextColor={colors.line}
+                  placeholderTextColor={c.line}
                   style={styles.editAmountInput}
                 />
               </View>
@@ -635,7 +650,7 @@ export default function HistoryScreen() {
                 value={editDescription}
                 onChangeText={setEditDescription}
                 placeholder="Description"
-                placeholderTextColor={colors.ink3}
+                placeholderTextColor={c.ink3}
                 style={styles.editTextInput}
                 returnKeyType="next"
                 maxLength={DESCRIPTION_MAX_LENGTH}
@@ -645,7 +660,7 @@ export default function HistoryScreen() {
                 value={editNote}
                 onChangeText={setEditNote}
                 placeholder="Add a note (optional)"
-                placeholderTextColor={colors.ink3}
+                placeholderTextColor={c.ink3}
                 style={styles.editTextInput}
                 returnKeyType="done"
                 maxLength={NOTE_MAX_LENGTH}
@@ -663,7 +678,7 @@ export default function HistoryScreen() {
                         style={[
                           styles.editCatChip,
                           selected && {
-                            backgroundColor: cat.bg,
+                            backgroundColor: catBg(cat.bg, cat.color, isDark),
                             borderColor: cat.color,
                           },
                         ]}
@@ -675,7 +690,7 @@ export default function HistoryScreen() {
                             {
                               backgroundColor: selected
                                 ? cat.color
-                                : colors.surface2,
+                                : c.surface2,
                             },
                           ]}
                         >
@@ -688,7 +703,7 @@ export default function HistoryScreen() {
                         <Text
                           style={[
                             styles.editCatLabel,
-                            { color: selected ? cat.color : colors.ink2 },
+                            { color: selected ? cat.color : c.ink2 },
                           ]}
                         >
                           {cat.name}
@@ -751,23 +766,21 @@ export default function HistoryScreen() {
                     style={[
                       styles.sheetIcon,
                       {
-                        backgroundColor: active
-                          ? colors.accent
-                          : colors.accentSoft,
+                        backgroundColor: active ? c.accent : c.accentSoft,
                       },
                     ]}
                   >
                     <Icon
                       name={preset.icon}
                       size={15}
-                      color={active ? '#FFF' : colors.accent}
+                      color={active ? '#FFF' : c.accent}
                     />
                   </View>
                   <View style={{ flex: 1 }}>
                     <Text
                       style={[
                         styles.sheetOptionText,
-                        active && { color: colors.accent, fontWeight: '700' },
+                        active && { color: c.accent, fontWeight: '700' },
                       ]}
                     >
                       {preset.label}
@@ -775,7 +788,7 @@ export default function HistoryScreen() {
                     <Text style={styles.sheetOptionSub}>{preset.sublabel}</Text>
                   </View>
                   {active && (
-                    <Icon name="check-circle" size={18} color={colors.accent} />
+                    <Icon name="check-circle" size={18} color={c.accent} />
                   )}
                 </TouchableOpacity>
               );
@@ -808,23 +821,16 @@ export default function HistoryScreen() {
               ]}
             >
               <View
-                style={[
-                  styles.sheetIcon,
-                  { backgroundColor: colors.accentSoft },
-                ]}
+                style={[styles.sheetIcon, { backgroundColor: c.accentSoft }]}
               >
-                <Icon
-                  name="view-grid-outline"
-                  size={15}
-                  color={colors.accent}
-                />
+                <Icon name="view-grid-outline" size={15} color={c.accent} />
               </View>
               <View style={{ flex: 1 }}>
                 <Text
                   style={[
                     styles.sheetOptionText,
                     filter === ALL && {
-                      color: colors.accent,
+                      color: c.accent,
                       fontWeight: '700',
                     },
                   ]}
@@ -833,7 +839,7 @@ export default function HistoryScreen() {
                 </Text>
               </View>
               {filter === ALL && (
-                <Icon name="check-circle" size={18} color={colors.accent} />
+                <Icon name="check-circle" size={18} color={c.accent} />
               )}
             </TouchableOpacity>
 
@@ -853,7 +859,11 @@ export default function HistoryScreen() {
                   <View
                     style={[
                       styles.sheetIcon,
-                      { backgroundColor: active ? cat.color : cat.bg },
+                      {
+                        backgroundColor: active
+                          ? cat.color
+                          : catBg(cat.bg, cat.color, isDark),
+                      },
                     ]}
                   >
                     <Icon
@@ -885,320 +895,326 @@ export default function HistoryScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.canvas },
+function makeStyles(c: TColors) {
+  return StyleSheet.create({
+    container: { flex: 1, backgroundColor: c.canvas },
 
-  header: {
-    backgroundColor: colors.canvas,
-    paddingHorizontal: spacing.lg,
-    paddingTop: 56,
-    paddingBottom: spacing.md,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  title: {
-    fontSize: 30,
-    fontFamily: typography.extrabold,
-    fontWeight: '800',
-    color: colors.ink,
-    letterSpacing: -0.9,
-  },
-  toolbar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-    backgroundColor: colors.canvas,
-    paddingHorizontal: spacing.lg,
-    paddingBottom: spacing.md,
-  },
-  searchWrap: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-    backgroundColor: colors.surface2,
-    borderRadius: radius.md,
-    paddingHorizontal: spacing.md,
-    paddingVertical: 8,
-    borderWidth: 1,
-    borderColor: colors.line,
-  },
-  searchInput: {
-    flex: 1,
-    fontSize: 14,
-    fontFamily: typography.regular,
-    color: colors.ink,
-    padding: 0,
-  },
-  filterBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-    paddingHorizontal: spacing.md,
-    paddingVertical: 8,
-    borderRadius: radius.md,
-    borderWidth: 1,
-    borderColor: colors.line,
-    backgroundColor: colors.surface,
-  },
-  filterBtnText: {
-    fontSize: 13,
-    fontFamily: typography.bold,
-    fontWeight: '700',
-    color: colors.ink2,
-  },
+    header: {
+      backgroundColor: c.canvas,
+      paddingHorizontal: spacing.lg,
+      paddingTop: 56,
+      paddingBottom: spacing.md,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+    },
+    title: {
+      fontSize: 30,
+      fontFamily: typography.extrabold,
+      fontWeight: '800',
+      color: c.ink,
+      letterSpacing: -0.9,
+    },
+    toolbar: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.sm,
+      backgroundColor: c.canvas,
+      paddingHorizontal: spacing.lg,
+      paddingBottom: spacing.md,
+    },
+    searchWrap: {
+      flex: 1,
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.sm,
+      backgroundColor: c.surface2,
+      borderRadius: radius.md,
+      paddingHorizontal: spacing.md,
+      paddingVertical: 8,
+      borderWidth: 1,
+      borderColor: c.line,
+    },
+    searchInput: {
+      flex: 1,
+      fontSize: 14,
+      fontFamily: typography.regular,
+      color: c.ink,
+      padding: 0,
+    },
+    filterBtn: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 5,
+      paddingHorizontal: spacing.md,
+      paddingVertical: 8,
+      borderRadius: radius.md,
+      borderWidth: 1,
+      borderColor: c.line,
+      backgroundColor: c.surface,
+    },
+    filterBtnText: {
+      fontSize: 13,
+      fontFamily: typography.bold,
+      fontWeight: '700',
+      color: c.ink2,
+    },
 
-  listContent: { paddingBottom: 100 },
+    listContent: { paddingBottom: 100 },
 
-  sectionHeader: {
-    paddingHorizontal: spacing.lg,
-    paddingTop: spacing.base,
-    paddingBottom: spacing.sm,
-    backgroundColor: colors.canvas,
-  },
-  sectionTitle: {
-    fontSize: 12,
-    fontFamily: typography.bold,
-    fontWeight: '700',
-    color: colors.ink3,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-  },
-  sectionGap: { height: 4 },
+    sectionHeader: {
+      paddingHorizontal: spacing.lg,
+      paddingTop: spacing.base,
+      paddingBottom: spacing.sm,
+      backgroundColor: c.canvas,
+    },
+    sectionTitle: {
+      fontSize: 12,
+      fontFamily: typography.bold,
+      fontWeight: '700',
+      color: c.ink3,
+      textTransform: 'uppercase',
+      letterSpacing: 0.5,
+    },
+    sectionGap: { height: 4 },
 
-  txRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    marginHorizontal: spacing.lg,
-    paddingHorizontal: spacing.lg,
-    paddingVertical: 13,
-    gap: spacing.md,
-    backgroundColor: colors.surface,
-    borderLeftWidth: 1,
-    borderRightWidth: 1,
-    borderColor: colors.line,
-  },
-  txRowFirst: {
-    borderTopWidth: 1,
-    borderTopLeftRadius: radius.xl,
-    borderTopRightRadius: radius.xl,
-  },
-  txRowLast: {
-    borderBottomWidth: 1,
-    borderBottomLeftRadius: radius.xl,
-    borderBottomRightRadius: radius.xl,
-  },
-  txRowBorder: {
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: colors.line,
-  },
+    txRow: {
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      marginHorizontal: spacing.lg,
+      paddingHorizontal: spacing.lg,
+      paddingVertical: 13,
+      gap: spacing.md,
+      backgroundColor: c.surface,
+      borderLeftWidth: 1,
+      borderRightWidth: 1,
+      borderColor: c.line,
+    },
+    txRowFirst: {
+      borderTopWidth: 1,
+      borderTopLeftRadius: radius.xl,
+      borderTopRightRadius: radius.xl,
+    },
+    txRowLast: {
+      borderBottomWidth: 1,
+      borderBottomLeftRadius: radius.xl,
+      borderBottomRightRadius: radius.xl,
+    },
+    txRowBorder: {
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      borderBottomColor: c.line,
+    },
 
-  txIconCircle: {
-    width: 46,
-    height: 46,
-    borderRadius: radius.full,
-    alignItems: 'center',
-    justifyContent: 'center',
-    flexShrink: 0,
-  },
+    txIconCircle: {
+      width: 46,
+      height: 46,
+      borderRadius: radius.full,
+      alignItems: 'center',
+      justifyContent: 'center',
+      flexShrink: 0,
+    },
 
-  txInfo: { flex: 1 },
-  txDesc: {
-    fontSize: 17,
-    fontFamily: typography.semibold,
-    fontWeight: '600',
-    color: colors.ink,
-    marginBottom: 2,
-  },
-  txMeta: {
-    fontSize: 12.5,
-    fontFamily: typography.regular,
-    color: colors.ink2,
-  },
-  txNote: {
-    fontSize: 11,
-    fontFamily: typography.regular,
-    color: colors.ink3,
-    marginTop: 1,
-  },
+    txInfo: { flex: 1 },
+    txDesc: {
+      fontSize: 17,
+      fontFamily: typography.semibold,
+      fontWeight: '600',
+      color: c.ink,
+      marginBottom: 2,
+    },
+    txMeta: {
+      fontSize: 12.5,
+      fontFamily: typography.regular,
+      color: c.ink2,
+    },
+    txNote: {
+      fontSize: 11,
+      fontFamily: typography.regular,
+      color: c.ink3,
+      marginTop: 1,
+    },
 
-  txAmount: {
-    fontSize: 16,
-    fontFamily: typography.bold,
-    fontWeight: '700',
-    letterSpacing: -0.3,
-    paddingTop: 2,
-  },
+    txAmount: {
+      fontSize: 16,
+      fontFamily: typography.bold,
+      fontWeight: '700',
+      letterSpacing: -0.3,
+      paddingTop: 2,
+    },
 
-  deleteAction: {
-    backgroundColor: colors.expense,
-    justifyContent: 'center',
-    alignItems: 'center',
-    width: 72,
-  },
+    deleteAction: {
+      backgroundColor: c.expense,
+      justifyContent: 'center',
+      alignItems: 'center',
+      width: 72,
+    },
 
-  footerSpinner: { paddingVertical: spacing.xl },
+    footerSpinner: { paddingVertical: spacing.xl },
 
-  editOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: spacing.base,
-  },
-  editDialog: {
-    backgroundColor: colors.surface,
-    borderRadius: radius.xl,
-    padding: spacing.lg,
-    gap: spacing.md,
-    width: '100%',
-  },
-  editHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  editTitle: {
-    fontSize: 20,
-    fontFamily: typography.extrabold,
-    fontWeight: '800',
-    color: colors.ink,
-  },
-  editAmountRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.surface2,
-    borderRadius: radius.lg,
-    paddingHorizontal: spacing.base,
-    paddingVertical: spacing.sm,
-    gap: 6,
-  },
-  editCurrency: {
-    fontSize: 30,
-    fontFamily: typography.bold,
-    fontWeight: '700',
-    color: colors.ink3,
-  },
-  editAmountInput: {
-    flex: 1,
-    fontSize: 38,
-    fontFamily: typography.extrabold,
-    fontWeight: '800',
-    color: colors.ink,
-    padding: 0,
-  },
-  editTextInput: {
-    backgroundColor: colors.surface2,
-    borderRadius: radius.lg,
-    paddingHorizontal: spacing.base,
-    paddingVertical: 12,
-    fontSize: 14,
-    fontFamily: typography.regular,
-    color: colors.ink,
-  },
-  editCategoryGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
-  editCatChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: radius.lg,
-    borderWidth: 1.5,
-    borderColor: colors.line,
-    backgroundColor: colors.surface,
-  },
-  editCatIcon: {
-    width: 22,
-    height: 22,
-    borderRadius: radius.sm,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  editCatLabel: {
-    fontSize: 12,
-    fontFamily: typography.semibold,
-    fontWeight: '600',
-  },
-  editSubmitBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: spacing.sm,
-    backgroundColor: colors.accent,
-    borderRadius: radius.lg,
-    paddingVertical: 14,
-    marginTop: spacing.xs,
-  },
-  editSubmitText: {
-    color: '#FFF',
-    fontSize: 15,
-    fontFamily: typography.bold,
-    fontWeight: '700',
-  },
+    editOverlay: {
+      flex: 1,
+      backgroundColor: 'rgba(0,0,0,0.5)',
+      justifyContent: 'center',
+      alignItems: 'center',
+      paddingHorizontal: spacing.base,
+    },
+    editDialog: {
+      backgroundColor: c.surface,
+      borderRadius: radius.xl,
+      padding: spacing.lg,
+      gap: spacing.md,
+      width: '100%',
+    },
+    editHeader: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+    },
+    editTitle: {
+      fontSize: 20,
+      fontFamily: typography.extrabold,
+      fontWeight: '800',
+      color: c.ink,
+    },
+    editAmountRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: c.surface2,
+      borderRadius: radius.lg,
+      paddingHorizontal: spacing.base,
+      paddingVertical: spacing.sm,
+      gap: 6,
+    },
+    editCurrency: {
+      fontSize: 30,
+      fontFamily: typography.bold,
+      fontWeight: '700',
+      color: c.ink3,
+    },
+    editAmountInput: {
+      flex: 1,
+      fontSize: 38,
+      fontFamily: typography.extrabold,
+      fontWeight: '800',
+      color: c.ink,
+      padding: 0,
+    },
+    editTextInput: {
+      backgroundColor: c.surface2,
+      borderRadius: radius.lg,
+      paddingHorizontal: spacing.base,
+      paddingVertical: 12,
+      fontSize: 14,
+      fontFamily: typography.regular,
+      color: c.ink,
+    },
+    editCategoryGrid: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: spacing.sm,
+    },
+    editCatChip: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 5,
+      paddingHorizontal: 10,
+      paddingVertical: 6,
+      borderRadius: radius.lg,
+      borderWidth: 1.5,
+      borderColor: c.line,
+      backgroundColor: c.surface,
+    },
+    editCatIcon: {
+      width: 22,
+      height: 22,
+      borderRadius: radius.sm,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    editCatLabel: {
+      fontSize: 12,
+      fontFamily: typography.semibold,
+      fontWeight: '600',
+    },
+    editSubmitBtn: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: spacing.sm,
+      backgroundColor: c.accent,
+      borderRadius: radius.lg,
+      paddingVertical: 14,
+      marginTop: spacing.xs,
+    },
+    editSubmitText: {
+      color: '#FFF',
+      fontSize: 15,
+      fontFamily: typography.bold,
+      fontWeight: '700',
+    },
 
-  overlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.45)',
-    justifyContent: 'flex-end',
-  },
-  sheet: {
-    backgroundColor: colors.surface,
-    borderTopLeftRadius: radius.xl,
-    borderTopRightRadius: radius.xl,
-    paddingBottom: 90,
-    ...shadow.strong,
-  },
-  sheetHandle: {
-    width: 36,
-    height: 4,
-    backgroundColor: colors.line,
-    borderRadius: radius.full,
-    alignSelf: 'center',
-    marginTop: spacing.md,
-    marginBottom: spacing.sm,
-  },
-  sheetTitle: {
-    fontSize: 11,
-    fontFamily: typography.bold,
-    fontWeight: '700',
-    color: colors.ink2,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-    paddingHorizontal: spacing.lg,
-    marginBottom: 4,
-  },
-  sheetDivider: {
-    height: 1,
-    backgroundColor: colors.line,
-    marginVertical: 6,
-  },
-  sheetOption: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-    paddingHorizontal: spacing.lg,
-    paddingVertical: 10,
-  },
-  sheetOptionActive: { backgroundColor: colors.surface2 },
-  sheetIcon: {
-    width: 34,
-    height: 34,
-    borderRadius: radius.md,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  sheetOptionText: {
-    fontSize: 14,
-    color: colors.ink2,
-    fontFamily: typography.medium,
-    fontWeight: '500',
-  },
-  sheetOptionSub: {
-    fontSize: 11,
-    color: colors.ink3,
-    fontFamily: typography.regular,
-    marginTop: 1,
-  },
-});
+    overlay: {
+      flex: 1,
+      backgroundColor: 'rgba(0,0,0,0.45)',
+      justifyContent: 'flex-end',
+    },
+    sheet: {
+      backgroundColor: c.surface,
+      borderTopLeftRadius: radius.xl,
+      borderTopRightRadius: radius.xl,
+      paddingBottom: 90,
+      ...shadow.strong,
+    },
+    sheetHandle: {
+      width: 36,
+      height: 4,
+      backgroundColor: c.line,
+      borderRadius: radius.full,
+      alignSelf: 'center',
+      marginTop: spacing.md,
+      marginBottom: spacing.sm,
+    },
+    sheetTitle: {
+      fontSize: 11,
+      fontFamily: typography.bold,
+      fontWeight: '700',
+      color: c.ink2,
+      textTransform: 'uppercase',
+      letterSpacing: 0.5,
+      paddingHorizontal: spacing.lg,
+      marginBottom: 4,
+    },
+    sheetDivider: {
+      height: 1,
+      backgroundColor: c.line,
+      marginVertical: 6,
+    },
+    sheetOption: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.sm,
+      paddingHorizontal: spacing.lg,
+      paddingVertical: 10,
+    },
+    sheetOptionActive: { backgroundColor: c.surface2 },
+    sheetIcon: {
+      width: 34,
+      height: 34,
+      borderRadius: radius.md,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    sheetOptionText: {
+      fontSize: 14,
+      color: c.ink2,
+      fontFamily: typography.medium,
+      fontWeight: '500',
+    },
+    sheetOptionSub: {
+      fontSize: 11,
+      color: c.ink3,
+      fontFamily: typography.regular,
+      marginTop: 1,
+    },
+  });
+}

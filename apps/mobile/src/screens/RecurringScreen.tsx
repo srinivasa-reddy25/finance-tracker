@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useMemo, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -18,8 +18,17 @@ import { useNavigation } from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { api } from '../services/api';
 import { useCategoryStore } from '../stores/categoryStore';
+import { useThemeStore } from '../stores/themeStore';
 import { useRecurringStore } from '../stores/recurringStore';
-import { colors, radius, shadow, spacing, typography } from '../theme';
+import {
+  useColors,
+  TColors,
+  catBg,
+  radius,
+  shadow,
+  spacing,
+  typography,
+} from '../theme';
 import type {
   TCreateRecurring,
   TRecurrenceFrequency,
@@ -81,6 +90,9 @@ type FormProps = {
 };
 
 function RecurringForm({ initial, onSave, onClose }: FormProps) {
+  const c = useColors();
+  const styles = useMemo(() => makeStyles(c), [c]);
+  const { isDark } = useThemeStore();
   const { categories } = useCategoryStore();
 
   const [name, setName] = useState(initial?.name ?? '');
@@ -99,7 +111,7 @@ function RecurringForm({ initial, onSave, onClose }: FormProps) {
   const [description, setDescription] = useState(initial?.description ?? '');
   const [saving, setSaving] = useState(false);
 
-  const expenseCats = categories.filter(c => !c.is_income);
+  const expenseCats = categories.filter(cat => !cat.is_income);
 
   const handle_save = async () => {
     if (!name.trim()) return Alert.alert('Missing', 'Enter a name');
@@ -163,7 +175,7 @@ function RecurringForm({ initial, onSave, onClose }: FormProps) {
           value={name}
           onChangeText={setName}
           placeholder="e.g. Netflix, Rent, Salary"
-          placeholderTextColor={colors.ink3}
+          placeholderTextColor={c.ink3}
         />
 
         {/* Amount */}
@@ -174,7 +186,7 @@ function RecurringForm({ initial, onSave, onClose }: FormProps) {
           onChangeText={setAmount}
           keyboardType="numeric"
           placeholder="0"
-          placeholderTextColor={colors.ink3}
+          placeholderTextColor={c.ink3}
         />
 
         {/* Frequency */}
@@ -238,7 +250,7 @@ function RecurringForm({ initial, onSave, onClose }: FormProps) {
               onChangeText={setDayOfMonth}
               keyboardType="numeric"
               placeholder="1–31"
-              placeholderTextColor={colors.ink3}
+              placeholderTextColor={c.ink3}
             />
           </>
         )}
@@ -282,24 +294,26 @@ function RecurringForm({ initial, onSave, onClose }: FormProps) {
           <>
             <Text style={styles.subLabel}>Expenses</Text>
             <View style={styles.catGrid}>
-              {expenseCats.map(c => (
+              {expenseCats.map(cat => (
                 <TouchableOpacity
-                  key={c.key}
+                  key={cat.key}
                   style={[
                     styles.catChip,
-                    { borderColor: c.color },
-                    category === c.key && { backgroundColor: c.bg },
+                    { borderColor: cat.color },
+                    category === cat.key && {
+                      backgroundColor: catBg(cat.bg, cat.color, isDark),
+                    },
                   ]}
-                  onPress={() => setCategory(c.key)}
+                  onPress={() => setCategory(cat.key)}
                 >
-                  <Icon name={c.icon} size={14} color={c.color} />
+                  <Icon name={cat.icon} size={14} color={cat.color} />
                   <Text
                     style={[
                       styles.catChipText,
-                      { color: category === c.key ? c.color : colors.ink2 },
+                      { color: category === cat.key ? cat.color : c.ink2 },
                     ]}
                   >
-                    {c.name}
+                    {cat.name}
                   </Text>
                 </TouchableOpacity>
               ))}
@@ -314,7 +328,7 @@ function RecurringForm({ initial, onSave, onClose }: FormProps) {
           value={description}
           onChangeText={setDescription}
           placeholder="e.g. Family plan"
-          placeholderTextColor={colors.ink3}
+          placeholderTextColor={c.ink3}
         />
 
         <TouchableOpacity
@@ -351,6 +365,8 @@ type RunHistoryProps = {
 };
 
 function RunHistoryModal({ item, onClose }: RunHistoryProps) {
+  const c = useColors();
+  const styles = useMemo(() => makeStyles(c), [c]);
   const [runs, setRuns] = useState<TRecurringRun[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -376,7 +392,7 @@ function RunHistoryModal({ item, onClose }: RunHistoryProps) {
           onPress={onClose}
           hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
         >
-          <Icon name="close" size={20} color={colors.ink3} />
+          <Icon name="close" size={20} color={c.ink3} />
         </TouchableOpacity>
       </View>
 
@@ -385,10 +401,10 @@ function RunHistoryModal({ item, onClose }: RunHistoryProps) {
         contentContainerStyle={styles.runsList}
       >
         {loading ? (
-          <ActivityIndicator color={colors.accent} style={{ marginTop: 32 }} />
+          <ActivityIndicator color={c.accent} style={{ marginTop: 32 }} />
         ) : runs.length === 0 ? (
           <View style={styles.runsEmpty}>
-            <Icon name="history" size={40} color={colors.line} />
+            <Icon name="history" size={40} color={c.line} />
             <Text style={styles.runsEmptyText}>No runs yet</Text>
             <Text style={styles.runsEmptySub}>
               Runs will appear here after the cron fires
@@ -431,6 +447,9 @@ function RunHistoryModal({ item, onClose }: RunHistoryProps) {
 // ─── Main screen ──────────────────────────────────────────────────────────────
 
 export default function RecurringScreen() {
+  const c = useColors();
+  const styles = useMemo(() => makeStyles(c), [c]);
+  const { isDark } = useThemeStore();
   const navigation = useNavigation();
   const { items, loading, fetch, add, update, remove, toggle } =
     useRecurringStore();
@@ -472,7 +491,10 @@ export default function RecurringScreen() {
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor={colors.canvas} />
+      <StatusBar
+        barStyle={isDark ? 'light-content' : 'dark-content'}
+        backgroundColor={c.canvas}
+      />
 
       {/* Header */}
       <View style={styles.header}>
@@ -481,14 +503,14 @@ export default function RecurringScreen() {
           style={styles.backBtn}
           hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
         >
-          <Icon name="arrow-left" size={22} color={colors.ink} />
+          <Icon name="arrow-left" size={22} color={c.ink} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Recurring</Text>
       </View>
 
       {loading && items.length === 0 ? (
         <View style={styles.center}>
-          <ActivityIndicator color={colors.accent} />
+          <ActivityIndicator color={c.accent} />
         </View>
       ) : (
         <ScrollView
@@ -499,7 +521,7 @@ export default function RecurringScreen() {
           <View style={styles.summaryCard}>
             <View style={styles.summaryLeft}>
               <View style={styles.summaryIcon}>
-                <Icon name="repeat" size={22} color={colors.accent} />
+                <Icon name="repeat" size={22} color={c.accent} />
               </View>
               <View>
                 <Text style={styles.summarySubLabel}>Committed monthly</Text>
@@ -517,7 +539,7 @@ export default function RecurringScreen() {
           {/* Items list */}
           {items.length === 0 ? (
             <View style={styles.emptyWrap}>
-              <Icon name="repeat" size={48} color={colors.line} />
+              <Icon name="repeat" size={48} color={c.line} />
               <Text style={styles.emptyText}>
                 No recurring transactions yet
               </Text>
@@ -541,14 +563,20 @@ export default function RecurringScreen() {
                       <View
                         style={[
                           styles.itemIcon,
-                          { backgroundColor: cat?.bg ?? colors.accentSoft },
+                          {
+                            backgroundColor: catBg(
+                              cat?.bg ?? c.accentSoft,
+                              cat?.color ?? c.accent,
+                              isDark,
+                            ),
+                          },
                           inactive && styles.itemInactive,
                         ]}
                       >
                         <Icon
                           name={cat?.icon ?? 'repeat'}
                           size={20}
-                          color={cat?.color ?? colors.accent}
+                          color={cat?.color ?? c.accent}
                         />
                       </View>
 
@@ -591,7 +619,7 @@ export default function RecurringScreen() {
             onPress={() => setSheet('add')}
             activeOpacity={0.7}
           >
-            <Icon name="plus" size={18} color={colors.ink2} />
+            <Icon name="plus" size={18} color={c.ink2} />
             <Text style={styles.addCardText}>Add recurring</Text>
           </TouchableOpacity>
         </ScrollView>
@@ -643,314 +671,320 @@ export default function RecurringScreen() {
 
 // ─── Styles ───────────────────────────────────────────────────────────────────
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.canvas },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: spacing.base,
-    paddingTop: 56,
-    paddingBottom: spacing.md,
-    gap: spacing.sm,
-  },
-  backBtn: {
-    width: 36,
-    height: 36,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  headerTitle: {
-    flex: 1,
-    fontSize: 20,
-    fontFamily: typography.extrabold,
-    fontWeight: '800',
-    color: colors.ink,
-    letterSpacing: -0.4,
-  },
-  center: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 8 },
-  scroll: { padding: spacing.base, gap: spacing.md, paddingBottom: 120 },
+function makeStyles(c: TColors) {
+  return StyleSheet.create({
+    container: { flex: 1, backgroundColor: c.canvas },
+    header: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingHorizontal: spacing.base,
+      paddingTop: 56,
+      paddingBottom: spacing.md,
+      gap: spacing.sm,
+    },
+    backBtn: {
+      width: 36,
+      height: 36,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    headerTitle: {
+      flex: 1,
+      fontSize: 20,
+      fontFamily: typography.extrabold,
+      fontWeight: '800',
+      color: c.ink,
+      letterSpacing: -0.4,
+    },
+    center: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 8 },
+    scroll: { padding: spacing.base, gap: spacing.md, paddingBottom: 120 },
 
-  // Summary card
-  summaryCard: {
-    backgroundColor: colors.surface,
-    borderRadius: radius.xl,
-    borderWidth: 1,
-    borderColor: colors.line,
-    padding: spacing.base,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    ...shadow.sm,
-  },
-  summaryLeft: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
-  summaryIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: 14,
-    backgroundColor: colors.accentSoft,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  summarySubLabel: {
-    fontSize: 12,
-    fontFamily: typography.medium,
-    color: colors.ink2,
-    marginBottom: 2,
-  },
-  summaryAmount: {
-    fontSize: 24,
-    fontFamily: typography.extrabold,
-    fontWeight: '800',
-    color: colors.ink,
-    letterSpacing: -0.5,
-  },
-  summaryRight: { alignItems: 'flex-end' },
-  summaryCount: {
-    fontSize: 32,
-    fontFamily: typography.extrabold,
-    fontWeight: '800',
-    color: colors.ink,
-    letterSpacing: -1,
-  },
-  summaryCountLabel: {
-    fontSize: 12,
-    fontFamily: typography.medium,
-    color: colors.ink2,
-  },
+    // Summary card
+    summaryCard: {
+      backgroundColor: c.surface,
+      borderRadius: radius.xl,
+      borderWidth: 1,
+      borderColor: c.line,
+      padding: spacing.base,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      ...shadow.sm,
+    },
+    summaryLeft: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.md,
+    },
+    summaryIcon: {
+      width: 48,
+      height: 48,
+      borderRadius: 14,
+      backgroundColor: c.accentSoft,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    summarySubLabel: {
+      fontSize: 12,
+      fontFamily: typography.medium,
+      color: c.ink2,
+      marginBottom: 2,
+    },
+    summaryAmount: {
+      fontSize: 24,
+      fontFamily: typography.extrabold,
+      fontWeight: '800',
+      color: c.ink,
+      letterSpacing: -0.5,
+    },
+    summaryRight: { alignItems: 'flex-end' },
+    summaryCount: {
+      fontSize: 32,
+      fontFamily: typography.extrabold,
+      fontWeight: '800',
+      color: c.ink,
+      letterSpacing: -1,
+    },
+    summaryCountLabel: {
+      fontSize: 12,
+      fontFamily: typography.medium,
+      color: c.ink2,
+    },
 
-  // Items list
-  listCard: {
-    backgroundColor: colors.surface,
-    borderRadius: radius.xl,
-    borderWidth: 1,
-    borderColor: colors.line,
-    overflow: 'hidden',
-    ...shadow.sm,
-  },
-  divider: { height: StyleSheet.hairlineWidth, backgroundColor: colors.line },
-  itemRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: spacing.base,
-    paddingVertical: 14,
-    gap: spacing.md,
-  },
-  itemInactive: { opacity: 0.45 },
-  itemIcon: {
-    width: 44,
-    height: 44,
-    borderRadius: radius.full,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  itemInfo: { flex: 1 },
-  itemName: {
-    fontSize: 15,
-    fontFamily: typography.bold,
-    fontWeight: '700',
-    color: colors.ink,
-    marginBottom: 3,
-  },
-  itemFreq: {
-    fontSize: 13,
-    fontFamily: typography.regular,
-    color: colors.ink2,
-  },
-  itemRight: { alignItems: 'flex-end', gap: 4 },
-  itemAmount: {
-    fontSize: 15,
-    fontFamily: typography.bold,
-    fontWeight: '700',
-    color: colors.ink,
-    letterSpacing: -0.3,
-  },
+    // Items list
+    listCard: {
+      backgroundColor: c.surface,
+      borderRadius: radius.xl,
+      borderWidth: 1,
+      borderColor: c.line,
+      overflow: 'hidden',
+      ...shadow.sm,
+    },
+    divider: { height: StyleSheet.hairlineWidth, backgroundColor: c.line },
+    itemRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingHorizontal: spacing.base,
+      paddingVertical: 14,
+      gap: spacing.md,
+    },
+    itemInactive: { opacity: 0.45 },
+    itemIcon: {
+      width: 44,
+      height: 44,
+      borderRadius: radius.full,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    itemInfo: { flex: 1 },
+    itemName: {
+      fontSize: 15,
+      fontFamily: typography.bold,
+      fontWeight: '700',
+      color: c.ink,
+      marginBottom: 3,
+    },
+    itemFreq: {
+      fontSize: 13,
+      fontFamily: typography.regular,
+      color: c.ink2,
+    },
+    itemRight: { alignItems: 'flex-end', gap: 4 },
+    itemAmount: {
+      fontSize: 15,
+      fontFamily: typography.bold,
+      fontWeight: '700',
+      color: c.ink,
+      letterSpacing: -0.3,
+    },
 
-  // Add button
-  addCard: {
-    backgroundColor: colors.surface,
-    borderRadius: radius.xl,
-    borderWidth: 1,
-    borderColor: colors.line,
-    borderStyle: 'dashed',
-    paddingVertical: 18,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: spacing.sm,
-    ...shadow.sm,
-  },
-  addCardText: {
-    fontSize: 15,
-    fontFamily: typography.medium,
-    fontWeight: '500',
-    color: colors.ink2,
-  },
+    // Add button
+    addCard: {
+      backgroundColor: c.surface,
+      borderRadius: radius.xl,
+      borderWidth: 1,
+      borderColor: c.line,
+      borderStyle: 'dashed',
+      paddingVertical: 18,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: spacing.sm,
+      ...shadow.sm,
+    },
+    addCardText: {
+      fontSize: 15,
+      fontFamily: typography.medium,
+      fontWeight: '500',
+      color: c.ink2,
+    },
 
-  emptyWrap: { alignItems: 'center', paddingVertical: 48, gap: 8 },
-  emptyText: { fontSize: 16, fontWeight: '600', color: colors.ink2 },
-  emptySub: { fontSize: 13, color: colors.ink3 },
-  // form
-  overlayBg: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.4)',
-  },
-  sheet: {
-    backgroundColor: colors.surface,
-    borderTopLeftRadius: radius.xl,
-    borderTopRightRadius: radius.xl,
-    maxHeight: '90%',
-  },
-  formScroll: { padding: spacing.xl, paddingBottom: 40 },
-  formHandle: {
-    width: 36,
-    height: 4,
-    backgroundColor: colors.line,
-    borderRadius: 2,
-    alignSelf: 'center',
-    marginBottom: spacing.lg,
-  },
-  formTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: colors.ink,
-    marginBottom: spacing.lg,
-  },
-  label: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: colors.ink2,
-    marginBottom: spacing.xs,
-  },
-  subLabel: {
-    fontSize: 11,
-    fontWeight: '600',
-    color: colors.ink3,
-    marginBottom: spacing.xs,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-  },
-  input: {
-    backgroundColor: colors.surface2,
-    borderRadius: radius.sm,
-    borderWidth: 1,
-    borderColor: colors.line,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm + 2,
-    fontSize: 15,
-    color: colors.ink,
-    marginBottom: spacing.md,
-  },
-  chipRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: spacing.xs,
-    marginBottom: spacing.md,
-  },
-  chip: {
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.xs + 2,
-    borderRadius: radius.sm,
-    borderWidth: 1,
-    borderColor: colors.line,
-    backgroundColor: colors.surface,
-  },
-  chipActive: { backgroundColor: colors.accent, borderColor: colors.accent },
-  chipText: { fontSize: 13, fontWeight: '500', color: colors.ink2 },
-  chipTextActive: { color: '#fff' },
-  catGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: spacing.xs,
-    marginBottom: spacing.md,
-  },
-  catChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: spacing.xs,
-    borderRadius: radius.sm,
-    borderWidth: 1,
-    backgroundColor: colors.surface,
-  },
-  catChipText: { fontSize: 12, fontWeight: '500' },
-  saveBtn: {
-    backgroundColor: colors.accent,
-    borderRadius: radius.md,
-    paddingVertical: spacing.md,
-    alignItems: 'center',
-    marginTop: spacing.sm,
-  },
-  saveBtnText: { color: '#fff', fontSize: 15, fontWeight: '700' },
-  // run history
-  runsHeader: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    paddingHorizontal: spacing.xl,
-    paddingTop: spacing.lg,
-    paddingBottom: spacing.md,
-    gap: spacing.sm,
-  },
-  runsTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: colors.ink,
-  },
-  runsSub: {
-    fontSize: 13,
-    color: colors.ink2,
-    marginTop: 2,
-  },
-  runsList: {
-    paddingHorizontal: spacing.xl,
-    paddingBottom: 40,
-    gap: spacing.sm,
-  },
-  runsEmpty: {
-    alignItems: 'center',
-    paddingTop: 48,
-    gap: 8,
-  },
-  runsEmptyText: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: colors.ink2,
-  },
-  runsEmptySub: {
-    fontSize: 13,
-    color: colors.ink3,
-    textAlign: 'center',
-  },
-  runRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-    paddingVertical: spacing.sm,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.line,
-  },
-  runStatus: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  runSuccess: { backgroundColor: '#DCFCE7' },
-  runFailed: { backgroundColor: '#FEE2E2' },
-  runDate: {
-    fontSize: 13,
-    color: colors.ink,
-    fontWeight: '500',
-  },
-  runError: {
-    fontSize: 11,
-    color: colors.expense,
-    marginTop: 2,
-  },
-  runAmount: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: colors.ink,
-  },
-});
+    emptyWrap: { alignItems: 'center', paddingVertical: 48, gap: 8 },
+    emptyText: { fontSize: 16, fontWeight: '600', color: c.ink2 },
+    emptySub: { fontSize: 13, color: c.ink3 },
+    // form
+    overlayBg: {
+      flex: 1,
+      backgroundColor: 'rgba(0,0,0,0.4)',
+    },
+    sheet: {
+      backgroundColor: c.surface,
+      borderTopLeftRadius: radius.xl,
+      borderTopRightRadius: radius.xl,
+      maxHeight: '90%',
+    },
+    formScroll: { padding: spacing.xl, paddingBottom: 40 },
+    formHandle: {
+      width: 36,
+      height: 4,
+      backgroundColor: c.line,
+      borderRadius: 2,
+      alignSelf: 'center',
+      marginBottom: spacing.lg,
+    },
+    formTitle: {
+      fontSize: 18,
+      fontWeight: '700',
+      color: c.ink,
+      marginBottom: spacing.lg,
+    },
+    label: {
+      fontSize: 13,
+      fontWeight: '600',
+      color: c.ink2,
+      marginBottom: spacing.xs,
+    },
+    subLabel: {
+      fontSize: 11,
+      fontWeight: '600',
+      color: c.ink3,
+      marginBottom: spacing.xs,
+      textTransform: 'uppercase',
+      letterSpacing: 0.5,
+    },
+    input: {
+      backgroundColor: c.surface2,
+      borderRadius: radius.sm,
+      borderWidth: 1,
+      borderColor: c.line,
+      paddingHorizontal: spacing.md,
+      paddingVertical: spacing.sm + 2,
+      fontSize: 15,
+      color: c.ink,
+      marginBottom: spacing.md,
+    },
+    chipRow: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: spacing.xs,
+      marginBottom: spacing.md,
+    },
+    chip: {
+      paddingHorizontal: spacing.md,
+      paddingVertical: spacing.xs + 2,
+      borderRadius: radius.sm,
+      borderWidth: 1,
+      borderColor: c.line,
+      backgroundColor: c.surface,
+    },
+    chipActive: { backgroundColor: c.accent, borderColor: c.accent },
+    chipText: { fontSize: 13, fontWeight: '500', color: c.ink2 },
+    chipTextActive: { color: '#fff' },
+    catGrid: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: spacing.xs,
+      marginBottom: spacing.md,
+    },
+    catChip: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 4,
+      paddingHorizontal: spacing.sm,
+      paddingVertical: spacing.xs,
+      borderRadius: radius.sm,
+      borderWidth: 1,
+      backgroundColor: c.surface,
+    },
+    catChipText: { fontSize: 12, fontWeight: '500' },
+    saveBtn: {
+      backgroundColor: c.accent,
+      borderRadius: radius.md,
+      paddingVertical: spacing.md,
+      alignItems: 'center',
+      marginTop: spacing.sm,
+    },
+    saveBtnText: { color: '#fff', fontSize: 15, fontWeight: '700' },
+    // run history
+    runsHeader: {
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      paddingHorizontal: spacing.xl,
+      paddingTop: spacing.lg,
+      paddingBottom: spacing.md,
+      gap: spacing.sm,
+    },
+    runsTitle: {
+      fontSize: 18,
+      fontWeight: '700',
+      color: c.ink,
+    },
+    runsSub: {
+      fontSize: 13,
+      color: c.ink2,
+      marginTop: 2,
+    },
+    runsList: {
+      paddingHorizontal: spacing.xl,
+      paddingBottom: 40,
+      gap: spacing.sm,
+    },
+    runsEmpty: {
+      alignItems: 'center',
+      paddingTop: 48,
+      gap: 8,
+    },
+    runsEmptyText: {
+      fontSize: 15,
+      fontWeight: '600',
+      color: c.ink2,
+    },
+    runsEmptySub: {
+      fontSize: 13,
+      color: c.ink3,
+      textAlign: 'center',
+    },
+    runRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.sm,
+      paddingVertical: spacing.sm,
+      borderBottomWidth: 1,
+      borderBottomColor: c.line,
+    },
+    runStatus: {
+      width: 24,
+      height: 24,
+      borderRadius: 12,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    runSuccess: { backgroundColor: '#DCFCE7' },
+    runFailed: { backgroundColor: '#FEE2E2' },
+    runDate: {
+      fontSize: 13,
+      color: c.ink,
+      fontWeight: '500',
+    },
+    runError: {
+      fontSize: 11,
+      color: c.expense,
+      marginTop: 2,
+    },
+    runAmount: {
+      fontSize: 13,
+      fontWeight: '700',
+      color: c.ink,
+    },
+  });
+}

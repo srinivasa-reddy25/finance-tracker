@@ -43,9 +43,18 @@ import {
 } from '../services/notifications';
 import { updateWidget } from '../services/widgetBridge';
 import { useAuthStore } from '../stores/authStore';
+import { useThemeStore } from '../stores/themeStore';
 import { useCategoryStore } from '../stores/categoryStore';
 import { useTransactionStore } from '../stores/transactionStore';
-import { colors, radius, shadow, spacing, typography } from '../theme';
+import {
+  useColors,
+  TColors,
+  catBg,
+  radius,
+  shadow,
+  spacing,
+  typography,
+} from '../theme';
 import type { TTransaction } from '../types/transaction';
 import {
   BUDGET_WARNING_THRESHOLD_PCT,
@@ -96,6 +105,9 @@ function useCountUp(target: number, resetKey: number, duration = 900) {
 }
 
 export default function DashboardScreen() {
+  const c = useColors();
+  const styles = useMemo(() => makeStyles(c), [c]);
+  const { isDark } = useThemeStore();
   const {
     dashboardTransactions: transactions,
     dashboardLoading: loading,
@@ -448,7 +460,10 @@ export default function DashboardScreen() {
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor={colors.canvas} />
+      <StatusBar
+        barStyle={isDark ? 'light-content' : 'dark-content'}
+        backgroundColor={c.canvas}
+      />
 
       <ScrollView
         showsVerticalScrollIndicator={false}
@@ -457,8 +472,8 @@ export default function DashboardScreen() {
           <RefreshControl
             refreshing={refreshing}
             onRefresh={handleRefresh}
-            colors={[colors.accent]}
-            tintColor={colors.accent}
+            colors={[c.accent]}
+            tintColor={c.accent}
           />
         }
       >
@@ -490,7 +505,7 @@ export default function DashboardScreen() {
                       )}
                 </Text>
                 <Animated.View style={{ transform: [{ rotate: chevronRot }] }}>
-                  <Icon name="chevron-down" size={14} color={colors.ink2} />
+                  <Icon name="chevron-down" size={14} color={c.ink2} />
                 </Animated.View>
               </TouchableOpacity>
               <Animated.View
@@ -547,13 +562,13 @@ export default function DashboardScreen() {
                         : 'alert-outline'
                     }
                     size={13}
-                    color={budgetPct >= 100 ? colors.expense : colors.warn}
+                    color={budgetPct >= 100 ? c.expense : c.warn}
                   />
                   <Text
                     style={[
                       styles.warningTagText,
                       {
-                        color: budgetPct >= 100 ? colors.expense : colors.warn,
+                        color: budgetPct >= 100 ? c.expense : c.warn,
                       },
                     ]}
                     numberOfLines={1}
@@ -578,7 +593,7 @@ export default function DashboardScreen() {
         {/* Notification bar — only when push permission denied */}
         {notifBanner && (
           <View style={styles.notifBar}>
-            <Icon name="bell-off-outline" size={13} color={colors.ink2} />
+            <Icon name="bell-off-outline" size={13} color={c.ink2} />
             <Text style={styles.notifBarText} numberOfLines={1}>
               Notifications off — you'll miss alerts
             </Text>
@@ -586,7 +601,7 @@ export default function DashboardScreen() {
               <Text style={styles.notifBarAction}>Enable</Text>
             </TouchableOpacity>
             <TouchableOpacity onPress={() => setNotifBanner(false)}>
-              <Icon name="close" size={12} color={colors.ink3} />
+              <Icon name="close" size={12} color={c.ink3} />
             </TouchableOpacity>
           </View>
         )}
@@ -621,8 +636,8 @@ export default function DashboardScreen() {
                     width: `${Math.min(budgetPct ?? 0, 100)}%`,
                     backgroundColor:
                       budgetPct != null && budgetPct >= 100
-                        ? colors.expense
-                        : colors.accent,
+                        ? c.expense
+                        : c.accent,
                   },
                 ]}
               />
@@ -653,7 +668,7 @@ export default function DashboardScreen() {
 
         {/* Transaction list */}
         {(loading || catLoading) && !refreshing ? (
-          <ActivityIndicator style={{ marginTop: 40 }} color={colors.accent} />
+          <ActivityIndicator style={{ marginTop: 40 }} color={c.accent} />
         ) : recent.length === 0 ? (
           <EmptyState
             title="No transactions yet"
@@ -669,7 +684,7 @@ export default function DashboardScreen() {
               };
               const isIncome =
                 categoryMap.get(item.category)?.is_income ?? false;
-              const amountColor = isIncome ? colors.income : colors.expense;
+              const amountColor = isIncome ? c.income : c.expense;
               const date = new Date(item.date).toLocaleDateString('en-IN', {
                 day: 'numeric',
                 month: 'short',
@@ -685,7 +700,7 @@ export default function DashboardScreen() {
                     <View
                       style={[
                         styles.recentIconWrap,
-                        { backgroundColor: meta.bg },
+                        { backgroundColor: catBg(meta.bg, meta.color, isDark) },
                       ]}
                     >
                       <Icon name={meta.icon} size={16} color={meta.color} />
@@ -724,7 +739,7 @@ export default function DashboardScreen() {
                     <View
                       style={[
                         styles.breakdownIcon,
-                        { backgroundColor: meta.bg },
+                        { backgroundColor: catBg(meta.bg, meta.color, isDark) },
                       ]}
                     >
                       <Icon name={meta.icon} size={16} color={meta.color} />
@@ -791,7 +806,7 @@ export default function DashboardScreen() {
                     setModalOpen(false);
                   }}
                 >
-                  <Icon name="close" size={20} color={colors.ink2} />
+                  <Icon name="close" size={20} color={c.ink2} />
                 </TouchableOpacity>
               </View>
 
@@ -804,7 +819,7 @@ export default function DashboardScreen() {
                   onChangeText={setAmount}
                   keyboardType="numeric"
                   placeholder="0"
-                  placeholderTextColor={colors.line}
+                  placeholderTextColor={c.line}
                   style={styles.amountInput}
                 />
               </View>
@@ -814,7 +829,7 @@ export default function DashboardScreen() {
                 value={description}
                 onChangeText={setDescription}
                 placeholder="Description"
-                placeholderTextColor={colors.ink3}
+                placeholderTextColor={c.ink3}
                 style={styles.descInput}
                 returnKeyType="next"
                 maxLength={DESCRIPTION_MAX_LENGTH}
@@ -825,7 +840,7 @@ export default function DashboardScreen() {
                 value={note}
                 onChangeText={setNote}
                 placeholder="Add a note (optional)"
-                placeholderTextColor={colors.ink3}
+                placeholderTextColor={c.ink3}
                 style={styles.descInput}
                 returnKeyType="done"
                 maxLength={NOTE_MAX_LENGTH}
@@ -834,7 +849,7 @@ export default function DashboardScreen() {
               {/* Categories from store */}
               {catLoading ? (
                 <ActivityIndicator
-                  color={colors.accent}
+                  color={c.accent}
                   style={{ marginVertical: spacing.lg }}
                 />
               ) : (
@@ -848,7 +863,7 @@ export default function DashboardScreen() {
                         style={[
                           styles.catChip,
                           selected && {
-                            backgroundColor: cat.bg,
+                            backgroundColor: catBg(cat.bg, cat.color, isDark),
                             borderColor: cat.color,
                           },
                         ]}
@@ -860,7 +875,7 @@ export default function DashboardScreen() {
                             {
                               backgroundColor: selected
                                 ? cat.color
-                                : colors.surface2,
+                                : c.surface2,
                             },
                           ]}
                         >
@@ -873,7 +888,7 @@ export default function DashboardScreen() {
                         <Text
                           style={[
                             styles.catLabel,
-                            { color: selected ? cat.color : colors.ink2 },
+                            { color: selected ? cat.color : c.ink2 },
                           ]}
                         >
                           {cat.name}
@@ -921,7 +936,7 @@ export default function DashboardScreen() {
         <View style={styles.notifSheetOverlay}>
           <View style={styles.notifSheet}>
             <View style={styles.notifSheetIcon}>
-              <Icon name="bell-ring-outline" size={32} color={colors.accent} />
+              <Icon name="bell-ring-outline" size={32} color={c.accent} />
             </View>
             <Text style={styles.notifSheetTitle}>
               Stay on top of your finances
@@ -942,7 +957,7 @@ export default function DashboardScreen() {
                 },
               ].map(item => (
                 <View key={item.icon} style={styles.notifSheetItem}>
-                  <Icon name={item.icon} size={18} color={colors.accent} />
+                  <Icon name={item.icon} size={18} color={c.accent} />
                   <Text style={styles.notifSheetItemText}>{item.text}</Text>
                 </View>
               ))}
@@ -975,539 +990,541 @@ export default function DashboardScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.canvas },
-  notifSheetOverlay: {
-    flex: 1,
-    justifyContent: 'flex-end',
-    backgroundColor: 'rgba(0,0,0,0.4)',
-  },
-  notifSheet: {
-    backgroundColor: colors.canvas,
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    paddingHorizontal: spacing.xl,
-    paddingTop: spacing.xl,
-    paddingBottom: 40,
-    alignItems: 'center',
-  },
-  notifSheetIcon: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    backgroundColor: colors.accent + '15',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: spacing.lg,
-  },
-  notifSheetTitle: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: colors.ink,
-    textAlign: 'center',
-    marginBottom: 8,
-  },
-  notifSheetSub: {
-    fontSize: 14,
-    color: colors.ink2,
-    textAlign: 'center',
-    marginBottom: spacing.xl,
-  },
-  notifSheetItems: {
-    width: '100%',
-    gap: 14,
-    marginBottom: spacing.xl,
-  },
-  notifSheetItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  notifSheetItemText: {
-    fontSize: 14,
-    color: colors.ink,
-  },
-  notifSheetBtn: {
-    width: '100%',
-    backgroundColor: colors.accent,
-    borderRadius: radius.md,
-    paddingVertical: 14,
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  notifSheetBtnText: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: '#fff',
-  },
-  notifSheetSkip: {
-    paddingVertical: 8,
-  },
-  notifSheetSkipText: {
-    fontSize: 14,
-    color: colors.ink2,
-  },
-  scroll: { paddingBottom: 100 },
+function makeStyles(c: TColors) {
+  return StyleSheet.create({
+    container: { flex: 1, backgroundColor: c.canvas },
+    notifSheetOverlay: {
+      flex: 1,
+      justifyContent: 'flex-end',
+      backgroundColor: 'rgba(0,0,0,0.4)',
+    },
+    notifSheet: {
+      backgroundColor: c.canvas,
+      borderTopLeftRadius: 24,
+      borderTopRightRadius: 24,
+      paddingHorizontal: spacing.xl,
+      paddingTop: spacing.xl,
+      paddingBottom: 40,
+      alignItems: 'center',
+    },
+    notifSheetIcon: {
+      width: 64,
+      height: 64,
+      borderRadius: 32,
+      backgroundColor: c.accent + '15',
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginBottom: spacing.lg,
+    },
+    notifSheetTitle: {
+      fontSize: 20,
+      fontWeight: '700',
+      color: c.ink,
+      textAlign: 'center',
+      marginBottom: 8,
+    },
+    notifSheetSub: {
+      fontSize: 14,
+      color: c.ink2,
+      textAlign: 'center',
+      marginBottom: spacing.xl,
+    },
+    notifSheetItems: {
+      width: '100%',
+      gap: 14,
+      marginBottom: spacing.xl,
+    },
+    notifSheetItem: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 12,
+    },
+    notifSheetItemText: {
+      fontSize: 14,
+      color: c.ink,
+    },
+    notifSheetBtn: {
+      width: '100%',
+      backgroundColor: c.accent,
+      borderRadius: radius.md,
+      paddingVertical: 14,
+      alignItems: 'center',
+      marginBottom: 12,
+    },
+    notifSheetBtnText: {
+      fontSize: 15,
+      fontWeight: '700',
+      color: '#fff',
+    },
+    notifSheetSkip: {
+      paddingVertical: 8,
+    },
+    notifSheetSkipText: {
+      fontSize: 14,
+      color: c.ink2,
+    },
+    scroll: { paddingBottom: 100 },
 
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    backgroundColor: colors.canvas,
-    paddingHorizontal: spacing.lg,
-    paddingTop: 56,
-    paddingBottom: spacing.md,
-  },
-  monthPillWrapper: {
-    height: 44,
-    zIndex: 200,
-    alignSelf: 'flex-start',
-  },
-  morphContainer: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.line,
-    overflow: 'hidden',
-    shadowColor: '#1A1714',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.1,
-    shadowRadius: 16,
-    elevation: 5,
-  },
-  morphPillRow: {
-    height: 44,
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    gap: 6,
-  },
-  monthPillText: {
-    fontSize: 15,
-    fontFamily: typography.bold,
-    fontWeight: '700',
-    color: colors.ink,
-  },
-  morphList: {
-    paddingVertical: 8,
-  },
-  morphRow: {
-    height: 52,
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    gap: 8,
-  },
-  morphRowLabel: {
-    flex: 1,
-    fontSize: 15,
-    fontFamily: typography.medium,
-    fontWeight: '500',
-    color: colors.ink,
-  },
+    header: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      backgroundColor: c.canvas,
+      paddingHorizontal: spacing.lg,
+      paddingTop: 56,
+      paddingBottom: spacing.md,
+    },
+    monthPillWrapper: {
+      height: 44,
+      zIndex: 200,
+      alignSelf: 'flex-start',
+    },
+    morphContainer: {
+      position: 'absolute',
+      top: 0,
+      left: 0,
+      backgroundColor: c.surface,
+      borderWidth: 1,
+      borderColor: c.line,
+      overflow: 'hidden',
+      shadowColor: '#1A1714',
+      shadowOffset: { width: 0, height: 6 },
+      shadowOpacity: 0.1,
+      shadowRadius: 16,
+      elevation: 5,
+    },
+    morphPillRow: {
+      height: 44,
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingHorizontal: 16,
+      gap: 6,
+    },
+    monthPillText: {
+      fontSize: 15,
+      fontFamily: typography.bold,
+      fontWeight: '700',
+      color: c.ink,
+    },
+    morphList: {
+      paddingVertical: 8,
+    },
+    morphRow: {
+      height: 52,
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingHorizontal: 16,
+      gap: 8,
+    },
+    morphRowLabel: {
+      flex: 1,
+      fontSize: 15,
+      fontFamily: typography.medium,
+      fontWeight: '500',
+      color: c.ink,
+    },
 
-  headerRight: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 0,
-  },
-  warningTag: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-    paddingLeft: 12,
-    paddingRight: 28, // extra right padding so avatar overlaps it
-    height: 44,
-    borderTopLeftRadius: radius.full,
-    borderBottomLeftRadius: radius.full,
-    borderWidth: 1,
-    borderRightWidth: 0,
-    marginRight: -22, // avatar overlaps this by 22px
-  },
-  warningTagAmber: {
-    backgroundColor: colors.warnSoft,
-    borderColor: colors.warn + '66',
-  },
-  warningTagDanger: {
-    backgroundColor: colors.expenseSoft,
-    borderColor: colors.expense + '66',
-  },
-  warningTagText: {
-    fontSize: 12,
-    fontFamily: typography.semibold,
-    fontWeight: '600',
-  },
-  avatar: {
-    width: 44,
-    height: 44,
-    borderRadius: radius.full,
-    backgroundColor: colors.ink,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  avatarText: {
-    color: colors.canvas,
-    fontSize: 16,
-    fontFamily: typography.extrabold,
-    fontWeight: '800',
-  },
+    headerRight: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 0,
+    },
+    warningTag: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 5,
+      paddingLeft: 12,
+      paddingRight: 28, // extra right padding so avatar overlaps it
+      height: 44,
+      borderTopLeftRadius: radius.full,
+      borderBottomLeftRadius: radius.full,
+      borderWidth: 1,
+      borderRightWidth: 0,
+      marginRight: -22, // avatar overlaps this by 22px
+    },
+    warningTagAmber: {
+      backgroundColor: c.warnSoft,
+      borderColor: c.warn + '66',
+    },
+    warningTagDanger: {
+      backgroundColor: c.expenseSoft,
+      borderColor: c.expense + '66',
+    },
+    warningTagText: {
+      fontSize: 12,
+      fontFamily: typography.semibold,
+      fontWeight: '600',
+    },
+    avatar: {
+      width: 44,
+      height: 44,
+      borderRadius: radius.full,
+      backgroundColor: c.ink,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    avatarText: {
+      color: c.canvas,
+      fontSize: 16,
+      fontFamily: typography.extrabold,
+      fontWeight: '800',
+    },
 
-  notifBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    backgroundColor: colors.warnSoft,
-    borderWidth: 1,
-    borderColor: colors.warn + '50',
-    borderRadius: radius.full,
-    marginHorizontal: spacing.lg,
-    marginBottom: spacing.sm,
-    paddingHorizontal: 14,
-    height: 40,
-  },
-  notifBarText: {
-    flex: 1,
-    fontSize: 12,
-    fontFamily: typography.medium,
-    fontWeight: '500',
-    color: colors.warn,
-  },
-  notifBarAction: {
-    fontSize: 12,
-    fontFamily: typography.bold,
-    fontWeight: '700',
-    color: colors.warn,
-  },
+    notifBar: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+      backgroundColor: c.warnSoft,
+      borderWidth: 1,
+      borderColor: c.warn + '50',
+      borderRadius: radius.full,
+      marginHorizontal: spacing.lg,
+      marginBottom: spacing.sm,
+      paddingHorizontal: 14,
+      height: 40,
+    },
+    notifBarText: {
+      flex: 1,
+      fontSize: 12,
+      fontFamily: typography.medium,
+      fontWeight: '500',
+      color: c.warn,
+    },
+    notifBarAction: {
+      fontSize: 12,
+      fontFamily: typography.bold,
+      fontWeight: '700',
+      color: c.warn,
+    },
 
-  hero: {
-    alignItems: 'center',
-    paddingTop: spacing.xl,
-    paddingBottom: spacing.base,
-    paddingHorizontal: spacing.base,
-  },
-  heroLabel: {
-    fontSize: 11,
-    fontFamily: typography.bold,
-    fontWeight: '700',
-    color: colors.ink3,
-    letterSpacing: 1.8,
-    marginBottom: spacing.md,
-  },
-  heroAmountRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    justifyContent: 'center',
-  },
-  heroRupee: {
-    fontSize: 28,
-    fontFamily: typography.bold,
-    fontWeight: '700',
-    color: colors.ink,
-    marginTop: 10,
-    marginRight: 2,
-  },
-  heroAmount: {
-    fontSize: 66,
-    fontFamily: typography.extrabold,
-    fontWeight: '800',
-    color: colors.ink,
-    letterSpacing: -3.3,
-  },
-  heroStats: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-    marginTop: spacing.sm,
-  },
-  heroStat: {
-    fontSize: 13,
-    color: colors.ink2,
-    fontFamily: typography.medium,
-    fontWeight: '500',
-  },
-  heroDot: {
-    width: 3,
-    height: 3,
-    borderRadius: 2,
-    backgroundColor: colors.ink3,
-  },
-  sectionHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: spacing.lg,
-    marginTop: spacing.xl,
-    marginBottom: spacing.md,
-  },
-  sectionTitle: {
-    fontSize: 19,
-    fontFamily: typography.extrabold,
-    fontWeight: '800',
-    color: colors.ink,
-    letterSpacing: -0.4,
-  },
-  seeAll: {
-    fontSize: 14,
-    fontFamily: typography.bold,
-    fontWeight: '700',
-    color: colors.accent,
-  },
+    hero: {
+      alignItems: 'center',
+      paddingTop: spacing.xl,
+      paddingBottom: spacing.base,
+      paddingHorizontal: spacing.base,
+    },
+    heroLabel: {
+      fontSize: 11,
+      fontFamily: typography.bold,
+      fontWeight: '700',
+      color: c.ink3,
+      letterSpacing: 1.8,
+      marginBottom: spacing.md,
+    },
+    heroAmountRow: {
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      justifyContent: 'center',
+    },
+    heroRupee: {
+      fontSize: 28,
+      fontFamily: typography.bold,
+      fontWeight: '700',
+      color: c.ink,
+      marginTop: 10,
+      marginRight: 2,
+    },
+    heroAmount: {
+      fontSize: 66,
+      fontFamily: typography.extrabold,
+      fontWeight: '800',
+      color: c.ink,
+      letterSpacing: -3.3,
+    },
+    heroStats: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.sm,
+      marginTop: spacing.sm,
+    },
+    heroStat: {
+      fontSize: 13,
+      color: c.ink2,
+      fontFamily: typography.medium,
+      fontWeight: '500',
+    },
+    heroDot: {
+      width: 3,
+      height: 3,
+      borderRadius: 2,
+      backgroundColor: c.ink3,
+    },
+    sectionHeader: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      paddingHorizontal: spacing.lg,
+      marginTop: spacing.xl,
+      marginBottom: spacing.md,
+    },
+    sectionTitle: {
+      fontSize: 19,
+      fontFamily: typography.extrabold,
+      fontWeight: '800',
+      color: c.ink,
+      letterSpacing: -0.4,
+    },
+    seeAll: {
+      fontSize: 14,
+      fontFamily: typography.bold,
+      fontWeight: '700',
+      color: c.accent,
+    },
 
-  budgetWrap: {
-    marginHorizontal: spacing.lg,
-    marginTop: spacing.sm,
-  },
-  budgetTrack: {
-    height: 10,
-    borderRadius: radius.full,
-    backgroundColor: colors.line,
-    overflow: 'hidden',
-  },
-  budgetFill: {
-    height: '100%',
-    borderRadius: radius.full,
-  },
-  budgetCap: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginTop: spacing.sm,
-  },
-  budgetCapText: {
-    fontSize: 12,
-    fontFamily: typography.semibold,
-    fontWeight: '600',
-    color: colors.ink2,
-  },
-  budgetCapMuted: {
-    fontSize: 12,
-    fontFamily: typography.semibold,
-    fontWeight: '600',
-    color: colors.ink3,
-  },
+    budgetWrap: {
+      marginHorizontal: spacing.lg,
+      marginTop: spacing.sm,
+    },
+    budgetTrack: {
+      height: 10,
+      borderRadius: radius.full,
+      backgroundColor: c.line,
+      overflow: 'hidden',
+    },
+    budgetFill: {
+      height: '100%',
+      borderRadius: radius.full,
+    },
+    budgetCap: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      marginTop: spacing.sm,
+    },
+    budgetCapText: {
+      fontSize: 12,
+      fontFamily: typography.semibold,
+      fontWeight: '600',
+      color: c.ink2,
+    },
+    budgetCapMuted: {
+      fontSize: 12,
+      fontFamily: typography.semibold,
+      fontWeight: '600',
+      color: c.ink3,
+    },
 
-  recentRow: {
-    flexDirection: 'row',
-    paddingHorizontal: spacing.lg,
-    gap: 10,
-  },
-  recentCard: {
-    flex: 1,
-    borderWidth: 1,
-    borderColor: colors.line,
-    borderRadius: radius.lg,
-    padding: spacing.md,
-    paddingVertical: 12,
-    backgroundColor: colors.surface,
-    gap: 12,
-  },
-  recentTop: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: 4,
-  },
-  recentIconWrap: {
-    width: 30,
-    height: 30,
-    borderRadius: radius.sm,
-    alignItems: 'center',
-    justifyContent: 'center',
-    flexShrink: 0,
-  },
-  recentAmount: {
-    fontSize: 15,
-    fontFamily: typography.extrabold,
-    fontWeight: '800',
-    color: colors.ink,
-    letterSpacing: -0.4,
-    flex: 1,
-    textAlign: 'right',
-  },
-  recentFooter: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  recentDesc: {
-    fontSize: 11,
-    color: colors.ink2,
-    fontFamily: typography.medium,
-    fontWeight: '500',
-    flex: 1,
-  },
-  recentDate: {
-    fontSize: 10,
-    color: colors.ink3,
-    fontFamily: typography.regular,
-  },
+    recentRow: {
+      flexDirection: 'row',
+      paddingHorizontal: spacing.lg,
+      gap: 10,
+    },
+    recentCard: {
+      flex: 1,
+      borderWidth: 1,
+      borderColor: c.line,
+      borderRadius: radius.lg,
+      padding: spacing.md,
+      paddingVertical: 12,
+      backgroundColor: c.surface,
+      gap: 12,
+    },
+    recentTop: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      gap: 4,
+    },
+    recentIconWrap: {
+      width: 30,
+      height: 30,
+      borderRadius: radius.sm,
+      alignItems: 'center',
+      justifyContent: 'center',
+      flexShrink: 0,
+    },
+    recentAmount: {
+      fontSize: 15,
+      fontFamily: typography.extrabold,
+      fontWeight: '800',
+      color: c.ink,
+      letterSpacing: -0.4,
+      flex: 1,
+      textAlign: 'right',
+    },
+    recentFooter: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+    },
+    recentDesc: {
+      fontSize: 11,
+      color: c.ink2,
+      fontFamily: typography.medium,
+      fontWeight: '500',
+      flex: 1,
+    },
+    recentDate: {
+      fontSize: 10,
+      color: c.ink3,
+      fontFamily: typography.regular,
+    },
 
-  categoryBreakdown: {
-    marginHorizontal: spacing.lg,
-    padding: spacing.lg,
-    borderWidth: 1,
-    borderColor: colors.line,
-    borderRadius: radius.xl,
-    backgroundColor: colors.surface,
-    gap: spacing.base,
-    ...shadow.sm,
-  },
-  breakdownRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.md,
-  },
-  breakdownIcon: {
-    width: 30,
-    height: 30,
-    borderRadius: radius.sm,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  breakdownInfo: { flex: 1, minWidth: 0 },
-  breakdownTop: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-    marginBottom: spacing.sm,
-  },
-  breakdownName: {
-    flex: 1,
-    fontSize: 14,
-    fontFamily: typography.semibold,
-    fontWeight: '600',
-    color: colors.ink,
-  },
-  breakdownAmount: {
-    fontSize: 14,
-    fontFamily: typography.bold,
-    fontWeight: '700',
-    color: colors.ink,
-  },
-  breakdownTrack: {
-    height: 8,
-    borderRadius: radius.full,
-    backgroundColor: colors.line,
-    overflow: 'hidden',
-  },
-  breakdownFill: {
-    height: '100%',
-    borderRadius: radius.full,
-  },
+    categoryBreakdown: {
+      marginHorizontal: spacing.lg,
+      padding: spacing.lg,
+      borderWidth: 1,
+      borderColor: c.line,
+      borderRadius: radius.xl,
+      backgroundColor: c.surface,
+      gap: spacing.base,
+      ...shadow.sm,
+    },
+    breakdownRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.md,
+    },
+    breakdownIcon: {
+      width: 30,
+      height: 30,
+      borderRadius: radius.sm,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    breakdownInfo: { flex: 1, minWidth: 0 },
+    breakdownTop: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.sm,
+      marginBottom: spacing.sm,
+    },
+    breakdownName: {
+      flex: 1,
+      fontSize: 14,
+      fontFamily: typography.semibold,
+      fontWeight: '600',
+      color: c.ink,
+    },
+    breakdownAmount: {
+      fontSize: 14,
+      fontFamily: typography.bold,
+      fontWeight: '700',
+      color: c.ink,
+    },
+    breakdownTrack: {
+      height: 8,
+      borderRadius: radius.full,
+      backgroundColor: c.line,
+      overflow: 'hidden',
+    },
+    breakdownFill: {
+      height: '100%',
+      borderRadius: radius.full,
+    },
 
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: spacing.base,
-  },
-  dialog: {
-    backgroundColor: colors.surface,
-    borderRadius: radius.xl,
-    padding: spacing.lg,
-    gap: spacing.md,
-    width: '100%',
-  },
-  dialogHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  dialogTitle: { fontSize: 18, fontWeight: '800', color: colors.ink },
+    modalOverlay: {
+      flex: 1,
+      backgroundColor: 'rgba(0,0,0,0.5)',
+      justifyContent: 'center',
+      alignItems: 'center',
+      paddingHorizontal: spacing.base,
+    },
+    dialog: {
+      backgroundColor: c.surface,
+      borderRadius: radius.xl,
+      padding: spacing.lg,
+      gap: spacing.md,
+      width: '100%',
+    },
+    dialogHeader: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+    },
+    dialogTitle: { fontSize: 18, fontWeight: '800', color: c.ink },
 
-  amountRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.surface2,
-    borderRadius: radius.lg,
-    paddingHorizontal: spacing.base,
-    paddingVertical: spacing.sm,
-    gap: 6,
-  },
-  amountCurrency: { fontSize: 28, fontWeight: '700', color: colors.expense },
-  amountInput: {
-    flex: 1,
-    fontSize: 36,
-    fontWeight: '800',
-    color: colors.expense,
-    padding: 0,
-  },
+    amountRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: c.surface2,
+      borderRadius: radius.lg,
+      paddingHorizontal: spacing.base,
+      paddingVertical: spacing.sm,
+      gap: 6,
+    },
+    amountCurrency: { fontSize: 28, fontWeight: '700', color: c.expense },
+    amountInput: {
+      flex: 1,
+      fontSize: 36,
+      fontWeight: '800',
+      color: c.expense,
+      padding: 0,
+    },
 
-  descInput: {
-    backgroundColor: colors.surface2,
-    borderRadius: radius.lg,
-    paddingHorizontal: spacing.base,
-    paddingVertical: 12,
-    fontSize: 14,
-    color: colors.ink,
-  },
+    descInput: {
+      backgroundColor: c.surface2,
+      borderRadius: radius.lg,
+      paddingHorizontal: spacing.base,
+      paddingVertical: 12,
+      fontSize: 14,
+      color: c.ink,
+    },
 
-  categoryGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
-  catChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: radius.lg,
-    borderWidth: 1.5,
-    borderColor: colors.line,
-    backgroundColor: colors.surface,
-  },
-  catIconWrap: {
-    width: 22,
-    height: 22,
-    borderRadius: radius.sm,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  catLabel: { fontSize: 12, fontWeight: '600' },
+    categoryGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
+    catChip: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 5,
+      paddingHorizontal: 10,
+      paddingVertical: 6,
+      borderRadius: radius.lg,
+      borderWidth: 1.5,
+      borderColor: c.line,
+      backgroundColor: c.surface,
+    },
+    catIconWrap: {
+      width: 22,
+      height: 22,
+      borderRadius: radius.sm,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    catLabel: { fontSize: 12, fontWeight: '600' },
 
-  submitBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: spacing.sm,
-    backgroundColor: colors.expense,
-    borderRadius: radius.lg,
-    paddingVertical: 14,
-    marginTop: spacing.xs,
-  },
-  submitText: { color: '#FFF', fontSize: 15, fontWeight: '700' },
+    submitBtn: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: spacing.sm,
+      backgroundColor: c.expense,
+      borderRadius: radius.lg,
+      paddingVertical: 14,
+      marginTop: spacing.xs,
+    },
+    submitText: { color: '#FFF', fontSize: 15, fontWeight: '700' },
 
-  sheetOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.45)',
-    justifyContent: 'flex-end',
-  },
-  monthSheet: {
-    backgroundColor: colors.surface,
-    borderTopLeftRadius: radius.xl,
-    borderTopRightRadius: radius.xl,
-    paddingBottom: 48,
-    ...shadow.strong,
-  },
-  sheetHandle: {
-    width: 36,
-    height: 4,
-    backgroundColor: colors.line,
-    borderRadius: radius.full,
-    alignSelf: 'center',
-    marginTop: spacing.md,
-    marginBottom: spacing.sm,
-  },
-  currentBadge: {
-    backgroundColor: colors.accentSoft,
-    borderRadius: radius.full,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-  },
-  currentBadgeText: {
-    fontSize: 11,
-    fontFamily: typography.bold,
-    fontWeight: '700',
-    color: colors.accent,
-  },
-});
+    sheetOverlay: {
+      flex: 1,
+      backgroundColor: 'rgba(0,0,0,0.45)',
+      justifyContent: 'flex-end',
+    },
+    monthSheet: {
+      backgroundColor: c.surface,
+      borderTopLeftRadius: radius.xl,
+      borderTopRightRadius: radius.xl,
+      paddingBottom: 48,
+      ...shadow.strong,
+    },
+    sheetHandle: {
+      width: 36,
+      height: 4,
+      backgroundColor: c.line,
+      borderRadius: radius.full,
+      alignSelf: 'center',
+      marginTop: spacing.md,
+      marginBottom: spacing.sm,
+    },
+    currentBadge: {
+      backgroundColor: c.accentSoft,
+      borderRadius: radius.full,
+      paddingHorizontal: 8,
+      paddingVertical: 3,
+    },
+    currentBadgeText: {
+      fontSize: 11,
+      fontFamily: typography.bold,
+      fontWeight: '700',
+      color: c.accent,
+    },
+  });
+}

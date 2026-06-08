@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useMemo, useEffect, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -14,9 +14,20 @@ import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import LinearGradient from 'react-native-linear-gradient';
 import { signInWithGoogle } from '../services/firebase';
 import { api } from '../services/api';
-import { colors, radius, shadow, spacing, typography } from '../theme';
+import {
+  useColors,
+  TColors,
+  radius,
+  shadow,
+  spacing,
+  typography,
+} from '../theme';
+import { useThemeStore } from '../stores/themeStore';
 
 export default function LoginScreen() {
+  const c = useColors();
+  const styles = useMemo(() => makeStyles(c), [c]);
+  const { isDark } = useThemeStore();
   const [loading, setLoading] = useState(false);
   const floatAnim = useRef(new Animated.Value(0)).current;
 
@@ -56,7 +67,10 @@ export default function LoginScreen() {
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor={colors.canvas} />
+      <StatusBar
+        barStyle={isDark ? 'light-content' : 'dark-content'}
+        backgroundColor={c.canvas}
+      />
 
       <View style={styles.ambientOne} />
       <View style={styles.ambientTwo} />
@@ -79,10 +93,7 @@ export default function LoginScreen() {
             },
           ]}
         >
-          <LinearGradient
-            colors={[colors.ink, '#2A251F']}
-            style={styles.floatCard}
-          >
+          <LinearGradient colors={[c.ink, '#2A251F']} style={styles.floatCard}>
             <Text style={styles.floatLabel}>Monthly spend</Text>
             <Text style={styles.floatAmount}>
               <Text style={styles.floatCurrency}>₹</Text>24,860
@@ -99,26 +110,26 @@ export default function LoginScreen() {
             {
               style: styles.coinFood,
               icon: 'food-fork-drink',
-              color: colors.catFood,
-              bg: colors.catFoodBg,
+              color: c.catFood,
+              bg: c.catFoodBg,
             },
             {
               style: styles.coinTransport,
               icon: 'car-outline',
-              color: colors.catTransport,
-              bg: colors.catTransportBg,
+              color: c.catTransport,
+              bg: c.catTransportBg,
             },
             {
               style: styles.coinShopping,
               icon: 'shopping-outline',
-              color: colors.catShopping,
-              bg: colors.catShoppingBg,
+              color: c.catShopping,
+              bg: c.catShoppingBg,
             },
             {
               style: styles.coinBills,
               icon: 'receipt',
-              color: colors.catBills,
-              bg: colors.catBillsBg,
+              color: c.catBills,
+              bg: c.catBillsBg,
             },
           ].map(item => (
             <View
@@ -146,7 +157,7 @@ export default function LoginScreen() {
           activeOpacity={0.85}
         >
           {loading ? (
-            <ActivityIndicator color={colors.ink2} />
+            <ActivityIndicator color={c.ink2} />
           ) : (
             <>
               <Icon name="google" size={20} color="#4285F4" />
@@ -162,170 +173,172 @@ export default function LoginScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: colors.canvas,
-    paddingHorizontal: 26,
-    overflow: 'hidden',
-  },
-  ambientOne: {
-    position: 'absolute',
-    width: 300,
-    height: 300,
-    borderRadius: 150,
-    top: -110,
-    right: -130,
-    backgroundColor: colors.accentSoft,
-    opacity: 0.9,
-  },
-  ambientTwo: {
-    position: 'absolute',
-    width: 240,
-    height: 240,
-    borderRadius: 120,
-    top: 130,
-    left: -130,
-    backgroundColor: colors.catFoodBg,
-    opacity: 0.8,
-  },
-  ambientThree: {
-    position: 'absolute',
-    width: 230,
-    height: 230,
-    borderRadius: 115,
-    bottom: 30,
-    right: -100,
-    backgroundColor: colors.catEntertainBg,
-    opacity: 0.65,
-  },
-  heroArea: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingTop: 44,
-  },
-  cardStage: {
-    width: 250,
-    height: 250,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 18,
-  },
-  floatCard: {
-    width: 232,
-    borderRadius: radius.xl,
-    paddingHorizontal: spacing.lg,
-    paddingTop: spacing.lg,
-    paddingBottom: spacing.base,
-    ...shadow.strong,
-  },
-  floatLabel: {
-    fontSize: 10,
-    fontFamily: typography.bold,
-    fontWeight: '700',
-    letterSpacing: 1.6,
-    textTransform: 'uppercase',
-    color: 'rgba(255,255,255,0.52)',
-  },
-  floatAmount: {
-    fontSize: 34,
-    fontFamily: typography.extrabold,
-    fontWeight: '800',
-    letterSpacing: -1.4,
-    color: colors.canvas,
-    marginTop: spacing.sm,
-    marginBottom: spacing.md,
-  },
-  floatCurrency: {
-    fontSize: 18,
-    fontFamily: typography.bold,
-    fontWeight: '700',
-    color: 'rgba(255,255,255,0.6)',
-  },
-  floatTrack: {
-    height: 7,
-    borderRadius: radius.full,
-    backgroundColor: 'rgba(255,255,255,0.16)',
-    overflow: 'hidden',
-  },
-  floatFill: {
-    height: '100%',
-    width: '62%',
-    borderRadius: radius.full,
-    backgroundColor: colors.accent,
-  },
-  floatCap: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginTop: 9,
-  },
-  floatCapText: {
-    fontSize: 11,
-    fontFamily: typography.semibold,
-    fontWeight: '600',
-    color: 'rgba(255,255,255,0.62)',
-  },
-  coin: {
-    position: 'absolute',
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 2,
-    borderColor: colors.surface,
-    ...shadow.card,
-  },
-  coinFood: { top: 5, left: -14 },
-  coinTransport: { top: 30, right: -20 },
-  coinShopping: { bottom: 22, left: -22 },
-  coinBills: { bottom: 2, right: -7 },
-  brandBlock: {
-    alignItems: 'center',
-  },
-  appName: {
-    fontSize: 40,
-    fontFamily: typography.extrabold,
-    fontWeight: '800',
-    color: colors.ink,
-    letterSpacing: -1.6,
-  },
-  brandDot: { color: colors.accent },
-  tagline: {
-    fontSize: 16,
-    fontFamily: typography.medium,
-    fontWeight: '500',
-    color: colors.ink2,
-    textAlign: 'center',
-    marginTop: spacing.sm,
-  },
-  bottom: {
-    paddingBottom: 34,
-    gap: spacing.md,
-  },
-  googleBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: spacing.md,
-    backgroundColor: colors.surface,
-    borderWidth: 1.5,
-    borderColor: colors.line2,
-    borderRadius: radius.md,
-    paddingVertical: 16,
-    ...shadow.sm,
-  },
-  googleBtnText: {
-    fontSize: 16,
-    fontFamily: typography.bold,
-    fontWeight: '700',
-    color: colors.ink,
-  },
-  terms: {
-    fontSize: 11.5,
-    fontFamily: typography.regular,
-    color: colors.ink3,
-    textAlign: 'center',
-  },
-});
+function makeStyles(c: TColors) {
+  return StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: c.canvas,
+      paddingHorizontal: 26,
+      overflow: 'hidden',
+    },
+    ambientOne: {
+      position: 'absolute',
+      width: 300,
+      height: 300,
+      borderRadius: 150,
+      top: -110,
+      right: -130,
+      backgroundColor: c.accentSoft,
+      opacity: 0.9,
+    },
+    ambientTwo: {
+      position: 'absolute',
+      width: 240,
+      height: 240,
+      borderRadius: 120,
+      top: 130,
+      left: -130,
+      backgroundColor: c.catFoodBg,
+      opacity: 0.8,
+    },
+    ambientThree: {
+      position: 'absolute',
+      width: 230,
+      height: 230,
+      borderRadius: 115,
+      bottom: 30,
+      right: -100,
+      backgroundColor: c.catEntertainBg,
+      opacity: 0.65,
+    },
+    heroArea: {
+      flex: 1,
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingTop: 44,
+    },
+    cardStage: {
+      width: 250,
+      height: 250,
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginBottom: 18,
+    },
+    floatCard: {
+      width: 232,
+      borderRadius: radius.xl,
+      paddingHorizontal: spacing.lg,
+      paddingTop: spacing.lg,
+      paddingBottom: spacing.base,
+      ...shadow.strong,
+    },
+    floatLabel: {
+      fontSize: 10,
+      fontFamily: typography.bold,
+      fontWeight: '700',
+      letterSpacing: 1.6,
+      textTransform: 'uppercase',
+      color: 'rgba(255,255,255,0.52)',
+    },
+    floatAmount: {
+      fontSize: 34,
+      fontFamily: typography.extrabold,
+      fontWeight: '800',
+      letterSpacing: -1.4,
+      color: c.canvas,
+      marginTop: spacing.sm,
+      marginBottom: spacing.md,
+    },
+    floatCurrency: {
+      fontSize: 18,
+      fontFamily: typography.bold,
+      fontWeight: '700',
+      color: 'rgba(255,255,255,0.6)',
+    },
+    floatTrack: {
+      height: 7,
+      borderRadius: radius.full,
+      backgroundColor: 'rgba(255,255,255,0.16)',
+      overflow: 'hidden',
+    },
+    floatFill: {
+      height: '100%',
+      width: '62%',
+      borderRadius: radius.full,
+      backgroundColor: c.accent,
+    },
+    floatCap: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      marginTop: 9,
+    },
+    floatCapText: {
+      fontSize: 11,
+      fontFamily: typography.semibold,
+      fontWeight: '600',
+      color: 'rgba(255,255,255,0.62)',
+    },
+    coin: {
+      position: 'absolute',
+      width: 50,
+      height: 50,
+      borderRadius: 25,
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderWidth: 2,
+      borderColor: c.surface,
+      ...shadow.card,
+    },
+    coinFood: { top: 5, left: -14 },
+    coinTransport: { top: 30, right: -20 },
+    coinShopping: { bottom: 22, left: -22 },
+    coinBills: { bottom: 2, right: -7 },
+    brandBlock: {
+      alignItems: 'center',
+    },
+    appName: {
+      fontSize: 40,
+      fontFamily: typography.extrabold,
+      fontWeight: '800',
+      color: c.ink,
+      letterSpacing: -1.6,
+    },
+    brandDot: { color: c.accent },
+    tagline: {
+      fontSize: 16,
+      fontFamily: typography.medium,
+      fontWeight: '500',
+      color: c.ink2,
+      textAlign: 'center',
+      marginTop: spacing.sm,
+    },
+    bottom: {
+      paddingBottom: 34,
+      gap: spacing.md,
+    },
+    googleBtn: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: spacing.md,
+      backgroundColor: c.surface,
+      borderWidth: 1.5,
+      borderColor: c.line2,
+      borderRadius: radius.md,
+      paddingVertical: 16,
+      ...shadow.sm,
+    },
+    googleBtnText: {
+      fontSize: 16,
+      fontFamily: typography.bold,
+      fontWeight: '700',
+      color: c.ink,
+    },
+    terms: {
+      fontSize: 11.5,
+      fontFamily: typography.regular,
+      color: c.ink3,
+      textAlign: 'center',
+    },
+  });
+}

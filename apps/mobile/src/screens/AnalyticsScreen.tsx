@@ -15,8 +15,16 @@ import Svg, { Circle, G, Line, Path, Text as SvgText } from 'react-native-svg';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { api } from '../services/api';
 import { useAuthStore } from '../stores/authStore';
+import { useThemeStore } from '../stores/themeStore';
 import { useCategoryStore } from '../stores/categoryStore';
-import { colors, radius, spacing, shadow, typography } from '../theme';
+import {
+  useColors,
+  TColors,
+  radius,
+  spacing,
+  shadow,
+  typography,
+} from '../theme';
 import { formatAmount } from '../utils/format';
 import { ANALYTICS_LINE_CHART_DAYS } from '../constants/config';
 
@@ -93,6 +101,9 @@ function prevMonth(year: number, mon: number): [number, number] {
 }
 
 export default function AnalyticsScreen() {
+  const c = useColors();
+  const styles = useMemo(() => makeStyles(c), [c]);
+  const { isDark } = useThemeStore();
   const { categories, fetch: fetchCats } = useCategoryStore();
   const { user } = useAuthStore();
   const [data, setData] = useState<TAnalyticsData | null>(null);
@@ -183,7 +194,7 @@ export default function AnalyticsScreen() {
     const remaining = Math.max((totalBudget || totalSpent) - totalSpent, 0);
     const over = totalBudget > 0 && totalSpent > totalBudget;
     return [
-      { value: totalSpent, color: over ? colors.expense : colors.accent },
+      { value: totalSpent, color: over ? c.expense : c.accent },
       { value: remaining, color: '#E8E3D9' },
     ];
   }, [totalSpent, totalBudget]);
@@ -218,7 +229,7 @@ export default function AnalyticsScreen() {
       return {
         value,
         label: `${monShort} ${day}`,
-        frontColor: value > 0 ? colors.accent : 'transparent',
+        frontColor: value > 0 ? c.accent : 'transparent',
       };
     });
   }, [data, lastDay, monShort]);
@@ -326,7 +337,10 @@ export default function AnalyticsScreen() {
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor={colors.canvas} />
+      <StatusBar
+        barStyle={isDark ? 'light-content' : 'dark-content'}
+        backgroundColor={c.canvas}
+      />
 
       <View style={styles.header}>
         <Text style={styles.title}>Insights</Text>
@@ -342,7 +356,7 @@ export default function AnalyticsScreen() {
           <Icon
             name="chevron-left"
             size={20}
-            color={isJoinMonth ? colors.line : colors.ink2}
+            color={isJoinMonth ? c.line : c.ink2}
           />
         </TouchableOpacity>
         <Text style={styles.monthLabel}>{monthLabel(year, mon)}</Text>
@@ -354,7 +368,7 @@ export default function AnalyticsScreen() {
           <Icon
             name="chevron-right"
             size={20}
-            color={isCurrentMonth ? colors.line : colors.ink2}
+            color={isCurrentMonth ? c.line : c.ink2}
           />
         </TouchableOpacity>
       </View>
@@ -362,7 +376,7 @@ export default function AnalyticsScreen() {
       {loading ? (
         <ActivityIndicator
           style={{ marginTop: 80 }}
-          color={colors.accent}
+          color={c.accent}
           size="large"
         />
       ) : (
@@ -373,8 +387,8 @@ export default function AnalyticsScreen() {
             <RefreshControl
               refreshing={refreshing}
               onRefresh={handleRefresh}
-              tintColor={colors.accent}
-              colors={[colors.accent]}
+              tintColor={c.accent}
+              colors={[c.accent]}
             />
           }
         >
@@ -392,7 +406,7 @@ export default function AnalyticsScreen() {
                 const circumference = 2 * Math.PI * r;
                 const spentPct = totalBudget > 0 ? Math.min(pct ?? 0, 1) : 0;
                 const dashOffset = circumference * (1 - spentPct);
-                const arcColor = over ? colors.expense : colors.accent;
+                const arcColor = over ? c.expense : c.accent;
                 return (
                   <View style={{ width: RING_SIZE, height: RING_SIZE }}>
                     <Svg width={RING_SIZE} height={RING_SIZE}>
@@ -444,9 +458,7 @@ export default function AnalyticsScreen() {
                         style={[
                           styles.legendDot,
                           {
-                            backgroundColor: over
-                              ? colors.expense
-                              : colors.accent,
+                            backgroundColor: over ? c.expense : c.accent,
                           },
                         ]}
                       />
@@ -472,9 +484,7 @@ export default function AnalyticsScreen() {
                         style={[
                           styles.legendDot,
                           {
-                            backgroundColor: over
-                              ? colors.expense
-                              : colors.accent,
+                            backgroundColor: over ? c.expense : c.accent,
                           },
                         ]}
                       />
@@ -483,7 +493,7 @@ export default function AnalyticsScreen() {
                         style={[
                           styles.legendAmt,
                           {
-                            color: over ? colors.expense : colors.accent,
+                            color: over ? c.expense : c.accent,
                             fontFamily: typography.bold,
                             fontWeight: '700',
                           },
@@ -545,7 +555,7 @@ export default function AnalyticsScreen() {
                   initialSpacing={4}
                   barBorderTopLeftRadius={4}
                   barBorderTopRightRadius={4}
-                  frontColor={colors.accent}
+                  frontColor={c.accent}
                   noOfSections={3}
                   maxValue={Math.ceil(maxDaily * 1.3)}
                   yAxisThickness={0}
@@ -609,7 +619,7 @@ export default function AnalyticsScreen() {
                           y={ly - 2}
                           fontSize={10}
                           fontWeight="600"
-                          fill={colors.ink}
+                          fill={c.ink}
                           textAnchor={s.isLeft ? 'end' : 'start'}
                         >
                           {s.name}
@@ -690,7 +700,7 @@ export default function AnalyticsScreen() {
                     <View
                       style={[
                         styles.compIcon,
-                        { backgroundColor: colors.accentSoft },
+                        { backgroundColor: c.accentSoft },
                       ]}
                     >
                       <Icon
@@ -715,20 +725,20 @@ export default function AnalyticsScreen() {
                             styles.diffBadge,
                             {
                               backgroundColor: isUp
-                                ? colors.expenseSoft
-                                : colors.incomeSoft,
+                                ? c.expenseSoft
+                                : c.incomeSoft,
                             },
                           ]}
                         >
                           <Icon
                             name={isUp ? 'trending-up' : 'trending-down'}
                             size={10}
-                            color={isUp ? colors.expense : colors.income}
+                            color={isUp ? c.expense : c.income}
                           />
                           <Text
                             style={[
                               styles.diffText,
-                              { color: isUp ? colors.expense : colors.income },
+                              { color: isUp ? c.expense : c.income },
                             ]}
                           >
                             {diffPct}%
@@ -752,247 +762,249 @@ export default function AnalyticsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.canvas },
+function makeStyles(c: TColors) {
+  return StyleSheet.create({
+    container: { flex: 1, backgroundColor: c.canvas },
 
-  header: {
-    paddingHorizontal: spacing.lg,
-    paddingTop: 56,
-    paddingBottom: spacing.sm,
-  },
-  title: {
-    fontSize: 26,
-    fontFamily: typography.extrabold,
-    fontWeight: '800',
-    color: colors.ink,
-    letterSpacing: -0.5,
-  },
+    header: {
+      paddingHorizontal: spacing.lg,
+      paddingTop: 56,
+      paddingBottom: spacing.sm,
+    },
+    title: {
+      fontSize: 26,
+      fontFamily: typography.extrabold,
+      fontWeight: '800',
+      color: c.ink,
+      letterSpacing: -0.5,
+    },
 
-  monthPicker: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: spacing.base,
-    paddingVertical: spacing.md,
-    paddingHorizontal: spacing.base,
-    marginBottom: spacing.sm,
-  },
-  monthBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: radius.full,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.surface2,
-  },
-  monthLabel: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: colors.ink,
-    minWidth: 160,
-    textAlign: 'center',
-  },
+    monthPicker: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: spacing.base,
+      paddingVertical: spacing.md,
+      paddingHorizontal: spacing.base,
+      marginBottom: spacing.sm,
+    },
+    monthBtn: {
+      width: 36,
+      height: 36,
+      borderRadius: radius.full,
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: c.surface2,
+    },
+    monthLabel: {
+      fontSize: 15,
+      fontWeight: '700',
+      color: c.ink,
+      minWidth: 160,
+      textAlign: 'center',
+    },
 
-  scroll: { paddingHorizontal: spacing.lg, paddingBottom: 100 },
+    scroll: { paddingHorizontal: spacing.lg, paddingBottom: 100 },
 
-  card: {
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.line,
-    borderRadius: radius.xl,
-    padding: spacing.base,
-    marginBottom: spacing.md,
-    ...shadow.sm,
-  },
-  cardTitle: {
-    fontSize: 13,
-    fontFamily: typography.bold,
-    fontWeight: '700',
-    color: colors.ink2,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-    marginBottom: spacing.base,
-  },
-  snapshotTitle: {
-    fontSize: 11,
-    fontFamily: typography.bold,
-    fontWeight: '700',
-    color: colors.ink3,
-    letterSpacing: 1.2,
-    textTransform: 'uppercase',
-    marginBottom: spacing.lg,
-  },
+    card: {
+      backgroundColor: c.surface,
+      borderWidth: 1,
+      borderColor: c.line,
+      borderRadius: radius.xl,
+      padding: spacing.base,
+      marginBottom: spacing.md,
+      ...shadow.sm,
+    },
+    cardTitle: {
+      fontSize: 13,
+      fontFamily: typography.bold,
+      fontWeight: '700',
+      color: c.ink2,
+      textTransform: 'uppercase',
+      letterSpacing: 0.5,
+      marginBottom: spacing.base,
+    },
+    snapshotTitle: {
+      fontSize: 11,
+      fontFamily: typography.bold,
+      fontWeight: '700',
+      color: c.ink3,
+      letterSpacing: 1.2,
+      textTransform: 'uppercase',
+      marginBottom: spacing.lg,
+    },
 
-  // Donut
-  donutWrap: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.xl,
-  },
-  donutCenter: { alignItems: 'center', justifyContent: 'center' },
-  donutPct: {
-    fontSize: 24,
-    fontFamily: typography.extrabold,
-    fontWeight: '800',
-    color: colors.ink,
-    letterSpacing: -0.5,
-  },
-  donutSub: { fontSize: 12, color: colors.ink2, marginTop: 1 },
-  donutLegend: { flex: 1, gap: 14 },
-  legendRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  legendDot: { width: 9, height: 9, borderRadius: 5 },
-  legendLabel: {
-    flex: 1,
-    fontSize: 14,
-    color: colors.ink2,
-    fontFamily: typography.medium,
-    fontWeight: '500',
-  },
-  legendAmt: {
-    fontSize: 14,
-    color: colors.ink,
-    fontFamily: typography.medium,
-    fontWeight: '500',
-  },
-  pctPill: {
-    marginTop: spacing.sm,
-    alignSelf: 'flex-start',
-    backgroundColor: colors.surface2,
-    borderRadius: radius.full,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-  },
-  pctText: { fontSize: 13, fontWeight: '700' },
-  noBudgetHint: { fontSize: 12, color: colors.ink3, lineHeight: 18 },
+    // Donut
+    donutWrap: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.xl,
+    },
+    donutCenter: { alignItems: 'center', justifyContent: 'center' },
+    donutPct: {
+      fontSize: 24,
+      fontFamily: typography.extrabold,
+      fontWeight: '800',
+      color: c.ink,
+      letterSpacing: -0.5,
+    },
+    donutSub: { fontSize: 12, color: c.ink2, marginTop: 1 },
+    donutLegend: { flex: 1, gap: 14 },
+    legendRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+    legendDot: { width: 9, height: 9, borderRadius: 5 },
+    legendLabel: {
+      flex: 1,
+      fontSize: 14,
+      color: c.ink2,
+      fontFamily: typography.medium,
+      fontWeight: '500',
+    },
+    legendAmt: {
+      fontSize: 14,
+      color: c.ink,
+      fontFamily: typography.medium,
+      fontWeight: '500',
+    },
+    pctPill: {
+      marginTop: spacing.sm,
+      alignSelf: 'flex-start',
+      backgroundColor: c.surface2,
+      borderRadius: radius.full,
+      paddingHorizontal: 10,
+      paddingVertical: 4,
+    },
+    pctText: { fontSize: 13, fontWeight: '700' },
+    noBudgetHint: { fontSize: 12, color: c.ink3, lineHeight: 18 },
 
-  // Daily area chart
-  axisLabel: { fontSize: 9, color: colors.ink3 },
-  emptyHint: {
-    fontSize: 13,
-    color: colors.ink3,
-    textAlign: 'center',
-    paddingVertical: spacing.xl,
-  },
-  dailyHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 4,
-  },
-  dailyPeak: {
-    fontSize: 12,
-    color: colors.ink2,
-    fontFamily: typography.medium,
-    fontWeight: '500',
-  },
-  dailyHint: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginTop: spacing.sm,
-    paddingHorizontal: 4,
-  },
-  dailyHintText: { fontSize: 11, color: colors.ink2, fontWeight: '500' },
-  chartTooltip: {
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.line,
-    borderRadius: radius.md,
-    paddingHorizontal: 8,
-    paddingVertical: 5,
-    alignItems: 'center',
-  },
-  chartTooltipAmt: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: colors.accent,
-  },
-  chartTooltipDay: {
-    fontSize: 10,
-    color: colors.ink2,
-    fontWeight: '500',
-  },
+    // Daily area chart
+    axisLabel: { fontSize: 9, color: c.ink3 },
+    emptyHint: {
+      fontSize: 13,
+      color: c.ink3,
+      textAlign: 'center',
+      paddingVertical: spacing.xl,
+    },
+    dailyHeader: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginBottom: 4,
+    },
+    dailyPeak: {
+      fontSize: 12,
+      color: c.ink2,
+      fontFamily: typography.medium,
+      fontWeight: '500',
+    },
+    dailyHint: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      marginTop: spacing.sm,
+      paddingHorizontal: 4,
+    },
+    dailyHintText: { fontSize: 11, color: c.ink2, fontWeight: '500' },
+    chartTooltip: {
+      backgroundColor: c.surface,
+      borderWidth: 1,
+      borderColor: c.line,
+      borderRadius: radius.md,
+      paddingHorizontal: 8,
+      paddingVertical: 5,
+      alignItems: 'center',
+    },
+    chartTooltipAmt: {
+      fontSize: 12,
+      fontWeight: '700',
+      color: c.accent,
+    },
+    chartTooltipDay: {
+      fontSize: 10,
+      color: c.ink2,
+      fontWeight: '500',
+    },
 
-  // Pie chart
-  pieContainer: {
-    width: '100%',
-    height: PIE_SVG_H,
-    alignSelf: 'center',
-    marginBottom: spacing.sm,
-  },
-  pieCenterOverlay: {
-    position: 'absolute',
-    left: PIE_CX - INNER_R,
-    top: PIE_CY - INNER_R,
-    width: INNER_R * 2,
-    height: INNER_R * 2,
-    alignItems: 'center',
-    justifyContent: 'center',
-    pointerEvents: 'none',
-  },
-  pieCenter: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    width: 144,
-    gap: 2,
-  },
-  pieCenterHint: {
-    fontSize: 12,
-    color: colors.ink3,
-    textAlign: 'center',
-    lineHeight: 17,
-  },
-  pieCenterIcon: {
-    width: 28,
-    height: 28,
-    borderRadius: radius.full,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 2,
-  },
-  pieCenterName: {
-    fontSize: 11,
-    fontWeight: '700',
-    textAlign: 'center',
-    maxWidth: 100,
-  },
-  pieCenterAmt: {
-    fontSize: 15,
-    fontWeight: '800',
-    color: colors.ink,
-    letterSpacing: -0.3,
-  },
-  pieCenterPct: { fontSize: 11, color: colors.ink2, fontWeight: '600' },
+    // Pie chart
+    pieContainer: {
+      width: '100%',
+      height: PIE_SVG_H,
+      alignSelf: 'center',
+      marginBottom: spacing.sm,
+    },
+    pieCenterOverlay: {
+      position: 'absolute',
+      left: PIE_CX - INNER_R,
+      top: PIE_CY - INNER_R,
+      width: INNER_R * 2,
+      height: INNER_R * 2,
+      alignItems: 'center',
+      justifyContent: 'center',
+      pointerEvents: 'none',
+    },
+    pieCenter: {
+      alignItems: 'center',
+      justifyContent: 'center',
+      width: 144,
+      gap: 2,
+    },
+    pieCenterHint: {
+      fontSize: 12,
+      color: c.ink3,
+      textAlign: 'center',
+      lineHeight: 17,
+    },
+    pieCenterIcon: {
+      width: 28,
+      height: 28,
+      borderRadius: radius.full,
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginBottom: 2,
+    },
+    pieCenterName: {
+      fontSize: 11,
+      fontWeight: '700',
+      textAlign: 'center',
+      maxWidth: 100,
+    },
+    pieCenterAmt: {
+      fontSize: 15,
+      fontWeight: '800',
+      color: c.ink,
+      letterSpacing: -0.3,
+    },
+    pieCenterPct: { fontSize: 11, color: c.ink2, fontWeight: '600' },
 
-  // Comparison
-  compRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.md,
-    paddingVertical: 10,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: colors.line,
-  },
-  compIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: radius.full,
-    alignItems: 'center',
-    justifyContent: 'center',
-    flexShrink: 0,
-  },
-  compInfo: { flex: 1 },
-  compName: { fontSize: 14, fontWeight: '600', color: colors.ink },
-  compPrev: { fontSize: 11, color: colors.ink2, marginTop: 1 },
-  compRight: { alignItems: 'flex-end', gap: 4 },
-  compCurrent: { fontSize: 15, fontWeight: '700', color: colors.ink },
-  diffBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 3,
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: radius.full,
-  },
-  diffText: { fontSize: 11, fontWeight: '700' },
-  diffSame: { fontSize: 11, color: colors.ink3 },
-});
+    // Comparison
+    compRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.md,
+      paddingVertical: 10,
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      borderBottomColor: c.line,
+    },
+    compIcon: {
+      width: 40,
+      height: 40,
+      borderRadius: radius.full,
+      alignItems: 'center',
+      justifyContent: 'center',
+      flexShrink: 0,
+    },
+    compInfo: { flex: 1 },
+    compName: { fontSize: 14, fontWeight: '600', color: c.ink },
+    compPrev: { fontSize: 11, color: c.ink2, marginTop: 1 },
+    compRight: { alignItems: 'flex-end', gap: 4 },
+    compCurrent: { fontSize: 15, fontWeight: '700', color: c.ink },
+    diffBadge: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 3,
+      paddingHorizontal: 6,
+      paddingVertical: 2,
+      borderRadius: radius.full,
+    },
+    diffText: { fontSize: 11, fontWeight: '700' },
+    diffSame: { fontSize: 11, color: c.ink3 },
+  });
+}
