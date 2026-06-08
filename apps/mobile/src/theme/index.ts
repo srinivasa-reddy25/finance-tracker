@@ -1,3 +1,5 @@
+import { useThemeStore } from '../stores/themeStore';
+
 // Paisa — Design Tokens
 // Foundation: warm paper + ink, one signature deep green accent.
 // Light is canonical; dark overrides follow the same key names.
@@ -69,6 +71,22 @@ export const colors = {
     warnSoft: 'rgba(229,166,64,0.15)',
   },
 };
+
+export type TColors = Omit<typeof colors, 'dark'> & typeof colors.dark;
+
+export function catBg(bg: string, iconColor: string, isDark: boolean): string {
+  if (!isDark) return bg;
+  const r = parseInt(iconColor.slice(1, 3), 16);
+  const g = parseInt(iconColor.slice(3, 5), 16);
+  const b = parseInt(iconColor.slice(5, 7), 16);
+  return `rgba(${r}, ${g}, ${b}, 0.18)`;
+}
+
+export function useColors(): TColors {
+  const isDark = useThemeStore(s => s.isDark);
+  if (!isDark) return colors as unknown as TColors;
+  return { ...colors, ...colors.dark } as TColors;
+}
 
 export const spacing = {
   s1: 4,
