@@ -10,6 +10,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import Toggle from '../components/Toggle';
 import { api } from '../services/api';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -17,23 +18,62 @@ import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import type { RootStackParams } from '../navigation';
 import { useAuthStore } from '../stores/authStore';
 import { useCategoryStore } from '../stores/categoryStore';
-import { useTransactionStore } from '../stores/transactionStore';
+import { useRecurringStore } from '../stores/recurringStore';
 import { signOut } from '../services/firebase';
-import { colors, radius, spacing } from '../theme';
+import { colors, radius, shadow, spacing, typography } from '../theme';
 
 export default function ProfileScreen() {
   const navigation =
     useNavigation<NativeStackNavigationProp<RootStackParams>>();
   const { user } = useAuthStore();
-  const { transactions, pagination } = useTransactionStore();
   const { categories, fetch: fetchCats } = useCategoryStore();
+  const { items: recurringItems, fetch: fetchRecurring } = useRecurringStore();
+
+  const [allTimeSpent, setAllTimeSpent] = useState<number | null>(null);
+  const [totalTxCount, setTotalTxCount] = useState<number | null>(null);
+  const [notifEnabled, setNotifEnabled] = useState(true);
+  const [darkEnabled, setDarkEnabled] = useState(false);
 
   useEffect(() => {
     fetchCats();
+    fetchRecurring();
+    fetchStats();
   }, []);
 
-  const firstName = user?.displayName?.split(' ')[0] ?? 'User';
+  const fetchStats = async () => {
+    // Total transaction count
+    try {
+      const res = await api.get('/transactions', { params: { limit: 1 } });
+      const pagination = res.data?.data?.pagination;
+      setTotalTxCount(pagination?.total ?? 0);
+    } catch {
+      setTotalTxCount(0);
+    }
+
+    // All-time spent: page through all transactions and sum amounts
+    try {
+      let page = 1;
+      let total = 0;
+      let hasMore = true;
+      while (hasMore) {
+        const res = await api.get('/transactions', {
+          params: { limit: 100, page },
+        });
+        const txs: Array<{ amount: number }> =
+          res.data?.data?.transactions ?? [];
+        total += txs.reduce((s, t) => s + (t.amount ?? 0), 0);
+        const pag = res.data?.data?.pagination;
+        hasMore = pag ? page < pag.total_pages : false;
+        page += 1;
+      }
+      setAllTimeSpent(total);
+    } catch {
+      setAllTimeSpent(0);
+    }
+  };
+
   const fullName = user?.displayName ?? 'User';
+  const firstName = fullName.split(' ')[0] ?? 'User';
   const email = user?.email ?? '';
 
   const joinedDate = user?.metadata?.creationTime
@@ -43,7 +83,14 @@ export default function ProfileScreen() {
       })
     : '—';
 
-  const totalTx = pagination?.total ?? transactions.length;
+  const catCount = categories.filter(c => !c.is_income).length;
+  const activeRecurring = recurringItems.filter(r => r.is_active).length;
+
+  const formatSpent = (v: number) => {
+    if (v >= 100000) return `₹${(v / 100000).toFixed(1)}L`;
+    if (v >= 1000) return `₹${(v / 1000).toFixed(1)}k`;
+    return `₹${v}`;
+  };
 
   const handleSignOut = () => {
     Alert.alert('Sign out', 'Are you sure you want to sign out?', [
@@ -51,8 +98,6 @@ export default function ProfileScreen() {
       { text: 'Sign out', style: 'destructive', onPress: signOut },
     ]);
   };
-
-  const catCount = categories.length;
 
   const [exportOpen, setExportOpen] = useState(false);
   const [exportFormat, setExportFormat] = useState<'csv' | 'pdf'>('csv');
@@ -94,169 +139,133 @@ export default function ProfileScreen() {
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor={colors.surface} />
+      <StatusBar barStyle="dark-content" backgroundColor={colors.canvas} />
 
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scroll}
       >
-        {/* Page header */}
+        {/* Page title */}
         <View style={styles.pageHeader}>
           <Text style={styles.pageTitle}>Profile</Text>
         </View>
 
-        {/* Hero block */}
+        {/* Avatar + name + email */}
         <View style={styles.hero}>
-          <View style={styles.avatarRing}>
-            <View style={styles.avatar}>
-              <Text style={styles.avatarText}>
-                {firstName[0]!.toUpperCase()}
-              </Text>
-            </View>
+          <View style={styles.avatar}>
+            <Text style={styles.avatarText}>{firstName[0]!.toUpperCase()}</Text>
           </View>
           <Text style={styles.heroName}>{fullName}</Text>
           <Text style={styles.heroEmail}>{email}</Text>
         </View>
 
-        {/* Stats strip */}
-        <View style={styles.statsCard}>
-          <View style={styles.stat}>
-            <Text style={styles.statVal}>{joinedDate}</Text>
-            <Text style={styles.statLabel}>Member since</Text>
-          </View>
-          <View style={styles.statDivider} />
-          <View style={styles.stat}>
-            <Text style={styles.statVal}>{totalTx}</Text>
+        {/* Stats — 2 cards */}
+        <View style={styles.statsRow}>
+          <View style={styles.statCard}>
+            <Text style={styles.statVal}>{totalTxCount ?? '—'}</Text>
             <Text style={styles.statLabel}>Transactions</Text>
           </View>
-        </View>
-
-        {/* Account section */}
-        <View style={styles.section}>
-          <Text style={styles.sectionLabel}>Account</Text>
-          <View style={styles.card}>
-            <View style={styles.row}>
-              <View style={styles.rowIconWrap}>
-                <Icon name="account-outline" size={17} color={colors.accent} />
-              </View>
-              <View style={styles.rowContent}>
-                <Text style={styles.rowLabel}>Full name</Text>
-                <Text style={styles.rowValue}>{fullName}</Text>
-              </View>
-            </View>
-
-            <View style={styles.divider} />
-
-            <View style={styles.row}>
-              <View style={styles.rowIconWrap}>
-                <Icon name="email-outline" size={17} color={colors.accent} />
-              </View>
-              <View style={styles.rowContent}>
-                <Text style={styles.rowLabel}>Email address</Text>
-                <Text style={styles.rowValue}>{email}</Text>
-              </View>
-            </View>
+          <View style={styles.statCard}>
+            <Text style={styles.statVal}>
+              {allTimeSpent != null ? formatSpent(allTimeSpent) : '—'}
+            </Text>
+            <Text style={styles.statLabel}>Overall spent</Text>
           </View>
         </View>
 
-        {/* Customization section */}
+        {/* MANAGE */}
         <View style={styles.section}>
-          <Text style={styles.sectionLabel}>Customization</Text>
+          <Text style={styles.sectionLabel}>Manage</Text>
           <View style={styles.card}>
             <TouchableOpacity
               style={styles.row}
               onPress={() => navigation.navigate('Categories')}
               activeOpacity={0.7}
             >
-              <View style={styles.rowIconWrap}>
-                <Icon
-                  name="tag-multiple-outline"
-                  size={17}
-                  color={colors.accent}
-                />
+              <View style={[styles.iconWrap, { backgroundColor: '#FFE8F0' }]}>
+                <Icon name="tag-outline" size={18} color="#D0407A" />
               </View>
-              <View style={styles.rowContent}>
-                <Text style={styles.rowLabel}>Categories</Text>
-                <Text style={styles.rowValue}>
-                  {catCount > 0
-                    ? `${catCount} ${catCount === 1 ? 'category' : 'categories'}`
-                    : 'Manage your spending categories'}
-                </Text>
-              </View>
+              <Text style={styles.rowText}>Categories</Text>
+              <Text style={styles.rowBadge}>{catCount}</Text>
               <Icon name="chevron-right" size={18} color={colors.ink3} />
             </TouchableOpacity>
+
             <View style={styles.divider} />
+
             <TouchableOpacity
               style={styles.row}
               onPress={() => navigation.navigate('Recurring')}
               activeOpacity={0.7}
             >
-              <View style={styles.rowIconWrap}>
-                <Icon name="repeat" size={17} color={colors.accent} />
+              <View style={[styles.iconWrap, { backgroundColor: '#E0F5F0' }]}>
+                <Icon name="repeat" size={18} color="#0E9F8E" />
               </View>
-              <View style={styles.rowContent}>
-                <Text style={styles.rowLabel}>Recurring</Text>
-                <Text style={styles.rowValue}>
-                  Auto-transactions on a schedule
-                </Text>
-              </View>
+              <Text style={styles.rowText}>Recurring</Text>
+              {activeRecurring > 0 && (
+                <Text style={styles.rowBadge}>{activeRecurring} active</Text>
+              )}
               <Icon name="chevron-right" size={18} color={colors.ink3} />
             </TouchableOpacity>
-          </View>
-        </View>
 
-        {/* Data section */}
-        <View style={styles.section}>
-          <Text style={styles.sectionLabel}>Data</Text>
-          <View style={styles.card}>
+            <View style={styles.divider} />
+
             <TouchableOpacity
               style={styles.row}
               onPress={() => setExportOpen(true)}
               activeOpacity={0.7}
             >
-              <View style={styles.rowIconWrap}>
-                <Icon name="download-outline" size={17} color={colors.accent} />
+              <View style={[styles.iconWrap, { backgroundColor: '#EAE8FF' }]}>
+                <Icon name="tray-arrow-down" size={18} color="#5B50D6" />
               </View>
-              <View style={styles.rowContent}>
-                <Text style={styles.rowLabel}>Export to email</Text>
-                <Text style={styles.rowValue}>
-                  Get your transactions as CSV or PDF
-                </Text>
-              </View>
+              <Text style={styles.rowText}>Export data</Text>
               <Icon name="chevron-right" size={18} color={colors.ink3} />
             </TouchableOpacity>
           </View>
         </View>
 
-        {/* Preferences section */}
+        {/* PREFERENCES */}
         <View style={styles.section}>
           <Text style={styles.sectionLabel}>Preferences</Text>
           <View style={styles.card}>
             <View style={styles.row}>
-              <View style={styles.rowIconWrap}>
-                <Icon name="currency-inr" size={17} color={colors.accent} />
+              <View
+                style={[styles.iconWrap, { backgroundColor: colors.surface2 }]}
+              >
+                <Icon name="bell-outline" size={18} color={colors.ink} />
               </View>
-              <View style={styles.rowContent}>
-                <Text style={styles.rowLabel}>Currency</Text>
-                <Text style={styles.rowValue}>Indian Rupee (₹ INR)</Text>
-              </View>
+              <Text style={styles.rowText}>Notifications</Text>
+              <Toggle value={notifEnabled} onValueChange={setNotifEnabled} />
             </View>
 
             <View style={styles.divider} />
 
             <View style={styles.row}>
-              <View style={styles.rowIconWrap}>
-                <Icon
-                  name="information-outline"
-                  size={17}
-                  color={colors.accent}
-                />
+              <View
+                style={[styles.iconWrap, { backgroundColor: colors.surface2 }]}
+              >
+                <Icon name="star-outline" size={18} color={colors.ink} />
               </View>
-              <View style={styles.rowContent}>
-                <Text style={styles.rowLabel}>App version</Text>
-                <Text style={styles.rowValue}>1.0.0</Text>
-              </View>
+              <Text style={styles.rowText}>Dark appearance</Text>
+              <Toggle value={darkEnabled} onValueChange={setDarkEnabled} />
             </View>
+
+            <View style={styles.divider} />
+
+            <TouchableOpacity
+              style={styles.row}
+              onPress={() =>
+                Alert.alert('Help & support', 'Email us at support@paisa.app')
+              }
+              activeOpacity={0.7}
+            >
+              <View
+                style={[styles.iconWrap, { backgroundColor: colors.surface2 }]}
+              >
+                <Icon name="help-circle-outline" size={18} color={colors.ink} />
+              </View>
+              <Text style={styles.rowText}>Help & support</Text>
+              <Icon name="chevron-right" size={18} color={colors.ink3} />
+            </TouchableOpacity>
           </View>
         </View>
 
@@ -269,6 +278,9 @@ export default function ProfileScreen() {
           <Icon name="logout" size={16} color={colors.expense} />
           <Text style={styles.signOutText}>Sign out</Text>
         </TouchableOpacity>
+
+        {/* Footer */}
+        <Text style={styles.footer}>Paisa v1.0 · Joined {joinedDate}</Text>
       </ScrollView>
 
       {/* Export modal */}
@@ -370,111 +382,112 @@ export default function ProfileScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.surface },
+  container: { flex: 1, backgroundColor: colors.canvas },
   scroll: { paddingBottom: 120 },
 
   pageHeader: {
-    paddingHorizontal: spacing.base,
+    paddingHorizontal: spacing.lg,
     paddingTop: 56,
-    paddingBottom: spacing.md,
+    paddingBottom: spacing.sm,
   },
   pageTitle: {
-    fontSize: 26,
+    fontSize: 28,
+    fontFamily: typography.extrabold,
     fontWeight: '800',
     color: colors.ink,
     letterSpacing: -0.5,
   },
 
+  // Hero
   hero: {
     alignItems: 'center',
-    paddingTop: spacing.lg,
-    paddingBottom: spacing.xl,
-    marginHorizontal: spacing.base,
-    borderWidth: 1,
-    borderColor: colors.line,
-    borderRadius: radius.lg,
-    backgroundColor: colors.surface,
+    paddingTop: spacing.xl,
+    paddingBottom: spacing.lg,
   },
-  avatarRing: {
-    width: 88,
-    height: 88,
+  avatar: {
+    width: 84,
+    height: 84,
     borderRadius: radius.full,
-    borderWidth: 3,
-    borderColor: colors.line,
+    backgroundColor: colors.ink,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: spacing.md,
   },
-  avatar: {
-    width: 78,
-    height: 78,
-    borderRadius: radius.full,
-    backgroundColor: colors.accent,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
   avatarText: {
     color: '#FFFFFF',
-    fontSize: 30,
+    fontSize: 32,
+    fontFamily: typography.extrabold,
     fontWeight: '800',
-    letterSpacing: -0.5,
   },
   heroName: {
-    fontSize: 18,
+    fontSize: 20,
+    fontFamily: typography.bold,
     fontWeight: '700',
     color: colors.ink,
     letterSpacing: -0.3,
     marginBottom: 4,
   },
-  heroEmail: { fontSize: 13, color: colors.ink2 },
+  heroEmail: {
+    fontSize: 14,
+    fontFamily: typography.regular,
+    color: colors.ink2,
+  },
 
-  statsCard: {
+  // Stats — 2 cards
+  statsRow: {
     flexDirection: 'row',
-    marginHorizontal: spacing.base,
-    marginTop: spacing.md,
+    gap: spacing.md,
+    marginHorizontal: spacing.lg,
+    marginTop: spacing.lg,
+  },
+  statCard: {
+    flex: 1,
+    backgroundColor: colors.surface,
+    borderRadius: radius.xl,
     borderWidth: 1,
     borderColor: colors.line,
-    borderRadius: radius.lg,
-    overflow: 'hidden',
-    backgroundColor: colors.surface,
+    paddingVertical: spacing.base,
+    paddingHorizontal: spacing.md,
+    ...shadow.sm,
   },
-  stat: { flex: 1, alignItems: 'center', paddingVertical: spacing.base },
   statVal: {
-    fontSize: 17,
-    fontWeight: '700',
+    fontSize: 22,
+    fontFamily: typography.extrabold,
+    fontWeight: '800',
     color: colors.ink,
-    marginBottom: 3,
+    letterSpacing: -0.5,
+    marginBottom: 4,
   },
   statLabel: {
-    fontSize: 11,
-    fontWeight: '600',
+    fontSize: 12,
+    fontFamily: typography.medium,
+    fontWeight: '500',
     color: colors.ink2,
-    textTransform: 'uppercase',
-    letterSpacing: 0.4,
-  },
-  statDivider: {
-    width: 1,
-    backgroundColor: colors.line,
-    marginVertical: spacing.md,
   },
 
-  section: { marginTop: spacing.xl, marginHorizontal: spacing.base },
+  // Sections
+  section: { marginTop: spacing.xl, marginHorizontal: spacing.lg },
   sectionLabel: {
     fontSize: 11,
+    fontFamily: typography.bold,
     fontWeight: '700',
     color: colors.ink2,
     textTransform: 'uppercase',
-    letterSpacing: 0.6,
+    letterSpacing: 0.8,
     marginBottom: spacing.sm,
-    marginLeft: 2,
+    marginLeft: 4,
   },
   card: {
+    backgroundColor: colors.surface,
+    borderRadius: radius.xl,
     borderWidth: 1,
     borderColor: colors.line,
-    borderRadius: radius.lg,
     overflow: 'hidden',
-    backgroundColor: colors.surface,
+    ...shadow.sm,
   },
+  divider: { height: StyleSheet.hairlineWidth, backgroundColor: colors.line2 },
+
+  // Rows
   row: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -482,40 +495,57 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     gap: spacing.md,
   },
-  rowIconWrap: {
-    width: 32,
-    height: 32,
-    borderRadius: radius.sm,
-    backgroundColor: colors.accentSoft,
+  iconWrap: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  rowContent: { flex: 1 },
-  rowLabel: {
-    fontSize: 11,
-    color: colors.ink2,
-    fontWeight: '600',
-    textTransform: 'uppercase',
-    letterSpacing: 0.3,
-    marginBottom: 2,
+  rowText: {
+    flex: 1,
+    fontSize: 15,
+    fontFamily: typography.medium,
+    fontWeight: '500',
+    color: colors.ink,
   },
-  rowValue: { fontSize: 14, color: colors.ink, fontWeight: '500' },
-  divider: { height: 1, backgroundColor: colors.line },
+  rowBadge: {
+    fontSize: 14,
+    fontFamily: typography.medium,
+    fontWeight: '500',
+    color: colors.ink2,
+  },
 
+  // Sign out
   signOutBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: spacing.sm,
-    marginHorizontal: spacing.base,
+    marginHorizontal: spacing.lg,
     marginTop: spacing.xl,
-    paddingVertical: 14,
+    paddingVertical: 15,
     borderRadius: radius.lg,
     borderWidth: 1,
-    borderColor: colors.expense,
+    borderColor: '#F5C5C2',
     backgroundColor: colors.surface,
   },
-  signOutText: { fontSize: 14, fontWeight: '700', color: colors.expense },
+  signOutText: {
+    fontSize: 15,
+    fontFamily: typography.semibold,
+    fontWeight: '600',
+    color: colors.expense,
+  },
+
+  // Footer
+  footer: {
+    textAlign: 'center',
+    marginTop: spacing.xl,
+    fontSize: 12,
+    color: colors.ink3,
+    fontFamily: typography.regular,
+  },
+
   // Export modal
   modalOverlay: {
     flex: 1,
