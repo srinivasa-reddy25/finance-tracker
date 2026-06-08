@@ -98,6 +98,14 @@ export const radius = {
   full: 999,
 };
 
+export const typography = {
+  regular: 'HankenGrotesk-Regular',
+  medium: 'HankenGrotesk-Medium',
+  semibold: 'HankenGrotesk-SemiBold',
+  bold: 'HankenGrotesk-Bold',
+  extrabold: 'HankenGrotesk-ExtraBold',
+};
+
 export const shadow = {
   sm: {
     shadowColor: '#1A1714',
