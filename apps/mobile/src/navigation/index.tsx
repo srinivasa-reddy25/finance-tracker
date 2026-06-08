@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import {
   DeviceEventEmitter,
   StyleSheet,
@@ -18,7 +18,7 @@ import HistoryScreen from '../screens/HistoryScreen';
 import LoginScreen from '../screens/LoginScreen';
 import ProfileScreen from '../screens/ProfileScreen';
 import RecurringScreen from '../screens/RecurringScreen';
-import { colors, radius, spacing, typography } from '../theme';
+import { useColors, TColors, radius, typography } from '../theme';
 
 export type RootStackParams = {
   Login: undefined;
@@ -49,12 +49,15 @@ const TAB_ICONS: Record<string, { active: string; inactive: string }> = {
 };
 
 function MainTabs() {
+  const c = useColors();
+  const styles = useMemo(() => makeStyles(c), [c]);
+
   return (
-    <View style={{ flex: 1, backgroundColor: colors.canvas }}>
+    <View style={{ flex: 1, backgroundColor: c.canvas }}>
       <Tab.Navigator
         screenOptions={({ route }) => ({
           headerShown: false,
-          sceneStyle: { backgroundColor: colors.canvas },
+          sceneStyle: { backgroundColor: c.canvas },
           tabBarIcon: ({ focused, color, size }) => {
             if (route.name === 'AddAction') return null;
             const icons = TAB_ICONS[route.name];
@@ -66,8 +69,8 @@ function MainTabs() {
               />
             );
           },
-          tabBarActiveTintColor: colors.accent,
-          tabBarInactiveTintColor: colors.ink3,
+          tabBarActiveTintColor: c.accent,
+          tabBarInactiveTintColor: c.ink3,
           tabBarShowLabel: true,
           tabBarLabelStyle: styles.tabLabel,
           tabBarStyle: styles.tabBar,
@@ -94,7 +97,7 @@ function MainTabs() {
                     DeviceEventEmitter.emit('openTransactionModal')
                   }
                 >
-                  <Icon name="plus" size={26} color={colors.accentInk} />
+                  <Icon name="plus" size={26} color={c.accentInk} />
                 </TouchableOpacity>
               </View>
             ),
@@ -147,42 +150,44 @@ const dockShadow = {
   elevation: 4,
 };
 
-const styles = StyleSheet.create({
-  tabBar: {
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.line,
-    borderRadius: radius['2xl'],
-    marginHorizontal: 14,
-    marginBottom: 22,
-    height: 66,
-    paddingBottom: 8,
-    paddingTop: 8,
-    ...dockShadow,
-  },
-  tabItem: { paddingTop: 0 },
-  addSlot: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  addButton: {
-    width: 50,
-    height: 50,
-    borderRadius: radius.lg,
-    backgroundColor: colors.accent,
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: colors.accent,
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.3,
-    shadowRadius: 24,
-    elevation: 6,
-  },
-  tabLabel: {
-    fontSize: 10,
-    fontFamily: typography.bold,
-    fontWeight: '700',
-    marginTop: 2,
-  },
-});
+function makeStyles(c: TColors) {
+  return StyleSheet.create({
+    tabBar: {
+      backgroundColor: c.surface,
+      borderWidth: 1,
+      borderColor: c.line,
+      borderRadius: radius['2xl'],
+      marginHorizontal: 14,
+      marginBottom: 22,
+      height: 66,
+      paddingBottom: 8,
+      paddingTop: 8,
+      ...dockShadow,
+    },
+    tabItem: { paddingTop: 0 },
+    addSlot: {
+      flex: 1,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    addButton: {
+      width: 50,
+      height: 50,
+      borderRadius: radius.lg,
+      backgroundColor: c.accent,
+      alignItems: 'center',
+      justifyContent: 'center',
+      shadowColor: c.accent,
+      shadowOffset: { width: 0, height: 8 },
+      shadowOpacity: 0.3,
+      shadowRadius: 24,
+      elevation: 6,
+    },
+    tabLabel: {
+      fontSize: 10,
+      fontFamily: typography.bold,
+      fontWeight: '700',
+      marginTop: 2,
+    },
+  });
+}
