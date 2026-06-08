@@ -1,10 +1,10 @@
 export const DEFAULT_CATEGORY_SEEDS = [
   {
     key: 'food',
-    name: 'Food',
+    name: 'Food & Dining',
     icon: 'food-fork-drink',
-    color: '#F97316',
-    bg: '#FFF7ED',
+    color: '#DA8400',
+    bg: '#FAF0DB',
     is_deletable: true,
     is_income: false,
     sort_order: 1
@@ -13,8 +13,8 @@ export const DEFAULT_CATEGORY_SEEDS = [
     key: 'transport',
     name: 'Transport',
     icon: 'car-outline',
-    color: '#3B82F6',
-    bg: '#EFF6FF',
+    color: '#2F6BE2',
+    bg: '#E8EFFD',
     is_deletable: true,
     is_income: false,
     sort_order: 2
@@ -23,8 +23,8 @@ export const DEFAULT_CATEGORY_SEEDS = [
     key: 'entertainment',
     name: 'Entertainment',
     icon: 'television-play',
-    color: '#A855F7',
-    bg: '#FAF5FF',
+    color: '#7C5CFF',
+    bg: '#EEEAFF',
     is_deletable: true,
     is_income: false,
     sort_order: 3
@@ -33,8 +33,8 @@ export const DEFAULT_CATEGORY_SEEDS = [
     key: 'health',
     name: 'Health',
     icon: 'heart-pulse',
-    color: '#EF4444',
-    bg: '#FEF2F2',
+    color: '#E0484D',
+    bg: '#FBEAEB',
     is_deletable: true,
     is_income: false,
     sort_order: 4
@@ -43,18 +43,18 @@ export const DEFAULT_CATEGORY_SEEDS = [
     key: 'shopping',
     name: 'Shopping',
     icon: 'shopping-outline',
-    color: '#EC4899',
-    bg: '#FDF2F8',
+    color: '#D6308C',
+    bg: '#FAE6F1',
     is_deletable: true,
     is_income: false,
     sort_order: 5
   },
   {
     key: 'bills',
-    name: 'Bills',
+    name: 'Bills & Utilities',
     icon: 'receipt',
-    color: '#EAB308',
-    bg: '#FEFCE8',
+    color: '#0E9F8E',
+    bg: '#E0F4F1',
     is_deletable: true,
     is_income: false,
     sort_order: 6
@@ -63,8 +63,8 @@ export const DEFAULT_CATEGORY_SEEDS = [
     key: 'others',
     name: 'Others',
     icon: 'shape-outline',
-    color: '#6B7280',
-    bg: '#F9FAFB',
+    color: '#7A746B',
+    bg: '#EFEDE7',
     is_deletable: false,
     is_income: false,
     sort_order: 99
