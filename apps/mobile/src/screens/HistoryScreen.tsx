@@ -960,7 +960,7 @@ function makeStyles(c: TColors) {
       color: c.ink2,
     },
 
-    listContent: { paddingBottom: 100 },
+    listContent: { paddingBottom: 120 },
 
     sectionHeader: {
       paddingHorizontal: spacing.lg,

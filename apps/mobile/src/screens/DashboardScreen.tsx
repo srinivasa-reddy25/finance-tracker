@@ -1063,7 +1063,7 @@ function makeStyles(c: TColors) {
       fontSize: 14,
       color: c.ink2,
     },
-    scroll: { paddingBottom: 100 },
+    scroll: { paddingBottom: 120 },
 
     header: {
       flexDirection: 'row',
