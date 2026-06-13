@@ -2,6 +2,7 @@ import React, { useMemo } from 'react';
 import {
   DeviceEventEmitter,
   StyleSheet,
+  Text,
   TouchableOpacity,
   View,
 } from 'react-native';
@@ -41,11 +42,11 @@ function EmptyTabScreen() {
   return null;
 }
 
-const TAB_ICONS: Record<string, { active: string; inactive: string }> = {
-  Dashboard: { active: 'home', inactive: 'home-outline' },
-  History: { active: 'history', inactive: 'history' },
-  Analytics: { active: 'chart-bar', inactive: 'chart-bar' },
-  Profile: { active: 'account', inactive: 'account-outline' },
+const TAB_ICONS: Record<string, string> = {
+  Dashboard: 'home-outline',
+  History: 'history',
+  Analytics: 'poll',
+  Profile: 'account-outline',
 };
 
 function MainTabs() {
@@ -53,26 +54,27 @@ function MainTabs() {
   const styles = useMemo(() => makeStyles(c), [c]);
 
   return (
-    <View style={{ flex: 1, backgroundColor: c.canvas }}>
+    <View style={{ flex: 1, backgroundColor: 'transparent' }}>
       <Tab.Navigator
         screenOptions={({ route }) => ({
           headerShown: false,
           sceneStyle: { backgroundColor: c.canvas },
-          tabBarIcon: ({ focused, color, size }) => {
+          tabBarIcon: ({ color, size }) => {
             if (route.name === 'AddAction') return null;
-            const icons = TAB_ICONS[route.name];
             return (
-              <Icon
-                name={focused ? icons.active : icons.inactive}
-                size={size}
-                color={color}
-              />
+              <Icon name={TAB_ICONS[route.name]} size={size} color={color} />
             );
           },
           tabBarActiveTintColor: c.accent,
           tabBarInactiveTintColor: c.ink3,
           tabBarShowLabel: true,
-          tabBarLabelStyle: styles.tabLabel,
+          tabBarLabel: ({ children, focused }) => (
+            <Text
+              style={[styles.tabLabel, { color: focused ? c.accent : c.ink3 }]}
+            >
+              {children}
+            </Text>
+          ),
           tabBarStyle: styles.tabBar,
           tabBarItemStyle: styles.tabItem,
         })}
@@ -153,6 +155,7 @@ const dockShadow = {
 function makeStyles(c: TColors) {
   return StyleSheet.create({
     tabBar: {
+      position: 'absolute',
       backgroundColor: c.surface,
       borderWidth: 1,
       borderColor: c.line,
@@ -185,9 +188,9 @@ function makeStyles(c: TColors) {
     },
     tabLabel: {
       fontSize: 10,
-      fontFamily: typography.bold,
-      fontWeight: '700',
+      fontFamily: typography.semibold,
       marginTop: 2,
+      includeFontPadding: false,
     },
   });
 }
