@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Dimensions,
@@ -10,7 +10,6 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { BarChart, LineChart, PieChart } from 'react-native-gifted-charts';
 import Svg, { Circle, G, Line, Path, Text as SvgText } from 'react-native-svg';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { api } from '../services/api';
@@ -26,10 +25,18 @@ import {
   typography,
 } from '../theme';
 import { formatAmount } from '../utils/format';
-import { ANALYTICS_LINE_CHART_DAYS } from '../constants/config';
 
 const SCREEN_W = Dimensions.get('window').width;
 const CHART_W = SCREEN_W - spacing.base * 2 - 32;
+
+// Daily chart: exactly 5 bars visible at once
+// scroll padding (lg*2=40) + card padding (base*2=32) = 72
+const DAILY_VISIBLE = 5;
+const DAILY_BAR_GAP = 10;
+const DAILY_INNER_W = SCREEN_W - spacing.lg * 2 - spacing.base * 2;
+const DAILY_BAR_W = Math.floor(
+  (DAILY_INNER_W - DAILY_BAR_GAP * (DAILY_VISIBLE - 1)) / DAILY_VISIBLE,
+);
 
 // Brand-aligned palette — greens + warm earthy tones
 const BRAND_PALETTE = [
@@ -199,24 +206,8 @@ export default function AnalyticsScreen() {
     ];
   }, [totalSpent, totalBudget]);
 
-  // Area line chart — last N days only
   const daysInMonth = new Date(year, mon, 0).getDate();
   const lastDay = isCurrentMonth ? now.getDate() : daysInMonth;
-  const firstDay = Math.max(1, lastDay - (ANALYTICS_LINE_CHART_DAYS - 1));
-  const lineData = useMemo(() => {
-    const map = new Map((data?.daily ?? []).map(d => [d.day, d.amount]));
-    return Array.from({ length: lastDay - firstDay + 1 }, (_, i) => {
-      const day = firstDay + i;
-      return {
-        value: map.get(day) ?? 0,
-        label: String(day),
-        dataPointText: '',
-      };
-    });
-  }, [data, firstDay, lastDay]);
-
-  const hasAnySpend = lineData.some(d => d.value > 0);
-  const maxDaily = Math.max(...lineData.map(d => d.value), 1);
 
   const monShort = new Date(year, mon - 1, 1).toLocaleString('en-IN', {
     month: 'short',
@@ -225,14 +216,18 @@ export default function AnalyticsScreen() {
     const map = new Map((data?.daily ?? []).map(d => [d.day, d.amount]));
     return Array.from({ length: lastDay }, (_, i) => {
       const day = i + 1;
-      const value = map.get(day) ?? 0;
-      return {
-        value,
-        label: `${monShort} ${day}`,
-        frontColor: value > 0 ? c.accent : 'transparent',
-      };
+      return { day, label: `${monShort} ${day}`, total: map.get(day) ?? 0 };
     });
   }, [data, lastDay, monShort]);
+
+  const peakDaily = useMemo(
+    () => Math.max(...barData.map(b => b.total), 1),
+    [barData],
+  );
+
+  const hasAnySpend = barData.some(b => b.total > 0);
+
+  const dailyScrollRef = useRef<ScrollView>(null);
 
   // Pie chart — category breakdown
   const categoryRows = useMemo(() => {
@@ -521,52 +516,41 @@ export default function AnalyticsScreen() {
               <Text style={styles.snapshotTitle}>DAILY SPENDING</Text>
               <Text style={styles.dailyPeak}>
                 Peak{' '}
-                {maxDaily >= 1000
-                  ? `₹${(maxDaily / 1000).toFixed(1)}k`
-                  : `₹${maxDaily}`}
+                {peakDaily >= 1000
+                  ? `₹${(peakDaily / 1000).toFixed(1)}k`
+                  : `₹${peakDaily}`}
               </Text>
             </View>
             {!hasAnySpend ? (
               <Text style={styles.emptyHint}>No transactions this month</Text>
             ) : (
-              <View style={{ marginTop: 8 }}>
-                <BarChart
-                  data={barData}
-                  width={CHART_W - 8}
-                  height={150}
-                  barWidth={Math.max(
-                    20,
-                    Math.min(
-                      44,
-                      Math.floor((CHART_W - 40) / barData.length) - 8,
-                    ),
-                  )}
-                  spacing={Math.max(
-                    6,
-                    Math.floor((CHART_W - 40) / barData.length) -
-                      Math.max(
-                        20,
-                        Math.min(
-                          44,
-                          Math.floor((CHART_W - 40) / barData.length) - 8,
-                        ),
-                      ),
-                  )}
-                  initialSpacing={4}
-                  barBorderTopLeftRadius={4}
-                  barBorderTopRightRadius={4}
-                  frontColor={c.accent}
-                  noOfSections={3}
-                  maxValue={Math.ceil(maxDaily * 1.3)}
-                  yAxisThickness={0}
-                  xAxisThickness={0}
-                  hideRules
-                  hideYAxisText
-                  xAxisLabelTextStyle={styles.axisLabel}
-                  isAnimated
-                  animationDuration={600}
-                />
-              </View>
+              <ScrollView
+                ref={dailyScrollRef}
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                onContentSizeChange={() =>
+                  dailyScrollRef.current?.scrollToEnd({ animated: false })
+                }
+                contentContainerStyle={styles.dailyBarsContent}
+              >
+                {barData.map(bar => {
+                  const BAR_MAX_H = 90;
+                  const barH = Math.max(
+                    (bar.total / peakDaily) * BAR_MAX_H,
+                    bar.total > 0 ? 6 : 0,
+                  );
+                  return (
+                    <View key={bar.day} style={styles.dailyBarCol}>
+                      <View
+                        style={[styles.dailyBarTrack, { height: BAR_MAX_H }]}
+                      >
+                        <View style={[styles.dailyBarFill, { height: barH }]} />
+                      </View>
+                      <Text style={styles.dailyBarLabel}>{bar.label}</Text>
+                    </View>
+                  );
+                })}
+              </ScrollView>
             )}
           </View>
 
@@ -804,7 +788,7 @@ function makeStyles(c: TColors) {
       textAlign: 'center',
     },
 
-    scroll: { paddingHorizontal: spacing.lg, paddingBottom: 100 },
+    scroll: { paddingHorizontal: spacing.lg, paddingBottom: 120 },
 
     card: {
       backgroundColor: c.surface,
@@ -888,21 +872,40 @@ function makeStyles(c: TColors) {
       flexDirection: 'row',
       justifyContent: 'space-between',
       alignItems: 'center',
-      marginBottom: 4,
+      marginBottom: spacing.md,
     },
     dailyPeak: {
-      fontSize: 12,
+      fontSize: 13,
       color: c.ink2,
+      fontFamily: typography.semibold,
+      fontWeight: '600',
+    },
+    dailyBarsContent: {
+      gap: DAILY_BAR_GAP,
+      alignItems: 'flex-end',
+    },
+    dailyBarCol: {
+      width: DAILY_BAR_W,
+      alignItems: 'center',
+      gap: 6,
+    },
+    dailyBarTrack: {
+      width: '100%',
+      justifyContent: 'flex-end',
+    },
+    dailyBarFill: {
+      width: '100%',
+      backgroundColor: c.accent,
+      borderTopLeftRadius: 6,
+      borderTopRightRadius: 6,
+    },
+    dailyBarLabel: {
+      fontSize: 10,
       fontFamily: typography.medium,
       fontWeight: '500',
+      color: c.ink3,
+      textAlign: 'center',
     },
-    dailyHint: {
-      flexDirection: 'row',
-      justifyContent: 'space-between',
-      marginTop: spacing.sm,
-      paddingHorizontal: 4,
-    },
-    dailyHintText: { fontSize: 11, color: c.ink2, fontWeight: '500' },
     chartTooltip: {
       backgroundColor: c.surface,
       borderWidth: 1,
