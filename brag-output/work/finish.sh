@@ -26,6 +26,6 @@ COMMON=(-map "[v]" -c:v libx264 -preset slow -b:v "$VBITRATE" -maxrate 24M -bufs
 ffmpeg -y -loglevel error -i render/master.mp4 -i render/poster.png -filter_complex "$FC" "${COMMON[@]}" \
   -pass 1 -passlogfile render/x264 -an -f mp4 /dev/null
 ffmpeg -y -loglevel error -i render/master.mp4 -i render/poster.png -i audio/soundtrack.wav -filter_complex "$FC" "${COMMON[@]}" \
-  -pass 2 -passlogfile render/x264 -map 2:a -c:a aac -b:a 256k -ar 48000 -movflags +faststart -t 24 "$OUT/brag.mp4"
+  -pass 2 -passlogfile render/x264 -map 2:a -c:a aac -b:a 256k -ar 48000 -movflags +faststart -t 24 "$OUT/${OUTNAME:-brag.mp4}"
 
-ffprobe -v error -show_entries format=duration,size,bit_rate:stream=codec_name,width,height,r_frame_rate -of compact "$OUT/brag.mp4"
+ffprobe -v error -show_entries format=duration,size,bit_rate:stream=codec_name,width,height,r_frame_rate -of compact "$OUT/${OUTNAME:-brag.mp4}"
