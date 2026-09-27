@@ -1,0 +1,11 @@
+# heavy intermediates — everything here is reproducible from work/
+work/node_modules/
+work/render/
+work/stills/
+work/review/
+work/grade/
+work/audio/*.wav
+work/audio/*.png
+work/*.png
+work/*.log
+work/bench.mjs
