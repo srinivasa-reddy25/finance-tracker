@@ -25,4 +25,4 @@ The founder (Teja; pronouns not stated, use "they"). Writes short, fast, informa
 
 ## What has landed
 
-- (nothing reviewed yet)
+- Round 1, the whole page: "wow.. you nailed it" (27 Sep 2026). Keep its direction when tweaking.
