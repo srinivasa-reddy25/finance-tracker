@@ -1,0 +1,105 @@
+{
+  "model": "gemini-3-pro-image",
+  "cutout": "rembg birefnet-general",
+  "objects": [
+    {
+      "name": "chai",
+      "webp": "objects/chai.webp",
+      "png": "objects/chai.png",
+      "original": "originals/chai.jpg",
+      "width": 637,
+      "height": 900,
+      "notes": "Regenerated once: first take had a white softbox edge in the top-left of the background. Second take accepted. Steam wisp is mostly lost in the cutout (expected). Cutout: glass kept opaque with the studio grey baked in, steam dropped (expected)."
+    },
+    {
+      "name": "biryani",
+      "webp": "objects/biryani.webp",
+      "png": "objects/biryani.png",
+      "original": "originals/biryani.jpg",
+      "width": 900,
+      "height": 739,
+      "notes": "Accepted first try."
+    },
+    {
+      "name": "auto",
+      "webp": "objects/auto.webp",
+      "png": "objects/auto.png",
+      "original": "originals/auto.jpg",
+      "width": 900,
+      "height": 856,
+      "notes": "Accepted first try. Cutout: birefnet kept the background grey visible through the open window frames; removed with a colour-matched hole cleanup pass."
+    },
+    {
+      "name": "lpg",
+      "webp": "objects/lpg.webp",
+      "png": "objects/lpg.png",
+      "original": "originals/lpg.jpg",
+      "width": 466,
+      "height": 900,
+      "notes": "Accepted first try."
+    },
+    {
+      "name": "milk",
+      "webp": "objects/milk.webp",
+      "png": "objects/milk.png",
+      "original": "originals/milk.jpg",
+      "width": 900,
+      "height": 648,
+      "notes": "Accepted first try."
+    },
+    {
+      "name": "medicine",
+      "webp": "objects/medicine.webp",
+      "png": "objects/medicine.png",
+      "original": "originals/medicine.jpg",
+      "width": 900,
+      "height": 591,
+      "notes": "Regenerated twice: take 1 had pseudo-text embossed on the foil edge; take 2 had a ghosted stray foil fragment. Take 3 (plain foil, no markings) accepted."
+    },
+    {
+      "name": "popcorn",
+      "webp": "objects/popcorn.webp",
+      "png": "objects/popcorn.png",
+      "original": "originals/popcorn.jpg",
+      "width": 713,
+      "height": 900,
+      "notes": "Accepted first try."
+    },
+    {
+      "name": "chappal",
+      "webp": "objects/chappal.webp",
+      "png": "objects/chappal.png",
+      "original": "originals/chappal.jpg",
+      "width": 900,
+      "height": 553,
+      "notes": "Regenerated once: first take had a ghosted duplicate pair behind. Second take accepted."
+    },
+    {
+      "name": "bulb",
+      "webp": "objects/bulb.webp",
+      "png": "objects/bulb.png",
+      "original": "originals/bulb.jpg",
+      "width": 900,
+      "height": 613,
+      "notes": "Accepted first try."
+    },
+    {
+      "name": "marigold",
+      "webp": "objects/marigold.webp",
+      "png": "objects/marigold.png",
+      "original": "originals/marigold.jpg",
+      "width": 900,
+      "height": 635,
+      "notes": "Regenerated once: first take had a duplicated, cropped second garland. Second take (single small loop) accepted."
+    },
+    {
+      "name": "key",
+      "webp": "objects/key.webp",
+      "png": "objects/key.png",
+      "original": "originals/key.jpg",
+      "width": 900,
+      "height": 790,
+      "notes": "Regenerated once: first take had a ghost second ring. Second take accepted."
+    }
+  ]
+}
